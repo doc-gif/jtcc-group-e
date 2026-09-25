@@ -85,3 +85,12 @@ test('optional notification failure does not roll back an authoritative round', 
  expect(started.stock).toBeNull()
  expect((await db.query('select count(*)::int count from public.lp_rounds where room=$1',[freshRoom])).rows[0].count).toBe(1)
 })
+test('optional Broadcast policy is rerunnable and refuses absent Realtime', async()=>{
+ const policy=await readFile('supabase/drafts/optional_broadcast.sql','utf8')
+ await db.exec(policy)
+ await db.exec(policy)
+ const rows=(await db.query("select count(*)::int count from pg_policies where schemaname='realtime' and tablename='messages' and policyname='lp_receive_round'")).rows
+ expect(rows[0].count).toBe(1)
+ await db.exec('drop table realtime.messages cascade')
+ await expect(db.exec(policy)).rejects.toThrow('Realtime is not initialized')
+})

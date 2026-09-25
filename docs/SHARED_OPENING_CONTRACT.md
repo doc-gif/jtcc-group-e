@@ -31,7 +31,7 @@
 - `start` の成功時点で対象者を固定し、各人から 500 デモコインを引き、在庫を減らし、結果を保存する。残数が参加人数未満なら **全員の抽選を取り消し** `sold-out`。ラウンド識別子は部屋 ID と `number` の組で安定する。
 - 結果は `startsAt`（コミットから約 8 秒後）まで **全員に非公開**。その間 `round.results` と賞品別 `stock` は `null`、`myResults` に新結果を加えない。Realtime の通知には賞品を載せない。`startsAt` 以後、同じ保存済み結果を全員に返す。次の ready/start は `nextReadyAt`（`startsAt` から 15 秒後）まで拒否する。
 - `snapshot` は最新ラウンドだけを開封演出用に返す。`myResults` は本人の公開済み結果を過去ラウンドから返し、長時間オフラインでも当たりを見失わない。同じ request を再送しても追加コインや追加結果は作らない。
-- Supabase の 4 テーブルは Data API の直接読み書きを許さず RLS を有効にし、RPC 内で本人と active membership を確認する。Private Broadcast は起床通知のみ。公式の [Realtime Authorization](https://supabase.com/docs/guides/realtime/authorization) に従い受信ポリシーを別 SQL に置く。接続時の認可キャッシュがあるため、退室後の通知にも秘密を載せない。
+- Supabase の 4 テーブルは Data API の直接読み書きを許さず RLS を有効にし、RPC 内で本人と active membership を確認する。Private Broadcast は起床通知のみ。公式の [Realtime Authorization](https://supabase.com/docs/guides/realtime/authorization) に従い受信ポリシーを再実行可能な別 SQL 草案に置き、Realtime 未初期化なら明示的に失敗させる。接続時の認可キャッシュがあるため、退室後の通知にも秘密を載せない。
 
 ## 今回の検証境界と体験レビュー
 

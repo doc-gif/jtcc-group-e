@@ -108,7 +108,7 @@ export class MockRoomServer {
         if (!Number.isInteger(expected) || expected < 0) throw new RoomContractError('invalid-round')
         const room = current(roomId)
         if (room.host !== userId) throw new RoomContractError('host-required')
-        if (room.round?.request === request) return snapshot(roomId)
+        if (room.rounds.some(round => round.request === request)) return snapshot(roomId)
         if (room.roundNo !== expected) throw new RoomContractError('stale-round')
         assertIdle(room)
         const entrants = [...room.members.values()].filter(member => member.active && member.ready && member.seenAt > this.now() - SHARED_ONLINE_WINDOW_MS)

@@ -63,6 +63,9 @@ test('mock shortage is atomic and ready can be cancelled', async () => {
    await users[0].start(room.id, `start-${round}`, round)
    now += 23000
  }
+ const oldRetry = await users[0].start(room.id, 'start-0', 2)
+ expect(oldRetry.roundNo).toBe(2)
+ expect(oldRetry.balance).toBe(2000)
  for (const user of users) await user.ready(room.id, true)
  await expect(users[0].start(room.id, 'start-2', 2)).rejects.toThrow('sold-out')
  const unchanged = await users[0].snapshot(room.id)

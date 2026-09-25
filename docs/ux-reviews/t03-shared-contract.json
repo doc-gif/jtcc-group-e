@@ -1,8 +1,8 @@
 {
-  "uiDigest": "baf42882d4cfd2d4c0a2ad15a719520291fc8b9e8b440777efd7274c2a6b1bbf",
+  "uiDigest": "de60446f043e4b4a15e015dcc5ea0f89ce99e77b9a178c2fe41cfbf740efb94d",
   "reviewer": "Codex (T03 contract review)",
   "reviewedAt": "2026-09-26",
-  "summary": "T03 は未接続の共有 transport・SQL 草案・依存の追加で、React 画面は変更していない。PR #16 の公開プレビュー（run 36189413477）は PR #15 と同じ配布 digest 8b4fad186dc89cdd6df58d50c94dd0788eb2195a97402ec0094f3f8c50f93fc5、同じ JS/CSS ファイル名。390px のアプリ本体は HTTP 200、横幅390px、JS エラーなし。従来の実画面レビュー lastpiece-app.json の10基準の証拠は同じ画面に適用する。共有 transport の画面接続、実 iPhone、対象利用者評価は未実施。",
+  "summary": "T03 は未接続の共有 transport・SQL 草案・依存の追加で、React 画面は変更していない。Copilot 指摘に従い mock の古い request 冪等性と別 SQL の未初期化失敗も修正した後、実ビルドの JS/CSS は直前 PR #15 と同じ index-Cv1M6jo3.js / index-BtalajBo.css。PR #16 の初回公開プレビューは同じ配布 digest、390px アプリ本体は HTTP 200、横幅390px、JS エラーなし。従来の実画面レビュー lastpiece-app.json の10基準の証拠は同じ画面に適用する。共有 transport の画面接続、実 iPhone、対象利用者評価は未実施。",
   "criteria": [
     {
       "id": "HIG-01",
