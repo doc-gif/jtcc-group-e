@@ -1,6 +1,6 @@
 # 開発進捗
 
-最終更新: 2026-09-26 05:37 JST。共有オープニングの作業先は `feat/shared-opening`。今回の進捗ブランチは `docs/t02-preview-boundary`、基点の `main` は [`dea4e94`](https://github.com/doc-gif/jtcc-group-e/commit/dea4e94a8aef9d1b120c141de78113ed85df36ef) です。`DONE` はそのタスクの受け入れ条件を確認した意味で、アプリ全体の完成や本番公開を意味しません。Figma のリンクはライブ状態です。内部画像を含む過去状態は Figma 内の固定比較画像で保持し、GitHub には証拠へのリンクと評価を記録します。
+最終更新: 2026-09-26 05:59 JST。共有オープニングの作業先は `feat/shared-opening`。今回の進捗ブランチは `feat/t03-shared-contract`、基点の `main` は [`27ea251`](https://github.com/doc-gif/jtcc-group-e/commit/27ea251639d5f526f746e23c52dd15402cba09d4) です。`DONE` はそのタスクの受け入れ条件を確認した意味で、アプリ全体の完成や本番公開を意味しません。Figma のリンクはライブ状態です。内部画像を含む過去状態は Figma 内の固定比較画像で保持し、GitHub には証拠へのリンクと評価を記録します。
 
 ## 完了したタスク
 
@@ -8,6 +8,7 @@
 | --- | --- | --- | --- | --- |
 | T01 | 共有オープニングの未完成コードと DB 草案を棚卸し。 | Git の状態・差分・除外設定を確認。基点は [`ec7d159`](https://github.com/doc-gif/jtcc-group-e/commit/ec7d15958884508fdea2a82bb5e38b8e2da6112d)。以前の SQL・protocol テスト成功は実 DB や 40 人の検証ではない。 | `src/realtime/`、`supabase/` などの草案は未コミット・未レビュー。 | `feat/shared-opening`、T01 固有コミットなし。 |
 | T02 | 確認用公開先と本番公開の境界を GitHub 実設定・成果物で確認。 | [確認記録](PREVIEW.md)。確認用 Pages は専用リポジトリ、成功済み成果物45ファイルに内部素材 ID・秘密の検査パターンなし。本番は手動実行のみ。 | 将来の画像追加・環境変数変更は出典と成果物を都度検査。利用者評価は未実施。 | `docs/t02-preview-boundary`、この PR の Git 履歴を参照。 |
+| T03 | 40人共有オープニングの参加・抽選・再接続・ホスト交代・結果公開の契約を固定し、mock と real に共通 interface を設定。 | [操作と失敗応答の契約](SHARED_OPENING_CONTRACT.md)、型検査と PGlite/模擬 transport の40席・冪等性・遅延公開テストを確認。 | 実 Supabase への SQL 適用、40端末接続、UI 接続、対象利用者評価は未実施。元の `feat/shared-opening` 未コミット差分は保全。 | `feat/t03-shared-contract`、この PR の Git 履歴を参照。 |
 | T04 | 現行 Figma と内部素材の所在を確認し、旧画面を履歴に整理。 | [Town v2 `134:2`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=134-2) の構造とスマホ画面を確認。[Guide `170:2`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=170-2) を作成。 | 現行の主要画面は AI 視覚レビューで再作業判定。内部素材の原本は GitHub に置かない。 | Figma 作業、`feat/shared-opening` に記録。固有コミットなし。 |
 | T05 | 体験仕様を定義し、Figma Guide に判断材料を記録。 | [T05 カード `172:2`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=172-2) と 390×844 画面の AI レビュー。Town 5/12、Friend 7/12、Spin 5/10、Shelf 6/12 で再作業。 | `docs/EXPERIENCE_SPEC.md` はこの時点で未コミット。対象ユーザーの観察なし。T07–T11 で画面を見直す。 | `feat/shared-opening`、固有コミットなし。 |
 | T06 | 44 変数、文字スタイル 5 種、Button・Badge・Navigation・Sheet を Figma に作成。 | [基礎ガイド `178:15`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=178-15)、[部品 `179:15`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=179-15)。Button 6 状態、48px、全 53 塗りの変数参照、コントラストを確認。部品に限る AI 視覚レビューは該当 4/4。 | 新しい緑の操作トークンはアプリ CSS に未反映（T24）。組み立て画面と対象ユーザーの評価は未実施。 | Figma 作業、`feat/shared-opening` に記録。固有コミットなし。 |
@@ -19,13 +20,14 @@
 
 ## 未完了と次の候補
 
-残り 34 件: `T03`, `T10`–`T11`, `T13`–`T43`。現時点で前提がそろった候補は次のとおりです。ここに載せたことは自動割当ではありません。
+残り 33 件: `T10`–`T11`, `T13`–`T43`。現時点で前提がそろった候補は次のとおりです。ここに載せたことは自動割当ではありません。
 
 | 候補 | 前提 | 次に確認する内容 |
 | --- | --- | --- |
-| T03 | T01 | 40 人共有オープニングの状態・操作・権限の契約を固定する。 |
+| T10 | T03、T06 | 40 人共有オープニングの待機・参加・開封・失敗画面を設計する。 |
+| T13 | T03 | SQL のスキーマ・認可・原子性を本番適用前にレビューする。 |
 
-`T10` は T03 と T06、`T13` は T03、`T11` は T07–T10 を待ちます。後続の実装・検証・公開カードは前提完了後に選びます。通常依頼を優先し、引き継ぎは[担当者が明示的に希望した場合](HANDOFF.md)だけ開始します。
+`T10` と `T13` の前提はそろいました。`T11` は T10 を待ちます。後続の実装・検証・公開カードは前提完了後に選びます。通常依頼を優先し、引き継ぎは[担当者が明示的に希望した場合](HANDOFF.md)だけ開始します。
 
 ## 完了ごとの更新方法
 
