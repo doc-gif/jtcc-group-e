@@ -26,7 +26,7 @@ function App() {
         </ol>
       </section>
 
-      <footer className="app-footer">React + Vite · Mobile first</footer>
+      <footer className="app-footer">JTCC Group E</footer>
     </main>
   )
 }

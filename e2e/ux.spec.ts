@@ -29,9 +29,15 @@ for (const scenario of uxScenarios) {
     expect(moving, 'HIG-05: no continuous motion in reduced-motion mode').toBe(0)
     expect(await page.locator('audio[autoplay], video[autoplay]:not([muted])').count()).toBe(0)
     if (scenario.name === 'version-history') {
-      await page.keyboard.press('Tab')
-      await expect(page.getByRole('link', { name: '最新版を開く' })).toBeFocused()
-      await page.keyboard.press('Enter')
+      const latestLink = page.getByRole('link', { name: '最新版を開く' })
+      if (testInfo.project.use.isMobile) {
+        // Mobile Safari does not enable full keyboard navigation by default.
+        await latestLink.tap()
+      } else {
+        await page.keyboard.press('Tab')
+        await expect(latestLink).toBeFocused()
+        await page.keyboard.press('Enter')
+      }
       await expect(page).toHaveTitle('JTCC Group E')
     }
   })
