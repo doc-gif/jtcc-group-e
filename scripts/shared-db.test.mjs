@@ -17,7 +17,7 @@ beforeAll(async()=>{
  create schema realtime;create table realtime.messages(extension text,topic text,payload jsonb);
  create function realtime.topic() returns text language sql as $$select current_setting('realtime.topic',true)$$;
  create function realtime.send(payload jsonb,event text,topic text,private boolean) returns void language sql as $$insert into realtime.messages values('broadcast',topic,payload)$$;`)
- await db.exec(await readFile('supabase/migrations/202609260001_shared_opening.sql','utf8'))
+ await db.exec(await readFile('supabase/drafts/shared_opening.sql','utf8'))
 },30000)
 afterAll(async()=>{await db?.close()})
 test('40 seats, idempotent joins, atomic shared results, reconnect, host failover and private authorization',async()=>{
