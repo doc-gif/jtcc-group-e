@@ -20,11 +20,13 @@
     "qr": "node scripts/create-qr.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.117.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
+    "@electric-sql/pglite": "0.5.8",
     "@playwright/test": "^1.63.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
