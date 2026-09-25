@@ -35,7 +35,7 @@ test('digest is stable across CRLF and changes for actual UI or binary asset edi
   const root = await mkdtemp(join(tmpdir(), 'jtcc-ux-test-'))
   try {
     for (const directory of ['src/nested', 'public', 'e2e', 'scripts', 'docs']) await mkdir(join(root, directory), { recursive: true })
-    for (const file of ['index.html', 'package.json', 'pnpm-lock.yaml', 'vite.config.ts', 'playwright.config.ts', 'scripts/release-lib.mjs', 'scripts/ux-policy.mjs', 'docs/UI_UX_STANDARDS.md']) await writeFile(join(root, file), 'content\n')
+    for (const file of ['index.html', 'package.json', 'pnpm-lock.yaml', 'vite.config.ts', 'playwright.config.ts', 'scripts/release-lib.mjs', 'scripts/preview-site.mjs', 'scripts/ux-policy.mjs', 'docs/UI_UX_STANDARDS.md']) await writeFile(join(root, file), 'content\n')
     await writeFile(join(root, 'src/nested/App.tsx'), 'Hello\r\n')
     await writeFile(join(root, 'public/asset.png'), Buffer.from([0, 128, 255]))
     const original = await uiDigest(root)

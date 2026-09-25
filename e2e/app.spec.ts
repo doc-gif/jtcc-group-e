@@ -1,6 +1,42 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 
+test('プレビューは表示できて本番・別ビルドの保存データと混ざらない', async ({ page }, testInfo) => {
+  const errors = watchErrors(page)
+  await page.goto('./#/me')
+  await page.getByLabel(/ルームで友達に見える名前/).fill('本番の名前')
+  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('lastpiece_app_v1')!).nickname)).toBe('本番の名前')
+  await page.goto('/jtcc-group-e-preview/pr-5/runs/101/')
+  await expect(page.getByText('確認用・本番ではありません', { exact: true })).toBeVisible()
+  await expect(page.frameLocator('iframe').getByRole('heading', { level: 1 })).toHaveText(/ラストピース/)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([])
+  await testInfo.attach('preview', { body: await page.screenshot(), contentType: 'image/png' })
+  const link = page.getByRole('link', { name: '別画面で開く' })
+  const normal = await link.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
+  await page.addStyleTag({ content: 'html {font-size:200%}' })
+  expect(await link.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(normal * 1.9)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+  await testInfo.attach('preview-large', { body: await page.screenshot(), contentType: 'image/png' })
+  await page.goto('/jtcc-group-e-preview/pr-5/runs/101/app/#/me')
+  await expect(page.getByLabel(/ルームで友達に見える名前/)).not.toHaveValue('本番の名前')
+  await page.getByLabel(/ルームで友達に見える名前/).fill('確認中の名前')
+  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('lastpiece_preview_pr_5_run_101_v1')!).nickname)).toBe('確認中の名前')
+  await page.reload()
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('lastpiece_preview_pr_5_run_101_v1')!).nickname)).toBe('確認中の名前')
+  await page.goto('/jtcc-group-e-preview/pr-5/runs/102/app/')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/ラストピース/)
+  const names = await page.evaluate(() => ['lastpiece_app_v1', 'lastpiece_preview_pr_5_run_101_v1', 'lastpiece_preview_pr_5_run_102_v1'].map((key) => JSON.parse(localStorage.getItem(key)!).nickname))
+  expect(names[0]).toBe('本番の名前')
+  expect(names[1]).toBe('確認中の名前')
+  expect(names[2]).not.toBe('本番の名前')
+  expect(names[2]).not.toBe('確認中の名前')
+  expect(errors).toEqual([])
+})
+
 function watchErrors(page: Page) {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))

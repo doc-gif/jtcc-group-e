@@ -15,6 +15,8 @@ pnpm install --frozen-lockfile
 
 ## マージ条件
 
+通常の依頼の完了地点は、検証・Draft 解除・Bot によるマージ完了・[確認用プレビュー](PREVIEW.md)の動作確認と URL 案内まで。マージの許可や確認用サイトの公開指示を毎回求めない。作業中は Draft とし、検証完了後は作業者自身が `gh pr ready <番号>` または GitHub API で解除する。利用者が停止地点を指定した場合はそれを優先する。本番公開は別の明示指示が必要。
+
 - `Quality gate`: strict 型チェック、lint、Vitest とカバレッジ、ビルド、Playwright の回帰テスト。
 - `UI/UX gate`: [UI/UX 基準](UI_UX_STANDARDS.md)のブラウザテストと、現在の UI に対応するレビュー記録。
 - `main` の最新状態を含んでいること。競合・未解決会話がないこと。

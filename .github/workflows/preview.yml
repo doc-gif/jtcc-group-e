@@ -1,0 +1,117 @@
+name: Publish PR preview
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful PR CI run ID to publish or retry
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: preview-site
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: preview-publish
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Validate CI and current PR
+        id: request
+        uses: actions/github-script@v8
+        env:
+          CI_RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
+        with:
+          script: |
+            const { resolvePreview } = await import(`${process.env.GITHUB_WORKSPACE}/source/scripts/preview-request.mjs`)
+            const request = await resolvePreview({ github, ...context.repo, runId: Number(process.env.CI_RUN_ID) })
+            core.setOutput('eligible', Boolean(request))
+            if (!request) { core.info('Skip: no current trusted, tested PR'); return }
+            require('node:fs').writeFileSync('request.json', JSON.stringify(request))
+            core.setOutput('run_id', request.runId)
+            core.setOutput('artifact_id', request.artifactId)
+      - uses: actions/download-artifact@v4
+        if: steps.request.outputs.eligible == 'true'
+        with:
+          artifact-ids: ${{ steps.request.outputs.artifact_id }}
+          merge-multiple: true
+          path: build
+          run-id: ${{ steps.request.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - uses: actions/checkout@v4
+        if: steps.request.outputs.eligible == 'true'
+        with:
+          repository: doc-gif/jtcc-group-e-preview
+          ref: main
+          path: preview
+          ssh-key: ${{ secrets.PREVIEW_DEPLOY_KEY }}
+          persist-credentials: true
+      - name: Compose static preview (never execute build files)
+        id: compose
+        if: steps.request.outputs.eligible == 'true'
+        run: node source/scripts/compose-preview.mjs preview build request.json
+      - name: Recheck head before publishing
+        id: current
+        if: steps.request.outputs.eligible == 'true' && steps.compose.outputs.skipped != 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const request = JSON.parse(require('node:fs').readFileSync('request.json', 'utf8'))
+            const { resolvePreview } = await import(`${process.env.GITHUB_WORKSPACE}/source/scripts/preview-request.mjs`)
+            const current = await resolvePreview({ github, ...context.repo, runId: request.runId })
+            core.setOutput('publish', Boolean(current && current.artifactId === request.artifactId))
+      - name: Push preview repository only
+        if: steps.current.outputs.publish == 'true'
+        working-directory: preview
+        run: |
+          test "$(git remote get-url origin)" = git@github.com:doc-gif/jtcc-group-e-preview.git
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all
+          if ! git diff --cached --quiet; then
+            git commit -m 'Update tested PR preview'
+            git push origin HEAD:main
+          fi
+      - name: Verify live deployment and announce URL
+        if: steps.current.outputs.publish == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const request = JSON.parse(require('node:fs').readFileSync('request.json', 'utf8'))
+            const { previewUrls, commentPreview } = await import(`${process.env.GITHUB_WORKSPACE}/source/scripts/preview-request.mjs`)
+            const url = previewUrls(request).fixed
+            let published = false
+            for (let attempt = 0; attempt < 40; attempt++) {
+              try {
+                const response = await fetch(`${url}preview.json?run=${request.runId}`, { cache: 'no-store', signal: AbortSignal.timeout(10000) })
+                if (response.ok) {
+                  const data = await response.json()
+                  if (data.runId === request.runId && data.sha === request.sha && data.artifactId === request.artifactId) { published = true; break }
+                }
+              } catch { /* Pages may still be publishing. */ }
+              await new Promise((resolve) => setTimeout(resolve, 15000))
+            }
+            if (!published) throw new Error('Preview did not become live; inspect preview repository Pages deployment, then retry')
+            const result = await commentPreview({ github, ...context.repo, request })
+            await core.summary.addHeading('確認用プレビュー').addLink('この変更を確認する', url).addRaw(`\n\n${result}`).write()
