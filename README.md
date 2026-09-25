@@ -32,6 +32,7 @@ pnpm verify
 - [PR と worktree による開発](docs/DEVELOPMENT.md)
 - [テストの設計と回帰防止](docs/TESTING.md)
 - [Apple HIG とゲーム UX のマージ基準](docs/UI_UX_STANDARDS.md)
+- [Figma とデザインシステムの運用](docs/DESIGN.md)
 - [GitHub Pages の公開・タグ・過去版](docs/DEPLOYMENT.md)
 
 公開は明示的に指示した時だけ行います。公開済みの各版は `/versions/vX.Y.Z/` と Release の ZIP に保存します。
@@ -48,6 +49,8 @@ pnpm verify
 
 ## 構成
 
+デザインは [指定 Figma の JTCC App ページ](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-2)で管理します。[画面管理](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-10)、[基本ルール](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-4)、Button・Input・Card の設計部品があります（緑系の初版）。ラストピースの画面はピンク系の「さくらミルク」で実装しており、Figma の緑系との整理と Figma への画面の記録は未決・未実施です（[`docs/PRODUCT.md`](docs/PRODUCT.md) の未決事項）。
+
 - `src/domain/`: 画面から切り離した純粋な関数とデータ（抽選・確率・一律20%の交換・保存・演出の台本・架空カタログ）。Vitest で検証
 - `src/app/`: ルーター（ハッシュ）、状態の置き場所、ルームのデモ再現、声・音・振動
 - `src/screens/`: 画面（ホーム・はじめて・詳細・ルーム・回す・当てたもの・いっしょに・マイページ）
@@ -58,5 +61,6 @@ pnpm verify
 - `scripts/governance.test.mjs`: 法務・ブランドのきまりの自動チェック
 - `docs/PRODUCT.md`: 仕様と未決事項
 - `AGENTS.md`: AI エージェント向け作業指針
+- `design-system/`: Figma の node ID、変数、実装に利用できる CSS トークンの記録
 
 演出の確認には、マイページの「デモ操作」で「次の1回を目玉確定にする」を ON にしてから回してください。
