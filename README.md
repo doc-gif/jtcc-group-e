@@ -34,6 +34,16 @@ pnpm verify
 
 公開は明示的に指示した時だけ行います。公開済みの各版は `/versions/vX.Y.Z/` と Release の ZIP に保存します。
 
+## GitHub の運用リンク
+
+- [PR 一覧](https://github.com/doc-gif/jtcc-group-e/pulls)
+- [必須 CI](https://github.com/doc-gif/jtcc-group-e/actions/workflows/ci.yml)
+- [自動承認・マージ](https://github.com/doc-gif/jtcc-group-e/actions/workflows/auto-merge.yml)
+- [公開を実行する](https://github.com/doc-gif/jtcc-group-e/actions/workflows/release-pages.yml)
+- [公開済みのバージョン](https://github.com/doc-gif/jtcc-group-e/releases)
+
+初回公開はまだ実行していません。運用開始時の設定は [導入 PR #1](https://github.com/doc-gif/jtcc-group-e/pull/1) で追跡できます。
+
 ## 構成
 
 - `src/App.tsx`: 現時点の仮画面
