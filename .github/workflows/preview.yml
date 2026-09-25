@@ -2,7 +2,7 @@ name: Publish PR preview
 
 on:
   workflow_run:
-    workflows: [CI]
+    workflows: [Preview build]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -26,8 +26,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-      pull-requests: read
-      issues: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,6 +36,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: source/package.json
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+        working-directory: source
       - name: Validate CI and current PR
         id: request
         uses: actions/github-script@v8

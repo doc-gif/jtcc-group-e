@@ -1,6 +1,9 @@
 name: Approve and merge tested PR
 
 on:
+  pull_request_target:
+    branches: [main]
+    types: [ready_for_review]
   workflow_run:
     workflows: [CI]
     types: [completed]
@@ -19,7 +22,7 @@ concurrency:
 
 jobs:
   merge:
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success')
+    if: github.event_name == 'pull_request_target' || github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -36,7 +39,11 @@ jobs:
           CI_RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
         with:
           script: |
-            const { autoMerge } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/auto-merge.mjs`)
-            const result = await autoMerge({ github, ...context.repo, runId: Number(process.env.CI_RUN_ID) })
+            const { autoMerge, readyRunId } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/auto-merge.mjs`)
+            const runId = context.eventName === 'pull_request_target'
+              ? await readyRunId({ github, ...context.repo, pr: context.payload.pull_request })
+              : Number(process.env.CI_RUN_ID)
+            if (!runId) { core.info('CI is not complete; workflow_run will handle the merge'); return }
+            const result = await autoMerge({ github, ...context.repo, runId })
             core.info(result)
             await core.summary.addRaw(result).write()

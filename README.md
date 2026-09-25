@@ -31,12 +31,13 @@ pnpm verify
 
 - [PR と worktree による開発](docs/DEVELOPMENT.md)
 - [本番と分けた自動プレビュー](docs/PREVIEW.md)
+- [高速化・任意の Copilot レビュー・QR](docs/FAST_FEEDBACK.md)
 - [テストの設計と回帰防止](docs/TESTING.md)
 - [Apple HIG とゲーム UX のマージ基準](docs/UI_UX_STANDARDS.md)
 - [Figma とデザインシステムの運用](docs/DESIGN.md)
 - [GitHub Pages の公開・タグ・過去版](docs/DEPLOYMENT.md)
 
-通常の修正はテスト・PR の Ready 化・マージ完了・確認用 URL の案内まで進めます。プレビューは CI 成功後に自動配布します。本番公開は明示的に指示した時だけ行います。本番の各版は `/versions/vX.Y.Z/` と Release の ZIP に保存します。
+通常の修正はテスト・PR の Ready 化・マージ完了・確認用 URL の案内まで進めます。プレビューは Preview build 成功後に先行配布します。本番公開は明示的に指示した時だけ行います。本番の各版は `/versions/vX.Y.Z/` と Release の ZIP に保存します。
 
 ## GitHub の運用リンク
 
