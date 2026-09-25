@@ -1,0 +1,42 @@
+name: Approve and merge tested PR
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful CI run ID to retry
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: merge-main
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/github-script@v8
+        env:
+          CI_RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
+        with:
+          script: |
+            const { autoMerge } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/auto-merge.mjs`)
+            const result = await autoMerge({ github, ...context.repo, runId: Number(process.env.CI_RUN_ID) })
+            core.info(result)
+            await core.summary.addRaw(result).write()

@@ -4,11 +4,11 @@
 
 ## 作業の進め方
 
-1. 変更前に `README.md` と `docs/PRODUCT.md` を読む。
+1. 変更前に `README.md`、`docs/PRODUCT.md`、`docs/DEVELOPMENT.md`、`docs/TESTING.md`、`docs/UI_UX_STANDARDS.md` を読む。
 2. 目的、利用者への影響、受け入れ条件を短く整理する。仕様が曖昧でも進められる部分を先に進める。
 3. 変更を小さくまとめ、画面・状態・データ取得の責務を分ける。新しい依存は必要性を説明できるときだけ追加する。
 4. モバイル幅 320px から確認し、タップ領域、キーボード操作、ラベル、コントラスト、セーフエリアを考慮する。
-5. `pnpm check` を実行し、失敗した場合は原因と未解決点を報告する。
+5. UI を変更したら `docs/UI_UX_STANDARDS.md` に従い実画面を確認し、現在の UI に対応するレビュー記録を追加する。`pnpm verify` を実行し、失敗した場合は原因と未解決点を報告する。
 6. 変更内容、検証結果、残る判断事項を報告する。
 
 ## コード規約
@@ -22,6 +22,17 @@
 ## 完了条件
 
 - 受け入れ条件を満たす。
-- `pnpm check` が成功する。
+- `pnpm verify` が成功する。
 - UI を変更したら小さい画面で目視確認する。
 - 仕様や実行手順が変わったらドキュメントを更新する。
+
+## PR・自動承認
+
+- 1タスク・1ブランチ・1worktree。新規作業は最新の `origin/main` から開始する。共有 worktree、main への直接 push、保護を迂回したマージは禁止。
+- 作業中は Draft PR。Ready にすると `Quality gate` と `UI/UX gate` の成功後、Bot が現在の SHA を承認して squash merge する。
+- main が進んでいたら作業ブランチへ取り込み、競合を解消して再テスト・push する。手順は `docs/DEVELOPMENT.md`。
+- 不具合には回帰テストを追加する。見た目の変更は HIG・ゲーム UX 基準も満たす。未確認の記録を合格として生成しない。
+
+## 公開を指示されたとき
+
+`docs/DEPLOYMENT.md` の手順を実行する。公開指示がある場合は、新しい版番号を決めて `scripts/request-release.ps1` または GitHub Actions の `Release GitHub Pages` を実行し、完了と固定 URL の実動作まで確認する。PR のマージ自体は公開指示ではない。既存の版・タグ・Release を上書きしない。

@@ -11,6 +11,13 @@ node_modules
 dist
 dist-ssr
 *.local
+coverage/
+playwright-report/
+test-results/
+.test-site/
+.env
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*
