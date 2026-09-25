@@ -1,13 +1,13 @@
 import { expect, test } from 'vitest'
 import { checkReport, planTests } from './ci-plan.mjs'
 
-const settings = { targetTestsPerShard: 30, maxShards: 8, maxParallel: 4, workersPerShard: 2, warnBrowserSeconds: 180 }
+const settings = { targetTestsPerShard: 20, maxShards: 8, maxParallel: 6, workersPerShard: 1, warnBrowserSeconds: 180 }
 const report = (count) => ({ suites: [{ suites: [{ specs: Array.from({ length: count }, (_, id) => ({ id: String(id), tests: [{ projectId: 'mobile' }] })) }] }], errors: [], stats: { expected: count, unexpected: 0, flaky: 0, skipped: 0 } })
 
 test('automatically grows bounded shards without dropping test cases', () => {
-  expect(planTests(report(105), settings)).toMatchObject({ shards: 4, expectedTests: 105, maxParallel: 4, matrix: { shard: [1, 2, 3, 4] } })
+  expect(planTests(report(105), settings)).toMatchObject({ shards: 6, expectedTests: 105, maxParallel: 6, matrix: { shard: [1, 2, 3, 4, 5, 6] } })
   expect(planTests(report(1), settings).shards).toBe(1)
-  expect(planTests(report(210), settings).shards).toBe(7)
+  expect(planTests(report(140), settings).shards).toBe(7)
   expect(planTests(report(1000), settings)).toMatchObject({ shards: 8, expectedTests: 1000 })
 })
 test('invalid discovery and resource limits fail closed', () => {
