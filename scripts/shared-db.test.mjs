@@ -94,3 +94,27 @@ test('optional Broadcast policy is rerunnable and refuses absent Realtime', asyn
  await db.exec('drop table realtime.messages cascade')
  await expect(db.exec(policy)).rejects.toThrow('Realtime is not initialized')
 })
+test('core room ledger works before Realtime initializes and blocks a departed member', async()=>{
+ const isolated=new PGlite()
+ try {
+  await isolated.exec("create role anon; create role authenticated; create schema auth; create function auth.uid() returns uuid language sql as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$")
+  await isolated.exec(await readFile('supabase/drafts/shared_opening.sql','utf8'))
+  const owner=randomUUID()
+  const id=randomUUID()
+  await isolated.query("select set_config('request.jwt.claim.sub',$1,false)",[owner])
+  const created=(await isolated.query('select public.lp_create($1,$2) result',[id,'ホスト'])).rows[0].result
+  expect(created.id).toBe(id)
+  await isolated.query('select public.lp_ready($1,true)',[id])
+  const started=(await isolated.query('select public.lp_start($1,$2,0) result',[id,randomUUID()])).rows[0].result
+  expect(started.roundNo).toBe(1)
+  expect(started.balance).toBe(2500)
+  expect(started.round.results).toBeNull()
+  await isolated.query("select set_config('request.jwt.claim.sub',$1,false)",[randomUUID()])
+  await expect(isolated.query('select public.lp_start($1,$2,1)',[id,randomUUID()])).rejects.toThrow('room-unavailable')
+  await isolated.query("select set_config('request.jwt.claim.sub',$1,false)",[owner])
+  await isolated.query('select public.lp_leave($1)',[id])
+  await expect(isolated.query('select public.lp_snapshot($1)',[id])).rejects.toThrow('room-unavailable')
+ } finally {
+  await isolated.close()
+ }
+},30000)

@@ -37,9 +37,11 @@ create function public.lp_snapshot(p_room uuid) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare r public.lp_rooms; rd public.lp_rounds; me public.lp_members;
 begin
+ -- Lock the room before membership, round and stock reads. Mutating RPCs lock room first.
+ select * into r from public.lp_rooms where id=p_room and expires_at>now() for share;
+ if not found then raise exception 'room-unavailable'; end if;
  if not public.lp_is_member(p_room) then raise exception 'room-unavailable'; end if;
  update public.lp_members set seen_at=now() where room=p_room and user_id=auth.uid() and seen_at<now()-interval '10 seconds';
- select * into r from public.lp_rooms where id=p_room;
  select * into me from public.lp_members where room=p_room and user_id=auth.uid();
  select * into rd from public.lp_rounds where room=p_room and number=r.round_no;
  return jsonb_build_object('id',r.id,'invite',r.invite,'host',r.host,'expiresAt',r.expires_at,
