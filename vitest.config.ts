@@ -8,7 +8,7 @@ export default defineConfig({
     environment: 'node',
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.{ts,tsx}', 'scripts/release-lib.mjs', 'scripts/auto-merge.mjs', 'scripts/ux-policy.mjs', 'scripts/preview-request.mjs', 'scripts/preview-site.mjs', 'scripts/qr.mjs'],
+      include: ['src/**/*.{ts,tsx}', 'scripts/release-lib.mjs', 'scripts/auto-merge.mjs', 'scripts/ux-policy.mjs', 'scripts/preview-request.mjs', 'scripts/preview-site.mjs', 'scripts/qr.mjs', 'scripts/ci-plan.mjs'],
       exclude: ['src/main.tsx', 'src/**/*.test.{ts,tsx}'],
       reporter: ['text', 'html', 'lcov'],
       thresholds: { lines: 80, statements: 80, functions: 80, branches: 75 },

@@ -29,3 +29,9 @@ test-results/
 *.njsproj
 *.sln
 *.sw?
+
+ci-plan.json
+test-list.json
+merged-report.json
+blob-report/
+all-blob-reports/
