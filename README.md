@@ -67,3 +67,7 @@ pnpm verify
 - `design-system/`: Figma の node ID、変数、実装に利用できる CSS トークンの記録
 
 演出の確認には、マイページの「デモ操作」で「次の1回を目玉確定にする」を ON にしてから回してください。
+
+## 内部検討用の素材
+
+[サンリオ素材ライブラリ（Figma）](https://www.figma.com/design/MYYMoB2wL7LvA2oXZ2gxpT?node-id=0-1) にキャラクター・世界観イラストと実物グッズ写真を整理しています。AI の探し方、ID、出典・内部限定の扱いは [素材参照ガイド](docs/ASSET_LIBRARY.md)。公開アプリへコピーする許可ではありません。
