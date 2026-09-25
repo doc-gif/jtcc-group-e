@@ -38,7 +38,7 @@ for (const scenario of uxScenarios) {
         await expect(latestLink).toBeFocused()
         await page.keyboard.press('Enter')
       }
-      await expect(page).toHaveTitle('JTCC Group E')
+      await expect(page).toHaveTitle('ラストピース')
     }
   })
 }

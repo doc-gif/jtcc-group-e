@@ -1,0 +1,63 @@
+// @vitest-environment jsdom
+import { afterEach, describe, expect, test, vi } from 'vitest'
+import { pipiLines } from '../copy/pipi'
+import { buzz, chime, CHIMES, speak } from './feedback'
+import { parseHash, paths } from './router'
+
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
+
+describe('画面のハッシュ', () => {
+  test('設計書のルートに対応する', () => {
+    expect(parseHash('')).toEqual({ name: 'home' })
+    expect(parseHash('#/')).toEqual({ name: 'home' })
+    expect(parseHash(paths.welcome)).toEqual({ name: 'welcome' })
+    expect(parseHash(paths.gacha('a-1'))).toEqual({ name: 'gacha', id: 'a-1', room: false })
+    expect(parseHash(paths.createRoom('a-1'))).toEqual({ name: 'gacha', id: 'a-1', room: true })
+    expect(parseHash(paths.soloSpin('a-1'))).toEqual({ name: 'spin', id: 'a-1' })
+    expect(parseHash(paths.room('a-1'))).toEqual({ name: 'room', code: 'a-1', spin: false })
+    expect(parseHash(paths.roomSpin('a-1'))).toEqual({ name: 'room', code: 'a-1', spin: true })
+    for (const name of ['collection', 'together', 'me'] as const) expect(parseHash(`#/${name}/`)).toEqual({ name })
+  })
+
+  test('不正な形は見つからない扱い', () => {
+    for (const hash of ['#/gacha', '#/gacha/A B', '#/gacha/x/y', '#/room/x/y', '#/spin/x', '#/other/x']) expect(parseHash(hash)).toEqual({ name: 'notfound' })
+  })
+})
+
+describe('声・音・振動', () => {
+  test('使えない端末では何もしない', () => {
+    vi.stubGlobal('AudioContext', undefined)
+    expect(() => chime(CHIMES.turn)).not.toThrow()
+    expect(() => speak(pipiLines.turn1)).not.toThrow()
+    expect(() => buzz(30)).not.toThrow()
+  })
+
+  test('使える端末では鳴らし、読み上げる', () => {
+    const started: number[] = []
+    class FakeAudio {
+      state = 'suspended'
+      currentTime = 0
+      destination = {}
+      resume = vi.fn(async () => {})
+      createOscillator() { return { frequency: { value: 0 }, connect: (node: unknown) => node, start: (t: number) => started.push(t), stop: vi.fn() } }
+      createGain() { const gain = { gain: { setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: (node: unknown) => node }; return gain }
+    }
+    vi.stubGlobal('AudioContext', FakeAudio)
+    chime(CHIMES.big)
+    expect(started.length).toBe(CHIMES.big.length)
+    const spoken: string[] = []
+    vi.stubGlobal('SpeechSynthesisUtterance', class { lang = ''; pitch = 1; rate = 1; text: string; constructor(text: string) { this.text = text } })
+    vi.stubGlobal('speechSynthesis', { cancel: vi.fn(), speak: (u: { text: string }) => spoken.push(u.text) })
+    speak('いい感じ〜！ その調子♡')
+    expect(spoken[0]).toBe('いい感じー その調子')
+    const vibrate = vi.fn()
+    vi.stubGlobal('navigator', { vibrate })
+    buzz([30, 40])
+    expect(vibrate).toHaveBeenCalledWith([30, 40])
+  })
+})
+
+test('ピピのセリフは関数でも名前を受け取って返す', () => {
+  expect(pipiLines.pair('さき')).toContain('さき')
+  expect(pipiLines.friendFeatured('ゆい')).toContain('ゆい')
+})

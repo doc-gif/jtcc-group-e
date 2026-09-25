@@ -1,22 +1,42 @@
+/* 配色「さくらミルク」。ピンクの仲間だけで作る。文字色はコントラスト 4.5:1 以上になる濃さに調整。 */
 :root {
-  font-family: Inter, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif;
-  color: #172324;
-  background: #f5f7f5;
+  --bg: #FFF9FA;
+  --surface: #FFFFFF;
+  --soft: #FDEEF2;
+  --line: #F5DDE4;
+  --head: #F2A7BC;
+  --main: #DE7F9C;
+  --deep: #A94A68;
+  --text: #5C4A50;
+  --sub: #7D646C;
+  --wine: #4A2A36;
+  --rg: linear-gradient(120deg, #FBE3D9, #EDB3A3, #FFF1EC, #D98C86);
+  --rg-soft: linear-gradient(120deg, #FBE3D9, #F4CBBE, #FFF1EC);
+  --pearl: linear-gradient(120deg, #FFFFFF, #F9D4E0, #FFF6F9);
+  --kakutei: linear-gradient(160deg, #C77A96, #8E3F5E 55%, #5E2540);
+  --shadow: 0 2px 12px rgba(222, 127, 156, 0.18);
+  --radius: 14px;
+  --mincho: 'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', serif;
+  font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  letter-spacing: 0.04em;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
 
 html { min-width: 320px; font-size: 100%; }
 
-body { margin: 0; }
+body { margin: 0; background: var(--bg); line-height: 1.7; }
 
-button, input, textarea, select { font: inherit; }
+button, input, textarea, select { font: inherit; letter-spacing: inherit; color: inherit; }
 
 button, input:not([type='hidden']), select, a { min-width: 44px; min-height: 44px; }
-:focus-visible { outline: 3px solid #16634d; outline-offset: 3px; }
+:focus-visible { outline: 3px solid var(--deep); outline-offset: 3px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -27,4 +47,4 @@ button, input:not([type='hidden']), select, a { min-width: 44px; min-height: 44p
   }
 }
 
-::selection { background: #c5eee1; }
+::selection { background: #F9D4E0; }
