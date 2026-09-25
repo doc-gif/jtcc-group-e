@@ -1,0 +1,64 @@
+/* JTCC design system v0.1 — Figma snapshot. See docs/DESIGN.md.
+ * Not imported by the current app. Import with a reviewed UI implementation PR.
+ * Figma px values map to rem for text to preserve browser font scaling. */
+:root {
+  --jtcc-primitive-green-700: #16634d;
+  --jtcc-primitive-green-800: #104e3c;
+  --jtcc-primitive-green-900: #0c3b2e;
+  --jtcc-primitive-mint-100: #c5eee1;
+  --jtcc-primitive-neutral-50: #f5f7f5;
+  --jtcc-primitive-neutral-100: #edf1ef;
+  --jtcc-primitive-neutral-200: #dce7e2;
+  --jtcc-primitive-neutral-500: #71827d;
+  --jtcc-primitive-neutral-700: #536361;
+  --jtcc-primitive-neutral-950: #172324;
+  --jtcc-primitive-white: #ffffff;
+  --jtcc-primitive-red-700: #a52a38;
+  --jtcc-color-bg-canvas: var(--jtcc-primitive-neutral-50);
+  --jtcc-color-bg-surface: var(--jtcc-primitive-white);
+  --jtcc-color-bg-subtle: var(--jtcc-primitive-neutral-100);
+  --jtcc-color-text-primary: var(--jtcc-primitive-neutral-950);
+  --jtcc-color-text-secondary: var(--jtcc-primitive-neutral-700);
+  --jtcc-color-text-on-action: var(--jtcc-primitive-white);
+  --jtcc-color-action-default: var(--jtcc-primitive-green-700);
+  --jtcc-color-action-hover: var(--jtcc-primitive-green-800);
+  --jtcc-color-action-pressed: var(--jtcc-primitive-green-900);
+  --jtcc-color-action-disabled: var(--jtcc-primitive-neutral-200);
+  --jtcc-color-text-disabled: var(--jtcc-primitive-neutral-700);
+  --jtcc-color-border-subtle: var(--jtcc-primitive-neutral-200);
+  --jtcc-color-border-control: var(--jtcc-primitive-neutral-500);
+  --jtcc-color-focus: var(--jtcc-primitive-green-700);
+  --jtcc-color-error: var(--jtcc-primitive-red-700);
+  --jtcc-color-selection: var(--jtcc-primitive-mint-100);
+  --jtcc-spacing-0: 0px;
+  --jtcc-spacing-4: 4px;
+  --jtcc-spacing-8: 8px;
+  --jtcc-spacing-12: 12px;
+  --jtcc-spacing-16: 16px;
+  --jtcc-spacing-20: 20px;
+  --jtcc-spacing-24: 24px;
+  --jtcc-spacing-32: 32px;
+  --jtcc-spacing-48: 48px;
+  --jtcc-spacing-64: 64px;
+  --jtcc-radius-control: 12px;
+  --jtcc-radius-card: 20px;
+  --jtcc-radius-pill: 999px;
+  --jtcc-size-touch: 44px;
+  --jtcc-size-control: 48px;
+  --jtcc-stroke-default: 1px;
+  --jtcc-stroke-focus: 3px;
+  --jtcc-type-display-size: 2.125rem;
+  --jtcc-type-display-line: 2.75rem;
+  --jtcc-type-title-size: 1.5rem;
+  --jtcc-type-title-line: 2.125rem;
+  --jtcc-type-heading-size: 1.25rem;
+  --jtcc-type-heading-line: 1.875rem;
+  --jtcc-type-body-size: 1.0625rem;
+  --jtcc-type-body-line: 1.875rem;
+  --jtcc-type-label-size: 1.0625rem;
+  --jtcc-type-label-line: 1.5rem;
+  --jtcc-type-caption-size: 0.875rem;
+  --jtcc-type-caption-line: 1.375rem;
+  --jtcc-shadow-card: 0 12px 32px #153b2e0a;
+}
+

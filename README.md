@@ -30,6 +30,7 @@ pnpm verify
 - [PR と worktree による開発](docs/DEVELOPMENT.md)
 - [テストの設計と回帰防止](docs/TESTING.md)
 - [Apple HIG とゲーム UX のマージ基準](docs/UI_UX_STANDARDS.md)
+- [Figma とデザインシステムの運用](docs/DESIGN.md)
 - [GitHub Pages の公開・タグ・過去版](docs/DEPLOYMENT.md)
 
 公開は明示的に指示した時だけ行います。公開済みの各版は `/versions/vX.Y.Z/` と Release の ZIP に保存します。
@@ -46,10 +47,13 @@ pnpm verify
 
 ## 構成
 
+デザインは [指定 Figma の JTCC App ページ](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-2)で管理します。[画面管理](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-10)、[基本ルール](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-4)、Button・Input・Card の設計部品があります。緑系の初版であり、業務画面と React 共通部品の実装は今後のタスクです。
+
 - `src/App.tsx`: 現時点の仮画面
 - `src/index.css`: 共通スタイルとモバイル基準
 - `src/App.css`: 画面固有のスタイル
 - `docs/PRODUCT.md`: 仕様と未決事項
 - `AGENTS.md`: AI エージェント向け作業指針
+- `design-system/`: Figma の node ID、変数、実装に利用できる CSS トークンの記録
 
 機能が決まったら、画面、共通 UI、データ処理をそれぞれのディレクトリに分けてください。現段階では先回りして抽象化しません。

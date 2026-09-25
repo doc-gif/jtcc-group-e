@@ -4,7 +4,7 @@
 
 ## 作業の進め方
 
-1. 変更前に `README.md`、`docs/PRODUCT.md`、`docs/DEVELOPMENT.md`、`docs/TESTING.md`、`docs/UI_UX_STANDARDS.md` を読む。
+1. 変更前に `README.md`、`docs/PRODUCT.md`、`docs/DEVELOPMENT.md`、`docs/TESTING.md`、`docs/UI_UX_STANDARDS.md`、`docs/DESIGN.md` を読む。
 2. 目的、利用者への影響、受け入れ条件を短く整理する。仕様が曖昧でも進められる部分を先に進める。
 3. 変更を小さくまとめ、画面・状態・データ取得の責務を分ける。新しい依存は必要性を説明できるときだけ追加する。
 4. モバイル幅 320px から確認し、タップ領域、キーボード操作、ラベル、コントラスト、セーフエリアを考慮する。
@@ -25,6 +25,15 @@
 - `pnpm verify` が成功する。
 - UI を変更したら小さい画面で目視確認する。
 - 仕様や実行手順が変わったらドキュメントを更新する。
+
+## デザインの管理先
+
+- 指定 Figma ファイル `yeDF1BwhrxpXI57Daainle` をアプリのデザイン管理先とする。[Screens](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-10) に画面、[Foundations](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-4) に共通ルールを置く。詳細・各部品のリンクは `docs/DESIGN.md`。
+- 新しい UI は Figma に画面と状態を記録してから実装する。JTCC の変数・文字スタイル・部品インスタンスを使い、現行アプリの緑系を維持する。既存のピッチ資料をアプリ仕様として確定扱いしない。
+- Figma の作業領域も `task/<branch>` ごとに分け、担当・関連 PR・状態を記載する。共通変数と本体部品は変更前に他の Draft PR と調整し、別の作業領域を上書きしない。
+- UI の PR に対象 node URL、確認した状態、変更前後の画像と Figma 照合結果を添える。実画面を確認し、既存の全10項目のレビューで、特に GAME-01 にデザインとの対応を記録する。
+- トークンを変えたら `design-system/tokens.css` と `design-system/figma-manifest.json` を同じ PR で更新する。これらは初版時点では参照用で、アプリに自動反映されない。React 部品はまだ未実装なので、存在しない実装や Code Connect 対応を装わない。
+- Figma にアクセスできない場合は参照した画像・仕様と未確認箇所を記録し、照合済みと記載しない。Figma のライブ URL は過去デザインを固定しないため、採用版は PR に画像と node ID を残す。
 
 ## PR・自動承認
 
