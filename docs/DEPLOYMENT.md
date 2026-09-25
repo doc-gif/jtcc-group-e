@@ -19,7 +19,7 @@ gh workflow run release-pages.yml --repo doc-gif/jtcc-group-e --ref main -f vers
 ```
 
 4. [Release GitHub Pages](https://github.com/doc-gif/jtcc-group-e/actions/workflows/release-pages.yml) が完了するまで確認する。ジョブ起動だけで公開完了と報告しない。
-5. 最新 URL と固定 URL をブラウザで開き、Release の commit SHA と公開先の `deployment.json` を確認して報告する。
+5. 最新 URL と固定 URL をブラウザで開き、Release の commit SHA と公開先の `deployment.json` を確認して報告する。最後の報告には確認済みリンクと、その同じ URL の QR コード画像を併記する。`pnpm qr <HTTPS-URL> <出力先.png>` で生成できる。
 
 ## 公開後の URL
 
