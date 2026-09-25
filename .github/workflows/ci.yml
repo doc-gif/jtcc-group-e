@@ -16,10 +16,17 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  quality:
-    name: Quality gate
+  build:
+    name: Build and unit tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      shards: ${{ steps.plan.outputs.shards }}
+      expectedTests: ${{ steps.plan.outputs.expectedTests }}
+      workers: ${{ steps.plan.outputs.workers }}
+      maxParallel: ${{ steps.plan.outputs.maxParallel }}
+      warnBrowserSeconds: ${{ steps.plan.outputs.warnBrowserSeconds }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,28 +36,50 @@ jobs:
           node-version: 24
       - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium webkit
       - run: pnpm check
-      - run: pnpm test:e2e
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: quality-reports
-          path: |
-            coverage/
-            playwright-report/
-            test-results/
-          retention-days: 14
+      - name: Discover every browser test and plan shards
+        id: plan
+        run: |
+          node node_modules/@playwright/test/cli.js test --list --reporter=json > test-list.json
+          node scripts/ci-plan.mjs plan test-list.json
       - uses: actions/upload-artifact@v4
         with:
           name: web-dist
           path: dist/
           retention-days: 7
           if-no-files-found: error
-  ux:
-    name: UI/UX gate
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-reports
+          path: |
+            coverage/
+            ci-plan.json
+            test-list.json
+          retention-days: 14
+
+  ux-review:
+    name: UI/UX review record
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/check-ux-review.mjs
+
+  browser:
+    name: Browser shard ${{ matrix.shard }}/${{ needs.build.outputs.shards }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ fromJSON(needs.build.outputs.maxParallel) }}
+      matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,14 +89,101 @@ jobs:
           node-version: 24
       - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: dist
       - run: pnpm exec playwright install --with-deps chromium webkit
-      - run: pnpm build
-      - run: pnpm test:ux
+      - name: Run assigned tests (all browsers and UX scenarios retained)
+        run: node node_modules/@playwright/test/cli.js test --shard=${{ matrix.shard }}/${{ needs.build.outputs.shards }} --workers=${{ needs.build.outputs.workers }} --reporter=blob,list
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: blob-${{ matrix.shard }}
+          path: blob-report/
+          retention-days: 14
+          overwrite: true
+          if-no-files-found: error
+
+  reports:
+    name: Complete browser reports
+    needs: [build, browser]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: blob-*
+          path: all-blob-reports
+          merge-multiple: true
+      - name: Merge all shard reports
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: merged-report.json
+        run: node node_modules/@playwright/test/cli.js merge-reports --reporter=html,json all-blob-reports
+      - uses: actions/download-artifact@v4
+        with:
+          name: quality-reports
+          path: ci-input
+      - name: Require every discovered test to pass
+        run: node scripts/ci-plan.mjs verify merged-report.json ci-input/test-list.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ux-reports
+          name: browser-reports
           path: |
             playwright-report/
-            test-results/
+            merged-report.json
           retention-days: 14
+      - name: Report scaling signals
+        if: always()
+        uses: actions/github-script@v8
+        env:
+          EXPECTED_TESTS: ${{ needs.build.outputs.expectedTests }}
+          SHARDS: ${{ needs.build.outputs.shards }}
+          WARN_SECONDS: ${{ needs.build.outputs.warnBrowserSeconds }}
+        with:
+          script: |
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, { ...context.repo, run_id: context.runId, filter: 'latest' })
+            const rows = jobs.filter(j => j.name.startsWith('Browser shard ')).map(j => ({ name: j.name, seconds: Math.round((Date.parse(j.completed_at) - Date.parse(j.started_at)) / 1000), result: j.conclusion }))
+            await core.summary.addHeading('Browser CI capacity').addRaw(`${process.env.EXPECTED_TESTS} tests / ${process.env.SHARDS} shards\n\n`).addTable([['Shard', 'Seconds', 'Result'], ...rows.map(r => [r.name, String(r.seconds), r.result ?? 'pending'])]).write()
+            if (rows.some(r => r.seconds > Number(process.env.WARN_SECONDS))) core.warning('Browser job exceeded target duration. Review timings and .github/ci-settings.json before increasing parallelism; do not remove tests.')
+
+  quality:
+    name: Quality gate
+    needs: [build, browser, reports]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require complete successful results
+        env:
+          BUILD: ${{ needs.build.result }}
+          BROWSER: ${{ needs.browser.result }}
+          REPORTS: ${{ needs.reports.result }}
+        run: test "$BUILD" = success && test "$BROWSER" = success && test "$REPORTS" = success
+
+  ux:
+    name: UI/UX gate
+    needs: [ux-review, browser, reports]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require review and every browser scenario
+        env:
+          REVIEW: ${{ needs.ux-review.result }}
+          BROWSER: ${{ needs.browser.result }}
+          REPORTS: ${{ needs.reports.result }}
+        run: test "$REVIEW" = success && test "$BROWSER" = success && test "$REPORTS" = success

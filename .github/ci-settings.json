@@ -1,0 +1,7 @@
+{
+  "targetTestsPerShard": 20,
+  "maxShards": 8,
+  "maxParallel": 6,
+  "workersPerShard": 1,
+  "warnBrowserSeconds": 180
+}

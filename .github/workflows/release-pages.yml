@@ -29,6 +29,9 @@ jobs:
           test "$GITHUB_REF" = refs/heads/main
           node --input-type=module -e "import {validateVersion} from './scripts/release-lib.mjs'; validateVersion(process.env.RELEASE_VERSION)"
   verify:
+    permissions:
+      contents: read
+      actions: read
     needs: validate
     uses: ./.github/workflows/ci.yml
   publish:

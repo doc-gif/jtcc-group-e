@@ -32,6 +32,7 @@ pnpm verify
 - [PR と worktree による開発](docs/DEVELOPMENT.md)
 - [本番と分けた自動プレビュー](docs/PREVIEW.md)
 - [高速化・任意の Copilot レビュー・QR](docs/FAST_FEEDBACK.md)
+- [テストの自動分割と規模拡大への対応](docs/CI_SCALING.md)
 - [テストの設計と回帰防止](docs/TESTING.md)
 - [Apple HIG とゲーム UX のマージ基準](docs/UI_UX_STANDARDS.md)
 - [Figma とデザインシステムの運用](docs/DESIGN.md)
