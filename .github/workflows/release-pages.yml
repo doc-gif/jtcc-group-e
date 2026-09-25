@@ -1,0 +1,112 @@
+name: Release GitHub Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: New immutable version (e.g. v0.1.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-release
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate release request
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/main
+          node --input-type=module -e "import {validateVersion} from './scripts/release-lib.mjs'; validateVersion(process.env.RELEASE_VERSION)"
+  verify:
+    needs: validate
+    uses: ./.github/workflows/ci.yml
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_SHA: ${{ github.sha }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: dist
+      - uses: actions/configure-pages@v5
+        id: pages
+      - name: Check existing tag binding
+        working-directory: source
+        run: node scripts/check-release-tag.mjs
+      - uses: actions/checkout@v4
+        with:
+          path: archive
+          ref: main
+          fetch-depth: 1
+      - name: Load durable Pages archive
+        working-directory: archive
+        shell: bash
+        run: |
+          set +e
+          git ls-remote --exit-code --heads origin pages-history >/dev/null
+          result=$?
+          set -e
+          if [ "$result" -eq 0 ]; then
+            git fetch origin pages-history
+            git checkout -B pages-history FETCH_HEAD
+          elif [ "$result" -eq 2 ]; then
+            git checkout --orphan pages-history
+            git rm -rf .
+          else
+            exit "$result"
+          fi
+      - name: Preserve snapshot and update latest
+        run: node source/scripts/compose-site.mjs archive/site dist
+      - name: Save durable archive before publication
+        working-directory: archive
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add site
+          if ! git diff --cached --quiet; then
+            git commit -m "Release $RELEASE_VERSION from $RELEASE_SHA"
+            git push origin HEAD:pages-history
+          fi
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: archive/site
+      - uses: actions/deploy-pages@v4
+        id: deployment
+      - name: Create tag and Release with downloadable build
+        env:
+          SITE_URL: ${{ steps.pages.outputs.base_url }}
+        run: |
+          cd dist
+          zip -qr ../web-app.zip .
+          cd ..
+          node source/scripts/publish-release.mjs

@@ -9,10 +9,22 @@
 
 * { box-sizing: border-box; }
 
-html { min-width: 320px; }
+html { min-width: 320px; font-size: 100%; }
 
 body { margin: 0; }
 
 button, input, textarea, select { font: inherit; }
+
+button, input:not([type='hidden']), select, a { min-width: 44px; min-height: 44px; }
+:focus-visible { outline: 3px solid #16634d; outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 ::selection { background: #c5eee1; }
