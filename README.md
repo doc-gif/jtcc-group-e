@@ -30,6 +30,7 @@ pnpm verify
 ## 作業・公開の手順書
 
 - [PR と worktree による開発](docs/DEVELOPMENT.md)
+- [開発進捗と次の候補](docs/STATUS.md) ／ [希望時の引き継ぎ](docs/HANDOFF.md)
 - [本番と分けた自動プレビュー](docs/PREVIEW.md)
 - [高速化・任意の Copilot レビュー・QR](docs/FAST_FEEDBACK.md)
 - [テストの自動分割と規模拡大への対応](docs/CI_SCALING.md)

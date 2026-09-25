@@ -2,6 +2,8 @@
 
 このリポジトリは、スマートフォンで使う React + Vite の Web アプリです。仕様が未確定の領域は推測で実装せず、`docs/PRODUCT.md` に決定事項と未決事項を記録してください。
 
+最新の進捗と次候補は [docs/STATUS.md](docs/STATUS.md) を読む。タスク完了ごとに同ファイルを更新して PR へ push する。引き継ぎは担当者が明示希望した場合だけ [docs/HANDOFF.md](docs/HANDOFF.md) に従い、通常の依頼を優先する。
+
 ## 作業の進め方
 
 1. 変更前に `README.md`、`docs/PRODUCT.md`、`docs/DEVELOPMENT.md`、`docs/TESTING.md`、`docs/UI_UX_STANDARDS.md`、`docs/DESIGN.md` を読む。
