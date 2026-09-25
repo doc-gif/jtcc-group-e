@@ -30,6 +30,8 @@ Copilot を使えなくてもこれらを実行する。届いた指摘は作業
 
 ## Copilot
 
+レビュー観点・対象外・再依頼条件は [Copilotレビュー方針](COPILOT_REVIEW.md)。
+
 ruleset `Optional Copilot review`（ID `24004828`）で main 向け PR 作成時に自動依頼する。Draft を含め、push ごとの再依頼は無効。消費を抑えるため、作成時点でレビューできる意味のある差分を含める。
 
 Copilot のチェック・承認は required check / required reviewer に追加しない。未契約・利用上限・障害でも既存 Bot が必須 CI に基づきマージできる。自動レビューの消費は通常 PR 作成者に帰属する。残量は未確認で、課金上限・有料超過枠は変更していない。
