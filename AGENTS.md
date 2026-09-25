@@ -45,7 +45,7 @@
 - main が進んでいたら作業ブランチへ取り込み、競合を解消して再テスト・push する。手順は `docs/DEVELOPMENT.md`。
 - 不具合には回帰テストを追加する。見た目の変更は HIG・ゲーム UX 基準も満たす。未確認の記録を合格として生成しない。
 
-## 公開を指示されたとき
+## 本番公開を指示されたとき
 
 `docs/DEPLOYMENT.md` の手順を実行する。公開指示がある場合は、新しい版番号を決めて `scripts/request-release.ps1` または GitHub Actions の `Release GitHub Pages` を実行し、完了と固定 URL の実動作まで確認する。PR のマージ自体は公開指示ではない。既存の版・タグ・Release を上書きしない。
 

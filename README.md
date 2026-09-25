@@ -30,12 +30,13 @@ pnpm verify
 ## 作業・公開の手順書
 
 - [PR と worktree による開発](docs/DEVELOPMENT.md)
+- [本番と分けた自動プレビュー](docs/PREVIEW.md)
 - [テストの設計と回帰防止](docs/TESTING.md)
 - [Apple HIG とゲーム UX のマージ基準](docs/UI_UX_STANDARDS.md)
 - [Figma とデザインシステムの運用](docs/DESIGN.md)
 - [GitHub Pages の公開・タグ・過去版](docs/DEPLOYMENT.md)
 
-公開は明示的に指示した時だけ行います。公開済みの各版は `/versions/vX.Y.Z/` と Release の ZIP に保存します。
+通常の修正はテスト・PR の Ready 化・マージ完了・確認用 URL の案内まで進めます。プレビューは CI 成功後に自動配布します。本番公開は明示的に指示した時だけ行います。本番の各版は `/versions/vX.Y.Z/` と Release の ZIP に保存します。
 
 ## GitHub の運用リンク
 
@@ -45,7 +46,7 @@ pnpm verify
 - [公開を実行する](https://github.com/doc-gif/jtcc-group-e/actions/workflows/release-pages.yml)
 - [公開済みのバージョン](https://github.com/doc-gif/jtcc-group-e/releases)
 
-初回公開はまだ実行していません。運用開始時の設定は [導入 PR #1](https://github.com/doc-gif/jtcc-group-e/pull/1) で追跡できます。
+本番の公開状況は上記 Release 一覧で確認できます。運用開始時の設定は [導入 PR #1](https://github.com/doc-gif/jtcc-group-e/pull/1) で追跡できます。
 
 ## 構成
 

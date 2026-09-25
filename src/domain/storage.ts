@@ -2,7 +2,13 @@ import { catalog, findPrize } from './catalog'
 import { createInitialState, initialStock } from './game'
 import type { AppState, WinRecord } from './types'
 
-export const STORAGE_KEY = 'lastpiece_app_v1'
+/** Preview runs must not read or overwrite production/browser demo progress. */
+export function storageKeyForPath(pathname: string): string {
+  const preview = /^\/jtcc-group-e-preview\/pr-(\d+)\/runs\/(\d+)\/app(?:\/|$)/.exec(pathname)
+  return preview ? `lastpiece_preview_pr_${preview[1]}_run_${preview[2]}_v1` : 'lastpiece_app_v1'
+}
+
+export const STORAGE_KEY = storageKeyForPath(typeof window === 'undefined' ? '' : window.location.pathname)
 
 type KeyValueStore = Pick<Storage, 'getItem' | 'setItem'>
 
