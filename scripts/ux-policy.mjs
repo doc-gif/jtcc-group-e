@@ -21,7 +21,7 @@ export async function uiDigest(root) {
     }
   }
   for (const directory of ['src', 'public', 'e2e']) await visit(directory)
-  for (const file of ['index.html', 'package.json', 'pnpm-lock.yaml', 'vite.config.ts', 'playwright.config.ts', 'scripts/release-lib.mjs', 'scripts/preview-site.mjs', 'scripts/ux-policy.mjs', 'docs/UI_UX_STANDARDS.md']) hash.update(file + '\0').update((await readFile(join(root, file), 'utf8')).replace(/\r\n/g, '\n'))
+  for (const file of ['index.html', 'package.json', 'pnpm-lock.yaml', 'vite.config.ts', 'playwright.config.ts', 'scripts/release-lib.mjs', 'scripts/preview-site.mjs', 'scripts/qr.mjs', 'scripts/ux-policy.mjs', 'docs/UI_UX_STANDARDS.md']) hash.update(file + '\0').update((await readFile(join(root, file), 'utf8')).replace(/\r\n/g, '\n'))
   return hash.digest('hex')
 }
 

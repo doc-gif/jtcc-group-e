@@ -16,7 +16,8 @@
     "ux:digest": "node scripts/check-ux-review.mjs --digest",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
     "verify": "pnpm check && pnpm test:e2e && pnpm test:ux",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "qr": "node scripts/create-qr.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -34,7 +35,10 @@
     "@vitejs/plugin-react": "^6.1.1",
     "@vitest/coverage-v8": "^5.0.1",
     "jsdom": "^30.1.1",
+    "jsqr": "1.4.0",
     "oxlint": "^1.81.0",
+    "pngjs": "7.0.0",
+    "qrcode": "1.5.4",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
     "vitest": "^5.0.1"

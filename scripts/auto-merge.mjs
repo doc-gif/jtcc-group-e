@@ -1,4 +1,11 @@
 // Called from the default branch only. Never import or execute PR code here.
+export async function readyRunId({ github, owner, repo, pr }) {
+  if (pr.draft || pr.base.ref !== 'main' || pr.head.repo?.full_name !== `${owner}/${repo}`) return null
+  const { data } = await github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: 'ci.yml', event: 'pull_request', head_sha: pr.head.sha, per_page: 20 })
+  const latest = data.workflow_runs.filter((run) => run.head_sha === pr.head.sha).sort((a, b) => b.id - a.id)[0]
+  return latest?.status === 'completed' && latest.conclusion === 'success' ? latest.id : null
+}
+
 export async function autoMerge({ github, owner, repo, runId }) {
   if (!Number.isSafeInteger(runId) || runId < 1) throw new Error('Invalid CI run ID')
   const coordinates = { owner, repo }

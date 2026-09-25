@@ -32,6 +32,12 @@ function api() {
 }
 
 describe('preview publication eligibility', () => {
+  it('allows the fast build without treating it as a full merge gate', async () => {
+    const f = api(); f.run.path = '.github/workflows/preview-build.yml'; f.jobs.splice(0, 2, { name: 'Preview build', conclusion: 'success' })
+    expect(await resolvePreview(f)).toEqual({ ...request, stage: 'early' })
+    f.jobs[0].conclusion = 'failure'
+    expect(await resolvePreview(f)).toBeNull()
+  })
   it('accepts a successful Draft and a PR already merged by the bot', async () => {
     const f = api(); expect(await resolvePreview(f)).toEqual(request)
     f.pr.state = 'closed'; f.pr.merged_at = now

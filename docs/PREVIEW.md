@@ -13,13 +13,13 @@
 - 最新画面への入口: `https://doc-gif.github.io/jtcc-group-e-preview/pr-<PR番号>/`
 - 変更内容と試してほしい操作を短く説明する。利用者に Git やビルド操作を求めない。
 
-Draft でも CI に通れば確認できる。通常は返答待ちを理由に Draft のまま止めず、マージまで進める。「確認するまでマージしない」「モックだけ」などの明示指示は優先する。
+Draft でも Preview build に通れば確認できる。通常は返答待ちを理由に Draft のまま止めず、マージまで進める。「確認するまでマージしない」「モックだけ」などの明示指示は優先する。
 
 ## 自動化
 
-`CI` 完了 → `Publish PR preview` → 専用リポジトリにビルド成果物を配置 → Pages 応答確認 → PR コメント更新。
+`Preview build` 完了 → `Publish PR preview` → 専用リポジトリにビルド成果物を配置 → Pages 応答確認 → PR コメント更新。
 
-- 同一リポジトリの main 向け PR の最新 commit で `Quality gate` と `UI/UX gate` が成功した `web-dist` だけを配布する。外部 fork、失敗、古い commit、未マージで閉じた PR は対象外。
+- 同一リポジトリの main 向け PR の最新 commit で `Preview build`（型・lint・単体テスト・ビルド）が成功した `web-dist` を先行配布する。全ブラウザ・UI/UX の CI は並行して実行し、両ゲートが成功するまでマージしない。外部 fork、失敗、古い commit、未マージで閉じた PR は対象外。
 - 途中で Bot がマージしても配布できる。配布直前・コメント前にも対象 PR を再確認する。
 - 配布スクリプトは main から読み、PR のコードを鍵のあるジョブで実行しない。成果物の名前・容量・リンクを検査する。
 - `preview-publish` Environment の実行元を main に限定する。`PREVIEW_DEPLOY_KEY` は確認用リポジトリだけに書き込める SSH deploy key。
@@ -39,13 +39,13 @@ Draft でも CI に通れば確認できる。通常は返答待ちを理由に 
 2. 確認用リポジトリの Pages を main の `/` から公開する。
 3. 専用 SSH deploy key の公開鍵を確認用リポジトリに書込権限付きで登録する。秘密鍵はソースリポジトリの `preview-publish` Environment の secret `PREVIEW_DEPLOY_KEY` に登録する。鍵をコードやログに貼らない。
 4. `preview-publish` の deployment branch policy を main のみにする。
-5. ワークフローを main にマージする。`workflow_run` は main に存在してから動くため、初回だけ成功済み PR CI の実行 ID で下記の再実行を行う。
+5. ワークフローを main にマージする。`workflow_run` は main に存在してから動くため、初回だけ成功済み Preview build の実行 ID で下記の再実行を行う。
 
 接続設定や実際の URL 確認が未完了なら「有効化済み」と報告しない。
 
 ## 完了確認・復旧
 
-1. `pnpm verify` と push 後の必須 CI を確認する。
+1. ローカルでは影響範囲の検証を行い、push 後の必須 CI（`pnpm verify` 相当の全検証）を確認する。同じ SHA に対して全検証を何度も重複実行しない。
 2. 完了したら `gh pr ready <番号>` または GitHub API で Draft を解除する。Bot のマージ完了まで確認し、保護ルールは迂回しない。
 3. 確認用リンク・対象 SHA の `preview.json`・変更した操作を確認し、利用者に URL を渡す。
 4. プレビューだけが失敗したら `Publish PR preview` のログで原因を調べる。本番デプロイで代用しない。
@@ -53,7 +53,7 @@ Draft でも CI に通れば確認できる。通常は返答待ちを理由に 
 同時配布は直列化する。GitHub の concurrency で待機中の実行が置き換わった場合や接続後の再試行は次を使う。
 
 ```sh
-gh workflow run preview.yml --ref main -f run_id=<成功した最新PRのCI実行ID>
+gh workflow run preview.yml --ref main -f run_id=<成功した最新PRのPreview build実行ID>
 ```
 
 Actions 画面の Run workflow でも同じ ID を指定できる。再実行でも対象・CI・SHA の検証を省略しない。同じ URL の内容は変えられないので修正後は新しい CI 実行を使う。Pages の反映確認は最大約10分。遅延時は応答を確認してから再実行する。

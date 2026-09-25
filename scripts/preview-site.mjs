@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import { cp, lstat, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { join, resolve, sep } from 'node:path'
+import { qrPng } from './qr.mjs'
+import { previewUrls } from './preview-request.mjs'
 
 const TARGET = 'doc-gif/jtcc-group-e-preview'
 const MAX_BYTES = 50 * 1024 * 1024
@@ -72,7 +74,8 @@ export async function composePreview({ siteDir, distDir, request, now = new Date
     await mkdir(folder, { recursive: true })
     await cp(distDir, join(folder, 'app'), { recursive: true, dereference: false })
     await writeFile(join(folder, 'preview.json'), JSON.stringify(entry, null, 2) + '\n')
-    await writeFile(join(folder, 'index.html'), page('確認用プレビュー', `<div class="viewer"><header><strong>確認用・本番ではありません</strong><small>PR #${request.pr}</small><a href="app/" target="_blank" rel="noopener">別画面で開く</a></header><iframe src="app/" title="変更後のアプリ" allow="clipboard-write"></iframe></div>`))
+    await writeFile(join(folder, 'qr.png'), await qrPng(previewUrls(request).fixed))
+    await writeFile(join(folder, 'index.html'), page('確認用プレビュー', `<div class="viewer"><header><strong>確認用・本番ではありません</strong><small>PR #${request.pr}・全体テストはCIで確認</small><a href="app/" target="_blank" rel="noopener">別画面で開く</a></header><iframe src="app/" title="変更後のアプリ" allow="clipboard-write"></iframe></div>`))
   }
   const all = existing ? entries : [...entries, entry]
   const kept = keepPreviews(all, Date.parse(now))
