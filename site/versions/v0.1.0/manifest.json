@@ -1,0 +1,16 @@
+{
+  "name": "ラストピース",
+  "short_name": "ラストピース",
+  "description": "即完売で買えなかった限定グッズを、確率を公開したガチャで友達といっしょに回す（提案モック）",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FFF9FA",
+  "theme_color": "#F2A7BC",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
