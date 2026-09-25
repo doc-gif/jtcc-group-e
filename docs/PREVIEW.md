@@ -6,6 +6,18 @@
 
 確認用サイトは `doc-gif/jtcc-group-e-preview` の GitHub Pages。本番 `doc-gif/jtcc-group-e` の Pages・Release・履歴ブランチを更新しない。プレビューは公開 URL なので秘密情報や実ユーザーのデータを含めない。
 
+## 公開境界の確認記録（T02、2026-09-26）
+
+GitHub の実設定とワークフローを照合した。確認用リポジトリは公開の `doc-gif/jtcc-group-e-preview` で、Pages の公開元はその `main` の `/`。本番リポジトリ `doc-gif/jtcc-group-e` の Pages は Actions から配布する設定。`preview-publish` と本番 `github-pages` の Environment はそれぞれ `main` のみを許可し、確認用の書込 deploy key は確認用リポジトリだけに登録されている。秘密鍵の値は確認しない。
+
+- PR の `Preview build` は `web-dist` を作るだけ。成功後の `Publish PR preview` は main の信頼済みスクリプトで PR と最新 SHA を再照合し、確認用リポジトリにだけ push する。配布先の `.preview-site.json` と Git remote も照合する。PR 由来のコードを鍵のあるジョブで実行しない。
+- 本番 `Release GitHub Pages` は `workflow_dispatch` のみで、main からの明示実行時だけ Pages、`pages-history`、タグ、Release を更新する。PR・確認用リポジトリへの push には本番公開のトリガーがない。既存の本番 `v0.1.0` は過去の手動実行によるもので、T02 では新しい版を公開しない。
+- 成功済み Preview build [run 36185596804](https://github.com/doc-gif/jtcc-group-e/actions/runs/36185596804) の `web-dist`（artifact 10885703945）を検査した。45 ファイル、合計 1,807,880 バイト。ファイル名に `.env`、内部素材 ID `W001`–`W100`・`P001`–`P020`・`L001`–`L020`、`supabase/` はなく、テキスト成果物に秘密鍵・service role・Figma URL の検査パターンは見つからなかった。公開画像は既存の `public/assets/` の許可先にある PNG。これは当該成果物の検査であり、将来追加する画像の権利や内容を自動保証しない。
+
+今後の PR では、公開する画像の出典と見た目を確認し、[内部素材ライブラリ](ASSET_LIBRARY.md) の公式画像・商品写真を `public/`、ビルド成果物、公開プレビューに入れない。`VITE_` の値はブラウザから読めるため秘密を入れず、新しい環境変数や外部データを使うときは公開成果物を再検査する。`.gitignore` と許可ディレクトリ検査だけを権利・秘密の最終判定にしない。
+
+**AI による非視覚レビュー:** 確認用表示と固定 URL・QR は利用者が修正結果をスマートフォンで見つける助けになる。公開先と本番実行条件を分け、成果物を確認することで、プレビューの本番誤認と内部素材・秘密の露出を防ぐ。対象利用者の観察による評価はまだない。
+
 ## 利用者に渡すもの
 
 - PR の Bot コメントに「この変更をスマートフォンで開く」というリンクを掲載する。
