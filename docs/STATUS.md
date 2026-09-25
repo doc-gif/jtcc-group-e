@@ -1,6 +1,6 @@
 # 開発進捗
 
-最終更新: 2026-09-26 04:28 JST。共有オープニングの作業先は `feat/shared-opening`。今回の進捗ブランチは `docs/t07-town-progress`、基点の `main` は [`5c53ff7`](https://github.com/doc-gif/jtcc-group-e/commit/5c53ff7226b7ef9f55fbb8d322a7140a861eaab7) です。`DONE` はそのタスクの受け入れ条件を確認した意味で、アプリ全体の完成や本番公開を意味しません。Figma のリンクはライブ状態です。内部画像を含む過去状態は Figma 内の固定比較画像で保持し、GitHub には証拠へのリンクと評価を記録します。
+最終更新: 2026-09-26 04:53 JST。共有オープニングの作業先は `feat/shared-opening`。今回の進捗ブランチは `docs/t08-gacha-progress`、基点の `main` は [`70d5913`](https://github.com/doc-gif/jtcc-group-e/commit/70d591304330aba297056d55f9a90e86ba559238) です。`DONE` はそのタスクの受け入れ条件を確認した意味で、アプリ全体の完成や本番公開を意味しません。Figma のリンクはライブ状態です。内部画像を含む過去状態は Figma 内の固定比較画像で保持し、GitHub には証拠へのリンクと評価を記録します。
 
 ## 完了したタスク
 
@@ -11,18 +11,18 @@
 | T05 | 体験仕様を定義し、Figma Guide に判断材料を記録。 | [T05 カード `172:2`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=172-2) と 390×844 画面の AI レビュー。Town 5/12、Friend 7/12、Spin 5/10、Shelf 6/12 で再作業。 | `docs/EXPERIENCE_SPEC.md` はこの時点で未コミット。対象ユーザーの観察なし。T07–T11 で画面を見直す。 | `feat/shared-opening`、固有コミットなし。 |
 | T06 | 44 変数、文字スタイル 5 種、Button・Badge・Navigation・Sheet を Figma に作成。 | [基礎ガイド `178:15`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=178-15)、[部品 `179:15`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=179-15)。Button 6 状態、48px、全 53 塗りの変数参照、コントラストを確認。部品に限る AI 視覚レビューは該当 4/4。 | 新しい緑の操作トークンはアプリ CSS に未反映（T24）。組み立て画面と対象ユーザーの評価は未実施。 | Figma 作業、`feat/shared-opening` に記録。固有コミットなし。 |
 | T07 | Town Home v3を保持し、同じページの専用領域にHome・4W地図・開始・読み込み・動きを抑えた状態を作成。 | [Home `187:485`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=187-485)、[最終固定画像 `197:2338`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=197-2338)。1560×1560、48px標識、スキップと主ボタン計8個の遷移設定を確認。AI視覚レビュー5/12→10/12、[詳細](design-reviews/T07.md)。 | 実装・ブラウザ再生・対象ユーザー評価は未実施。所有と感情は各1/2。内部素材は公開不可。T11で統合・採用を判断。 | `docs/t07-town-progress`、このPRのGit履歴を参照。 |
+| T08 | ガチャ一覧から詳細・9種の確率・支払い確認・3回転・3段階の開封・結果まで、390×844の13画面を専用領域に設計。売り切れとコイン不足も作成。 | [Catalog 204:2341](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=204-2341)、[確率 204:2411](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=204-2411)、[結果 204:2666](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=204-2666)、[Figma内の固定比較画像 202:2338](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=202-2338)。24件の遷移を設定値で確認。AI視覚レビュー10/12、[詳細](design-reviews/T08.md)。 | 実装・ブラウザ再生・対象ユーザー評価は未実施。500コインと9種は未マージの共有オープニング草案に合わせた設計値。写真は内部検討専用。T09で棚への接続を設計し、T11で統合・採用を判断。 | docs/t08-gacha-progress、このPRのGit履歴を参照。 |
 | T12 | 専用 Supabase プロジェクトの匿名ログインと保存済み制限を確認。 | 匿名ログイン 1 件を実行後サインアウト。Dashboard で 60 件/時/IP の保存状態を確認。管理画面へのアクセスが必要な証拠。 | 実 DB・40 人・負荷テストは未実施。T03 の契約確定後に検証する。 | 外部設定の読み取り、固有コミットなし。 |
 | H01 | GitHub で読める進捗記録と、希望時だけ使う引き継ぎ手順を追加。 | このファイル、[引き継ぎ手順](HANDOFF.md)、README・AGENTS からの参照。コミットと push の結果は Git 履歴と作業報告で確認する。 | H01 の文書はアプリの実装・デプロイを変更しない。 | `docs/progress-handoff`、このファイルの Git 履歴を参照。 |
 
 ## 未完了と次の候補
 
-残り 37 件: `T02`, `T03`, `T08`–`T11`, `T13`–`T43`。現時点で前提がそろった候補は次のとおりです。ここに載せたことは自動割当ではありません。
+残り 36 件: `T02`, `T03`, `T09`–`T11`, `T13`–`T43`。現時点で前提がそろった候補は次のとおりです。ここに載せたことは自動割当ではありません。
 
 | 候補 | 前提 | 次に確認する内容 |
 | --- | --- | --- |
 | T02 | T01 | プレビュー専用と本番公開の境界を確認する。 |
 | T03 | T01 | 40 人共有オープニングの状態・操作・権限の契約を固定する。 |
-| T08 | T06 | ガチャの操作・期待・結果を Figma でつなぎ、再評価する。 |
 | T09 | T06 | コレクションと友だちの所有・閲覧を Figma でつなぎ、再評価する。 |
 
 `T10` は T03 と T06、`T13` は T03、`T11` は T07–T10 を待ちます。後続の実装・検証・公開カードは前提完了後に選びます。通常依頼を優先し、引き継ぎは[担当者が明示的に希望した場合](HANDOFF.md)だけ開始します。
