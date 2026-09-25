@@ -53,7 +53,7 @@ pnpm verify
 
 ## 構成
 
-デザインは [指定 Figma の JTCC App ページ](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-2)で管理します。[画面管理](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-10)、[基本ルール](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-4)、Button・Input・Card の設計部品があります（緑系の初版）。ラストピースの画面はピンク系の「さくらミルク」で実装しており、Figma の緑系との整理と Figma への画面の記録は未決・未実施です（[`docs/PRODUCT.md`](docs/PRODUCT.md) の未決事項）。
+デザインは[指定 Figma](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-2)で管理し、[基本ルール](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-4)と Button・Input・Card の設計部品を使います。ラストピースの次の画面設計は [T11 採用版・45画面の node/状態一覧](docs/ADOPTED_DESIGN.md)に固定しました。現行 Web はピンク系の端末内デモで、採用版の緑の主操作と40席共有画面はまだ実装していません。
 
 - `src/domain/`: 画面から切り離した純粋な関数とデータ（抽選・確率・一律20%の交換・保存・演出の台本・架空カタログ）。Vitest で検証
 - `src/app/`: ルーター（ハッシュ）、状態の置き場所、ルームのデモ再現、声・音・振動

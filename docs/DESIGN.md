@@ -12,12 +12,14 @@
 | [10 Button](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=76-32) | Primary / Secondary × 6状態 |
 | [11 Input](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=78-2) | Default / Focus / Filled / Error / Disabled |
 | [12 Card](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=79-2) | Standard / Subtle |
-| [90 Screens](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-10) | 今後の業務画面と状態を管理 |
+| [90 Screens（旧版）](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-10) | 初期画面の履歴 |
+| [Town v2（作業領域）](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=134-2) | T07–T10 の編集元 |
+| [Adopted Snapshot v1](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=252-2) | T11 採用の45画面と街マップ。実装対応は [node/状態一覧](ADOPTED_DESIGN.md) |
 | [320px 幅の部品確認](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=80-2) | 長文・エラー説明・折返しのインスタンス見本 |
 
 ## 初版の範囲
 
-2026-09-25、ユーザーが「現在のアプリの緑系を維持」を選択。アクセント `#16634d`、背景 `#f5f7f5`、本文 `#172324` を継承する。ピッチ資料のコーラル・ラベンダーとは別の用途として管理する。
+2026-09-25、ユーザーが「現在のアプリの緑系を維持」を選択。アクセント `#16634d`、本文 `#172324` を継承する。T11 採用版は淡いピンクの街・展示背景に緑の主操作を組み合わせる。現行 Web の「さくらミルク」CSS は未移行で、T24 以降に実画面へ適用する。ピッチ資料のコーラル・ラベンダーとは別の用途として管理する。
 
 - 4コレクション・57変数: Primitives 12、Color 16、Layout 17、Typography 12。各コレクション1モード。Color は Light。
 - 文字スタイル: Display 34/44、Title 24/34、Heading 20/30、Body 17/30、Label 17/24、Caption 14/22（サイズ/行高、px）。
@@ -40,7 +42,7 @@
 ## 作業者・エージェントの手順
 
 1. [開発手順](DEVELOPMENT.md)に従い最新 main から専用 worktree / ブランチを作る。他の未完了 PR を読み、Draft PR に担当ファイル、Figma の対象 node、共通部品の変更有無を書く。
-2. `90 Screens` に `task/<branch>` の作業領域を用意する。画面名は `<screen>/<state>`。担当者、目的、関連 PR、Draft / Ready / Implemented を明記する。同時作業の領域は分ける。
+2. `Town v2` または指定の現行作業ページに `task/<branch>` の領域を用意する。画面名は `<screen>/<state>`。担当者、目的、関連 PR、Draft / Ready / Implemented を明記する。同時作業の領域は分ける。採用版 v1 は上書きしない。
 3. 320pxと390pxを基準に、必要な通常・待機・空・失敗・完了を設計する。JTCC 変数・文字スタイル・部品インスタンスを使う。共通部品本体や変数は、担当が重複していないことを確認してから変える。既存ページの削除や全体置換をしない。
 4. Ready にした画面の node URL、変更前後の画像、各状態の意図を PR に添える。仕様が未確定なら Draft として明記し、実装済み画面と区別する。
 5. 実装は Figma と照合し、[UI/UX 基準](UI_UX_STANDARDS.md)の全10項目をレビューする。GAME-01 の evidence に node URL と比較した画面・状態を含める。Figma の見本だけで Web のアクセシビリティ検証を済ませない。
@@ -57,7 +59,7 @@ Figma だけの変更を Web 側の UI 変更として偽装してレビュー d
 
 ## 過去版を振り返る
 
-Figma の node URL は編集後も同じ URL になり得る。各採用 PR に画像と node ID を残し、デザインのトークン・manifest は Git の commit で固定する。デザインの大きな改訂では旧版を残し、担当範囲を決めて新版を作る。
+Figma の node URL は編集後も同じ URL になり得る。T11 は専用ページへ複製し、[46点の node 対応・状態](ADOPTED_DESIGN.md)と SHA-256 を Git commit で固定した。内部画像は公開 PR に置かず、内部作業計画に保存する。デザインの大きな改訂では v1 を残し、担当範囲を決めて v2 を作る。
 
 公開時には Release に採用 PR とデザイン記録の Git commit permalink を含める。実際に触れる過去 Web アプリは `/versions/vX.Y.Z/` と Release の ZIP で保持する。Figma のライブリンクだけを過去版保存の代わりにしない。
 

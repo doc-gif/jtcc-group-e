@@ -32,12 +32,12 @@
 
 ## デザインの管理先
 
-- 指定 Figma ファイル `yeDF1BwhrxpXI57Daainle` をアプリのデザイン管理先とする。[Screens](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-10) に画面、[Foundations](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-4) に共通ルールを置く。詳細・各部品のリンクは `docs/DESIGN.md`。
+- 指定 Figma ファイル `yeDF1BwhrxpXI57Daainle` をアプリのデザイン管理先とする。[T11 採用版](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=252-2) の45画面・状態と元/採用 node の対応は [`docs/ADOPTED_DESIGN.md`](docs/ADOPTED_DESIGN.md)。共通ルールは [Foundations](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-4)、詳細は `docs/DESIGN.md`。
 - 新しい UI は Figma に画面と状態を記録してから実装する。JTCC の変数・文字スタイル・部品インスタンスを使い、現行アプリの緑系を維持する。既存のピッチ資料をアプリ仕様として確定扱いしない。
-- Figma の作業領域も `task/<branch>` ごとに分け、担当・関連 PR・状態を記載する。共通変数と本体部品は変更前に他の Draft PR と調整し、別の作業領域を上書きしない。
+- Figma の作業領域も `task/<branch>` ごとに分け、担当・関連 PR・状態を記載する。採用版 v1 を上書きせず、変更時は新版と採用 PR を作る。共通変数と本体部品は変更前に他の Draft PR と調整し、別の作業領域を上書きしない。
 - UI の PR に対象 node URL、確認した状態、変更前後の画像と Figma 照合結果を添える。実画面を確認し、既存の全10項目のレビューで、特に GAME-01 にデザインとの対応を記録する。
 - トークンを変えたら `design-system/tokens.css` と `design-system/figma-manifest.json` を同じ PR で更新する。これらは初版時点では参照用で、アプリに自動反映されない。React 部品はまだ未実装なので、存在しない実装や Code Connect 対応を装わない。
-- Figma にアクセスできない場合は参照した画像・仕様と未確認箇所を記録し、照合済みと記載しない。Figma のライブ URL は過去デザインを固定しないため、採用版は PR に画像と node ID を残す。
+- Figma にアクセスできない場合は参照した画像・仕様と未確認箇所を記録し、照合済みと記載しない。採用版は node/状態マップと Git commit を残す。内部素材を含む採用版画像は公開 PR に置かず、内部保存画像の SHA-256 だけを記録する。
 
 ## PR・自動承認
 
