@@ -77,7 +77,9 @@
 .spin-screen { transition: background 0.4s; }
 .spin-screen.is-warm { background: #fff6e0; }
 .turn-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.75rem; }
-.turn-tag { font-size: 0.875rem; font-weight: 700; line-height: 1.5; color: #7a4a28; background: #fffdfa; border: 1.5px solid #f0c27c; border-radius: 999px; padding: 0.15rem 0.75rem; animation: m-fade-in 0.4s ease-out both; }
+/* 札は文字なので不透明度では出さない（途中の色が地と混ざり、コントラストの検査に引っかかる）。小さくから 1 倍へ */
+.turn-tag { font-size: 0.875rem; font-weight: 700; line-height: 1.5; color: #7a4a28; background: #fffdfa; border: 1.5px solid #f0c27c; border-radius: 999px; padding: 0.15rem 0.75rem; transform-origin: left center; animation: m-pop 0.3s ease-out; }
+@keyframes m-pop { from { transform: scale(0.85); } }
 
 /* ガチャ詳細（267:8279）：ガチャの名前 */
 .detail-title { font-size: 1.25rem; font-weight: 800; color: var(--text); line-height: 1.45; }

@@ -1,5 +1,5 @@
 {
-  "uiDigest": "849605a716efb648170e82daa84ccd73f9b7eaec8f75c4de54d3e8b042451b6f",
+  "uiDigest": "8d0d99dbcb2282b6771eded56b3c85123bb338747905cda84a607cb6ac3d2a9a",
   "reviewer": "Claude (cloud #116 spin effect)",
   "reviewedAt": "2026-09-26",
   "summary": "#116: ひとりで回す画面（T08）に 1 回転ごとの演出を加えた。純粋関数 src/components/spinEffect.ts の spinEffect(turns, glow) が部品 T08 / Gacha Machine（419:10377）の state（turn1 / turn2 / turn3 / click3）と glow、星の位置・揺れ・取り出し口の光・つや・暖かい光・画面の背景・札を返し、筐体 Machine.tsx は別の層 .m-fx（aria-hidden）に className（state-turn2 glow-featured のように部品と同じ名前）で描く。1 回転目は glow によらず演出なし。1 周の後は星 3 つ（turn2）、2 周の後は星 5 つと筐体がぷるっと揺れる（turn3）、3 周目の後は「カチッ」と取り出し口に光が集まり星が寄る（click3）→ カプセルが開口から出て受け皿に着地して光る（S1〜S5、CSS の keyframes capsule-out 1.61 秒。Figma のプロトタイプの待ち・時間・イージングそのまま）→ 0.35 秒見せて開封へ。glow 別: normal は petal・rose の星だけで背景・札・金色を一切出さない。sparkle は白・melody-pink・sky-deep の星が増え、粒とドームの真珠色のつや。featured は金の星、turn2 から画面の背景を sanrio/cream、turn3 から筐体の後ろの暖かい光と「回転 3 / 3」の右の札「きらきら… いい予感！」、click3 で光の筋 4 本、揺れ線・カチッも金。動きを減らす設定では星・揺れ・光の動きを止め、色の変化と静止の星だけ、カプセルは 1 段のフェード。音・振動・spinScript・src/domain は変えていない。Figma はクラウドから開けないため、Issue #116 のコメント（[local #114] 2026-09-26 13:46）の state / glow 別の星・揺れ・光・カプセルの座標・色・時間を仕様にし、Pixel 7・320px の実画面（turn2・turn3・click3・S2・S5 を normal / sparkle / featured で、動きを減らす設定の turn3、文字 200%）を撮って照合した。",
@@ -7,7 +7,7 @@
     {
       "id": "HIG-01",
       "result": "pass",
-      "evidence": "追加した文字は札「きらきら… いい予感！」（14px 太字、cocoa #7a4a28 を白地 #fffdfa に。約 7.3:1）と本文「カプセルが出てくるよ…」「そのまま待ってね。」（既存の 17px --text と 14px --sub）。featured のクリームの背景 #fff6e0 でも --text 14.6:1・--sub 6.0:1・進み具合バーは絵。演出の段階は色だけでなく文字（回転 N / 3・本文・札）で伝わり、当たりは最後にカプセルの読み上げ用の名前（目玉のカプセル）で伝える。星・光・カプセルの動きは飾りで aria-hidden。axe（WCAG 2.1 AA）は spin-turn-2/3-normal/sparkle/featured の 6 場面 × Chromium 3 構成で違反 0。"
+      "evidence": "追加した文字は札「きらきら… いい予感！」（14px 太字、cocoa #7a4a28 を白地 #fffdfa に。約 7.3:1。札は不透明度で出さず大きさだけで出す。フェードだと途中の混ざった色を axe が拾い 3.1:1 になった）と本文「カプセルが出てくるよ…」「そのまま待ってね。」（既存の 17px --text と 14px --sub）。featured のクリームの背景 #fff6e0 でも --text 14.6:1・--sub 6.0:1・進み具合バーは絵。演出の段階は色だけでなく文字（回転 N / 3・本文・札）で伝わり、当たりは最後にカプセルの読み上げ用の名前（目玉のカプセル）で伝える。星・光・カプセルの動きは飾りで aria-hidden。axe（WCAG 2.1 AA）は spin-turn-2/3-normal/sparkle/featured の 6 場面 × Chromium 3 構成で違反 0。"
     },
     {
       "id": "HIG-02",
