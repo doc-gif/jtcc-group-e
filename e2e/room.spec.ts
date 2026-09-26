@@ -24,11 +24,10 @@ async function seeded(page: Page, seed: RoomSeed) {
   await page.goto(`./#/room/${ROOM_INVITE}`)
 }
 
-test('ホストが作って予約・ピッチ用・今すぐ開始、参加者は名前を選んで準備し、秒読み → 同時開封 → 結果', async ({ page, context }) => {
+test('ホストが作って予約・ピッチ用・今すぐ開始、参加者は名前を選んで準備し、ガチャを回す → 1回タップで開ける → 当たり → みんなの結果', async ({ page, context }) => {
   // 実時間の待ちが2つある。3つ目のタブの入室はタブ間の知らせが出ない（入室の後に購読する）ので、ホストは
-  // ROOM_POLL_MS（15秒）ごとのポーリングで受け取る（最大15秒）。開始後は SHARED_START_DELAY_MS（8秒）の秒読み。
-  // #88 で全員の結果まで最大10秒がさらに加わる（開ける操作がないので必ず待つ）。
-  // 合わせて最大33秒で、3つのタブの操作（WebKit で15〜20秒）を足すと既定の30秒を超えることがあるため、通常の3倍の時間を許す
+  // ROOM_POLL_MS（15秒）ごとのポーリングで受け取る（最大15秒）。#88 で秒読みはなくなり、みんなの結果は開始から15秒。
+  // 合わせて最大30秒で、3つのタブの操作（WebKit で15〜20秒）を足すと既定の30秒を超えることがあるため、通常の3倍の時間を許す
   test.slow()
   const errors = watchErrors(page)
   await page.goto('./#/gacha/melody-anniv')
@@ -85,20 +84,21 @@ test('ホストが作って予約・ピッチ用・今すぐ開始、参加者�
   await expect(guest.getByText('ピッチ用：このルームは毎回1人に目玉確定')).toBeVisible()
   await expect(guest.getByText('あなたは準備完了です')).toBeVisible()
 
+  // #88: 秒読みはない。ホストは準備していないので見守り、参加者はすぐガチャを回す
   await page.getByRole('button', { name: '今すぐ開始' }).click()
-  await expect(heading(page)).toHaveText('もうすぐ開封！')
-  await expect(page.getByRole('timer')).toHaveText(/開封まで00:0\d/)
+  await expect(heading(page)).toHaveText('みんなが開けています')
+  await expect(page.getByRole('timer')).toHaveCount(0)
   await expect(page.getByText('ピッチ用デモ：このラウンドは1人に目玉確定（確率表示の対象外）')).toBeVisible()
-  await expect(heading(guest)).toHaveText(/もうすぐ開封！|せーので、ひらこう！/, { timeout: 20_000 })
-  await expect(heading(guest)).toHaveText('せーので、ひらこう！', { timeout: 20_000 })
-  // #88: 全員の結果は、抽選に入った人が全員開けるか、10 秒たってから（この画面では開ける操作はまだない）
-  await expect(guest.getByRole('button', { name: '結果を見る' })).toBeEnabled({ timeout: 20_000 })
-  await guest.getByRole('button', { name: '結果を見る' }).click()
-  await expect(heading(guest)).toHaveText('みんなの結果')
-  await expect(guest.getByText('YOUR PIECE')).toBeVisible()
+  await expect(heading(guest)).toHaveText('ガチャを回そう', { timeout: 20_000 })
+  for (let i = 0; i < 3; i += 1) await guest.getByRole('button', { name: '1タップで1回転' }).click()
+  await expect(heading(guest)).toHaveText('カプセルを開けよう')
+  await guest.getByRole('button', { name: 'カプセルを開ける' }).click()
+  await expect(heading(guest)).toHaveText('あなたの結果')
   // ピッチ用：参加者は1人なので、その人に目玉が確定する（本物の在庫から）
   await expect(guest.getByRole('heading', { name: '説明用マスコット' })).toBeVisible()
   await expect(guest.getByText('ピッチ用デモ：このラウンドは1人に目玉確定（確率表示の対象外）')).toBeVisible()
+  // みんなの結果は開始から15秒で出る（数字は出さない）
+  await expect(guest.getByRole('button', { name: 'みんなの結果を見る' })).toBeVisible({ timeout: 20_000 })
   await guest.getByRole('button', { name: 'みんなの結果を見る' }).click()
   await expect(heading(guest)).toHaveText('みんなのピース')
   await expect(guest.getByText('1人 開封済み')).toBeVisible()
@@ -151,7 +151,7 @@ test('見ていないうちに公開された結果は「おかえりなさい�
   await expect(heading(page)).toHaveText('おかえりなさい')
   await expect(page.getByText('未確認の結果 1件')).toBeVisible()
   await page.getByRole('button', { name: '結果を確認する' }).click()
-  await expect(heading(page)).toHaveText('みんなの結果')
+  await expect(heading(page)).toHaveText('あなたの結果')
   await expect(page.getByRole('heading', { name: '説明用ポーチ' })).toBeVisible()
   await page.getByRole('button', { name: '自分の履歴を見る' }).click()
   await expect(page.getByText('1回目：説明用ポーチ')).toBeVisible()
@@ -169,7 +169,8 @@ test('ホスト不在：交代はできず、ロビーで待つか見守りに�
   await seeded(host, roomSeed({ self: 'host', host: 'host', members: [{ id: 'host', nickname: 'ミオ' }, { id: 'yui', nickname: 'ゆい', ready: true }, { id: 'saki', nickname: 'さき' }] }))
   await expect(heading(host)).toHaveText('ホストとして戻りました')
   await host.getByRole('button', { name: '開封をはじめる' }).click()
-  await expect(heading(host)).toHaveText('もうすぐ開封！')
+  // #88: ホストは準備していないので見守り（カプセルなしで待つ）
+  await expect(heading(host)).toHaveText('みんなが開けています')
 })
 
 test('満員なら入れず（数は出さない）、期限の過ぎたルームは終了を伝える', async ({ page, context }) => {

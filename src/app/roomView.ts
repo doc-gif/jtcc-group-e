@@ -11,9 +11,11 @@ export type RoomView =
   | 'lobby' // 267:8993 待機ロビー（抽選か見守りかを選ぶ。人数待ちは 312:6486）
   | 'ready' // 267:9069 準備完了
   | 'full' // 267:9144 満席
-  | 'countdown' // 267:9220 カウントダウン
-  | 'opening' // 267:9299 同時開封
-  | 'myResult' // 267:9379 自分の結果（ピッチ用は 292:3118）
+  | 'countdown' // 267:9220 カウントダウン（#88 で開始の秒読みはなくなった。時刻のずれでだけ一瞬出る）
+  | 'draw' // #88 T10 29 ガチャを回す・30 カプセルが出る（案 385:10240。1回タップで開く）
+  | 'myResult' // #88 T10 31 自分の当たりを大きく（案 385:10240。前は 267:9379。ピッチ用は 292:3118）
+  | 'waitingEntrant' // #88 T10 32 みんなを待つ（抽選に入った人。案 385:10240）
+  | 'waitingWatcher' // #88 T10 33 見守り・みんなを待つ（案 385:10240）
   | 'reconnecting' // 267:9455 再接続中
   | 'recover' // 267:9530 復帰・結果回収
   | 'hostAway' // 267:9603 ホスト不在
@@ -43,7 +45,7 @@ export interface RoomUi {
   autoNamed: boolean
   /** 見守りを選んだ（サーバーでは「準備していない」人）。 */
   watching: boolean
-  /** 結果の画面で開いている詳細。null は同時開封の画面。 */
+  /** 結果の画面で開いている詳細。null はみんなを待つ画面（#88）。 */
   detail: 'mine' | 'all' | 'history' | null
   /** ホストが予約の設定を開いている。 */
   scheduleSetup: boolean
@@ -55,6 +57,8 @@ export interface RoomUi {
   hostAwayAck: boolean
   /** 復帰の案内（おかえりなさい・ホストとして戻りました）を閉じた。 */
   resumeAck: boolean
+  /** 開けた直後の自分の当たり（31）を見て「みんなの様子を見る」を押したラウンド（#88）。 */
+  prizeSeen: ReadonlySet<number>
 }
 
 /** 名前の確かめ（1〜12文字、サーバーと同じ cleanName）。問題がなければ空文字。 */
@@ -80,10 +84,14 @@ export function roomView(state: RoomState, ui: RoomUi): RoomView {
   if (phase === 'reconnecting' || phase === 'connecting' || phase === 'idle' || !state.snapshot) return 'reconnecting'
   if (ui.detail === 'history') return 'history'
   if (phase === 'countdown') return 'countdown'
-  // #88: 自分のカプセル・みんなを待つ画面は Figma T10 の後に分ける。それまでは同時開封の画面。
-  if (phase === 'opening' || phase === 'waiting') return 'opening'
+  // #88: 抽選に入った人は、まだ回していなければ（みんなの結果が出た後も）回す画面。開けたらまず自分の当たりを大きく。
+  if (phase === 'opening') return 'draw'
+  const roundNo = state.round?.number ?? null
+  const freshPrize = state.isEntrant && state.hasOpened && roundNo !== null && !ui.prizeSeen.has(roundNo)
+  const wait: RoomView = state.isEntrant ? 'waitingEntrant' : 'waitingWatcher'
+  if (phase === 'waiting') return ui.detail === 'mine' || freshPrize ? 'myResult' : wait
   if (ui.resumed && !ui.resumeAck && missedResults(state, ui).length > 0) return 'recover'
-  if (phase === 'results') return ui.detail === 'all' ? 'allResults' : ui.detail === 'mine' ? 'myResult' : 'opening'
+  if (phase === 'results') return ui.detail === 'all' ? 'allResults' : ui.detail === 'mine' || freshPrize ? 'myResult' : wait
   if (ui.nameStep) return ui.nameStep === 'taken' ? 'nameTaken' : 'nameChoose'
   if (ui.autoNamed) return 'nameAuto'
   if (state.isHost) {

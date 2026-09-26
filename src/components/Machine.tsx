@@ -14,6 +14,7 @@ const HANDLE = { x: 237, y: 261 }
 /**
  * ガチャ筐体。デザインマスターの部品「T08 / Gacha Machine / visual only」（267:10520）の
  * オリジナルのベクター画をコードで描き直したもの。回転で飾りは増えない（マスターは静止の絵）。
+ * #88（担当者の指示 2026-09-26）で、上側を丸いアーチから角ばった箱（角丸 12・内側 6）に変えた（Figma の案 408:15720）。
  */
 export function Machine({ className = '', label = 'ガチャガチャ。右のハンドルをタップして回します', turns = 0, onHandleTap }: Props) {
   return (
@@ -21,15 +22,15 @@ export function Machine({ className = '', label = 'ガチャガチャ。右の�
       <rect width="350" height="350" rx="0" className="m-bg" />
       <ellipse cx="175" cy="326" rx="126" ry="16" fill="#D5C6C6" />
       <rect x="67" y="217" width="216" height="102" rx="27" fill="#F8CDD9" stroke="#BD8496" strokeWidth="3" />
-      <path d="M86 225V122C86 61 126 27 175 27s89 34 89 95v103z" fill="#FFFCFD" stroke="#BD8496" strokeWidth="4" />
-      <path d="M95 122c0-53 38-86 80-86s80 33 80 86v86H95z" fill="#E8F1EF" />
+      <rect x="86" y="27" width="178" height="198" rx="12" fill="#FFFCFD" stroke="#BD8496" strokeWidth="4" />
+      <rect x="95" y="36" width="160" height="172" rx="6" fill="#E8F1EF" />
       <circle cx="132" cy="168" r="31" fill="#E3B4C8" />
       <circle cx="177" cy="168" r="31" fill="#D5C7E7" />
       <circle cx="222" cy="168" r="31" fill="#BBD7CB" />
       <circle cx="150" cy="202" r="30" fill="#F0D9AD" />
       <circle cx="199" cy="201" r="30" fill="#DDA9B8" />
       <path d="M109 171h46M154 168h46M199 168h45M127 201h46M177 201h45" stroke="#FFF9FA" strokeWidth="4" opacity="0.8" />
-      <path d="M85 109C85.7 73.7 101.7 49 133 35" fill="none" stroke="#FFF9FA" strokeWidth="9" opacity="0.75" />
+      <rect x="104" y="46" width="8" height="56" rx="4" fill="#FFFFFF" opacity="0.85" />
       <path d="M69 221h214" stroke="#B7818C" strokeWidth="11" />
       <rect x="88" y="232" width="102" height="62" rx="18" fill="#FFF9FA" stroke="#C28E9E" strokeWidth="2" />
       <path d="M107 257h64" stroke="#B5CBBF" strokeWidth="5" />

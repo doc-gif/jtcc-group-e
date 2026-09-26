@@ -8,7 +8,7 @@ import { PITCH_PHOTOS } from '../app/pitchPhotos'
 import { createRoomSession, readRecords, ROOM_RECORDS_KEY, writeRecord, type KeyValue, type RoomSession } from '../app/sharedRoom'
 import { MockRoomServer } from '../realtime/mock'
 import type { PhotoSource } from '../realtime/photos'
-import { SHARED_OPEN_TIMEOUT_MS, SHARED_START_DELAY_MS } from '../realtime/protocol'
+import { SHARED_REVEAL_DELAY_MS } from '../realtime/protocol'
 import { ROOM_POLL_MS } from '../realtime/roomController'
 
 class MemoryStorage implements KeyValue {
@@ -61,6 +61,14 @@ async function hostRoom(name = 'ミオ') {
 /** 別の人（画面は使わない）がルームに入る。開始にはホストのほかに2人以上が要る（F13）。 */
 async function addGuests(invite: string, names: string[]) {
   for (const name of names) await server.asUser(`guest-${name}`).join(invite, name)
+}
+
+/** #88: ルームのガチャを回し（3回転）、出てきたカプセルを1回タップで開ける。 */
+async function drawAndOpen() {
+  for (let i = 0; i < 3; i++) await click('1タップで1回転')
+  await advance(1_000)
+  expect(heading()).toHaveTextContent('カプセルを開けよう')
+  await click('カプセルを開ける')
 }
 
 async function joinAs(name: string) {
@@ -124,7 +132,7 @@ describe('ホスト：作る・予約・開始', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  test('予約（ピッチ用つき）→ 秒読み → 今すぐ開始 → 同時開封 → 結果とピッチ用の表示 → みんなの結果', async () => {
+  test('予約（ピッチ用つき）→ 今すぐ開始 → ガチャを回す → 1回タップで開ける → 当たりとピッチ用の表示 → みんなを待つ → みんなの結果', async () => {
     const session = sessionFor('host')
     await session.controller.createAsHost(HOST_KEY, 'ミオ')
     open('#/room/invite-1', session)
@@ -155,21 +163,24 @@ describe('ホスト：作る・予約・開始', () => {
     await advance(15_000)
     expect(screen.getByRole('heading', { name: 'あと 0:45 で開始' })).toBeVisible()
 
+    // #88: 秒読みはなく、すぐガチャを回す画面。時間の表示はない
     await click('今すぐ開始')
-    expect(heading()).toHaveTextContent('もうすぐ開封！')
-    expect(screen.getByRole('timer')).toHaveTextContent('00:08')
+    expect(heading()).toHaveTextContent('ガチャを回そう')
+    expect(screen.queryByRole('timer')).toBeNull()
     expect(screen.getByText('ピッチ用デモ：このラウンドは1人に目玉確定（確率表示の対象外）')).toBeVisible()
-    expect(button('開封を待っています')).toBeDisabled()
-    // 公開前は結果を出さない
+    // 開けるまで結果を出さない
     expect(document.body.textContent).not.toMatch(/説明用(マスコット|ポーチ|缶バッジ)/)
-    await advance(3_000)
-    expect(screen.getByRole('timer')).toHaveTextContent('00:05')
-    await advance(SHARED_START_DELAY_MS + SHARED_OPEN_TIMEOUT_MS) // #88: 開ける操作がない画面では 10 秒で全員の結果
-    expect(heading()).toHaveTextContent('せーので、ひらこう！')
-    await click('結果を見る')
-    expect(heading()).toHaveTextContent('みんなの結果')
-    expect(screen.getByText('YOUR PIECE')).toBeVisible()
+    await drawAndOpen()
+    expect(heading()).toHaveTextContent('あなたの結果')
+    expect(screen.getByRole('heading', { name: /^説明用/ })).toBeVisible()
     expect(screen.getByText('ピッチ用デモ：このラウンドは1人に目玉確定（確率表示の対象外）')).toBeVisible()
+    // みんなの結果は開始から一定時間まで出ない
+    await click('みんなの様子を見る')
+    expect(heading()).toHaveTextContent('みんなを待っています')
+    expect(screen.getByText('1 / 2人')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'みんなの結果を見る' })).toBeNull()
+    await advance(SHARED_REVEAL_DELAY_MS)
+    expect(heading()).toHaveTextContent('みんなの結果が出ました')
     await click('みんなの結果を見る')
     expect(heading()).toHaveTextContent('みんなのピース')
     expect(screen.getByText('2人 開封済み')).toBeVisible()
@@ -201,7 +212,8 @@ describe('ホスト：作る・予約・開始', () => {
     // 2人目の参加でサーバーが開始し、ホストの画面にも届く
     await addGuests('invite-1', ['さき'])
     await advance(1_000)
-    expect(heading()).toHaveTextContent('もうすぐ開封！')
+    // ホストは準備していないので見守り（#88: カプセルなしで待つ）
+    expect(heading()).toHaveTextContent('みんなが開けています')
   })
 
   test('予約の時刻に準備完了の人がいないと「開始できませんでした」。予約し直せる', async () => {
@@ -384,11 +396,13 @@ describe('復帰・ホスト不在・期限', () => {
     let view = open(`#/room/${invite}`, first)
     await joinAs('ゆい')
     await click('抽選に参加する')
-    view.unmount()
-    first.controller.detach()
     await addGuests(invite, ['さき'])
     await host.controller.start()
-    await advance(SHARED_START_DELAY_MS + SHARED_OPEN_TIMEOUT_MS + 1_000)
+    // 画面を閉じた後に開けた（#88: 開けていない結果は「おかえりなさい」ではなく回す画面で見る。当たりを画面で見たら確認済み）
+    view.unmount()
+    await act(async () => { await first.controller.refresh(); await first.controller.openCapsule() })
+    first.controller.detach()
+    await advance(SHARED_REVEAL_DELAY_MS + 1_000)
 
     const again = sessionFor('guest', records)
     view = open(`#/room/${invite}`, again)
@@ -396,12 +410,12 @@ describe('復帰・ホスト不在・期限', () => {
     expect(heading()).toHaveTextContent('おかえりなさい')
     expect(screen.getByText('未確認の結果 1件')).toBeVisible()
     await click('結果を確認する')
-    expect(heading()).toHaveTextContent('みんなの結果')
+    expect(heading()).toHaveTextContent('あなたの結果')
     await click('自分の履歴を見る')
     expect(heading()).toHaveTextContent('自分の履歴')
     expect(screen.getByText(/^1回目：説明用/)).toBeVisible()
     await click('ルームへ戻る')
-    expect(heading()).toHaveTextContent('みんなの結果')
+    expect(heading()).toHaveTextContent('あなたの結果')
     view.unmount()
 
     // 確認済みの結果は、次に開いたときは知らせない
@@ -410,6 +424,26 @@ describe('復帰・ホスト不在・期限', () => {
     open(`#/room/${invite}`, third)
     await flush()
     expect(heading()).not.toHaveTextContent('おかえりなさい')
+  })
+
+  test('#88: まだ回していない人は、みんなの結果が出た後も回す画面のまま。回し終えると自分の当たりが出る', async () => {
+    const { host, invite } = await hostRoom()
+    open(`#/room/${invite}`, sessionFor('guest'))
+    await joinAs('ゆい')
+    await click('抽選に参加する')
+    await addGuests(invite, ['さき'])
+    await host.controller.start()
+    await advance(ROOM_POLL_MS)
+    expect(heading()).toHaveTextContent('ガチャを回そう')
+    await advance(SHARED_REVEAL_DELAY_MS)
+    // みんなの結果には出ているが、本人の画面には出さない
+    expect(heading()).toHaveTextContent('ガチャを回そう')
+    expect(document.body.textContent).not.toMatch(/説明用(マスコット|ポーチ|缶バッジ)/)
+    await drawAndOpen()
+    expect(heading()).toHaveTextContent('あなたの結果')
+    expect(screen.getByRole('heading', { name: /^説明用/ })).toBeVisible()
+    await click('みんなの結果を見る')
+    expect(heading()).toHaveTextContent('みんなのピース')
   })
 
   test('ホストが同じ端末で開き直すと「ホストとして戻りました」', async () => {
@@ -558,10 +592,10 @@ describe('F15: ピッチ用の実物グッズ写真（Supabase につないだ�
   }
 
   async function openResult(session: RoomSession) {
-    await session.controller.start()
-    await advance(SHARED_START_DELAY_MS + SHARED_OPEN_TIMEOUT_MS + 1_000)
-    await click('結果を見る')
-    expect(heading()).toHaveTextContent('みんなの結果')
+    await act(async () => { await session.controller.start() })
+    await flush()
+    await drawAndOpen()
+    expect(heading()).toHaveTextContent('あなたの結果')
     return session.controller.getState().myPrize!
   }
 
@@ -571,12 +605,12 @@ describe('F15: ピッチ用の実物グッズ写真（Supabase につないだ�
     expect(load).not.toHaveBeenCalled()
     const prize = await openResult(session)
     expect(load).toHaveBeenCalledWith(PITCH_PHOTOS[prize].path)
-    const stage = screen.getByRole('figure')
-    const photo = within(stage).getByRole('img', { name: /説明用/ })
+    const card = screen.getByRole('article')
+    const photo = within(card).getByRole('img', { name: /説明用/ })
     expect(photo).toHaveAttribute('src', created[0])
-    expect(within(stage).getByText(`写真: ${PITCH_PHOTOS[prize].credit}`)).toBeVisible()
-    // みんなのピースへ行って戻っても読み直さない
-    await click('みんなの結果を見る')
+    expect(within(card).getByText(`写真: ${PITCH_PHOTOS[prize].credit}`)).toBeVisible()
+    // みんなを待つ画面へ行って戻っても読み直さない
+    await click('みんなの様子を見る')
     expect(screen.queryByText(/^写真: ©/)).toBeNull()
     expect(load).toHaveBeenCalledTimes(1)
     cleanup()
@@ -589,16 +623,16 @@ describe('F15: ピッチ用の実物グッズ写真（Supabase につないだ�
     await openResult(session)
     expect(load).toHaveBeenCalledTimes(1)
     expect(created).toHaveLength(0)
-    expect(within(screen.getByRole('figure')).queryByRole('img', { name: /説明用/ })).toBeNull()
+    expect(within(screen.getByRole('article')).queryByRole('img', { name: /説明用/ })).toBeNull()
     expect(screen.queryByText(/^写真: ©/)).toBeNull()
   })
 
   test('写真が表示できない（壊れた画像）ときは元の絵に戻し、権利表記を消す', async () => {
     const session = await hostWithPrize({ load: async () => jpeg() })
     await openResult(session)
-    const photo = within(screen.getByRole('figure')).getByRole('img', { name: /説明用/ })
+    const photo = within(screen.getByRole('article')).getByRole('img', { name: /説明用/ })
     fireEvent.error(photo)
-    expect(within(screen.getByRole('figure')).queryByRole('img', { name: /説明用/ })).toBeNull()
+    expect(within(screen.getByRole('article')).queryByRole('img', { name: /説明用/ })).toBeNull()
     expect(screen.queryByText(/^写真: ©/)).toBeNull()
   })
 
