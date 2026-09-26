@@ -51,11 +51,12 @@ const TONES: Record<Glow, number> = { normal: 2, sparkle: 3, featured: 3 }
 /** click3 で取り出し口に寄る星の数 */
 const GATHER: Record<Glow, number> = { normal: 4, sparkle: 6, featured: 8 }
 
-const NONE: SpinEffect = { state: 'turn1', glow: 'normal', stars: [], grains: [], shake: false, light: false, gather: 0, rays: false, sheen: false, aura: false, warm: false, tag: false, className: 'state-turn1 glow-normal' }
+/** 演出なし（turn1）。呼び出し側が配列を変えても次の呼び出しに影響しないよう、毎回新しく作る */
+const none = (): SpinEffect => ({ state: 'turn1', glow: 'normal', stars: [], grains: [], shake: false, light: false, gather: 0, rays: false, sheen: false, aura: false, warm: false, tag: false, className: 'state-turn1 glow-normal' })
 
 export function spinEffect(turns: number, glow: Glow): SpinEffect {
   // 1 回転目の途中は glow によらず演出なし（当たりを匂わせない）
-  if (turns < 1) return NONE
+  if (turns < 1) return none()
   const state: SpinState = turns >= TURNS ? 'click3' : turns >= 2 ? 'turn3' : 'turn2'
   const lucky = glow !== 'normal'
   const featured = glow === 'featured'
@@ -66,7 +67,7 @@ export function spinEffect(turns: number, glow: Glow): SpinEffect {
     state,
     glow,
     stars,
-    grains: lucky ? GRAINS_LUCKY : [],
+    grains: lucky ? GRAINS_LUCKY.map((point) => ({ ...point })) : [],
     shake: state === 'turn3',
     light: state === 'click3',
     gather: state === 'click3' ? GATHER[glow] : 0,

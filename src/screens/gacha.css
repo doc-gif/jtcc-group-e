@@ -44,13 +44,16 @@
 .machine .fx-light-1 { stop-color: var(--fx-light-1); stop-opacity: var(--fx-light-b); }
 .machine .fx-ring-0 { stop-color: var(--fx-ring-0); stop-opacity: 0.95; }
 .machine .fx-ring-1 { stop-color: var(--fx-ring-1); stop-opacity: 0.6; }
+/* 外側の端は透明に消える（CSS の stop-opacity は属性より優先されるので、端だけ別の class） */
+.machine .fx-light-end { stop-color: var(--fx-light-1); stop-opacity: 0; }
+.machine .fx-ring-end { stop-color: var(--fx-ring-1); stop-opacity: 0; }
 /* 動き: 星は出るときにふわっと現れて、ゆっくりまたたく（位置は SVG の transform 属性なので不透明度だけ動かす） */
 .machine .m-star, .machine .m-grain { animation: m-fade-in 0.4s ease-out both, m-twinkle 1.6s 0.4s ease-in-out infinite alternate; }
 .machine .m-fx > .m-star:nth-child(3n+1), .machine .m-fx > .m-grain:nth-child(2n) { animation-delay: 0s, 0.9s; }
 .machine .m-fx > .m-star:nth-child(3n+2) { animation-delay: 0s, 1.4s; }
 .machine .m-aura, .machine .m-sheen, .machine .m-lit { animation: m-fade-in 0.6s ease-out both; }
 .machine .m-lit { animation-duration: 0.2s; }
-/* turn3: 筐体がぷるっと揺れる（つまみも一緒。揺れ線は両脇でちらつく） */
+/* turn3: 筐体がぷるっと揺れる（.m-body は絵・演出の層・つまみを含むので、つまみも一緒に動く。揺れ線は両脇でちらつく） */
 .machine .m-body { transform-box: view-box; transform-origin: 175px 330px; }
 .machine.state-turn3 .m-body { animation: m-wobble 0.5s ease-in-out; }
 .machine .m-shake { animation: m-shake-line 0.5s ease-in-out both; }

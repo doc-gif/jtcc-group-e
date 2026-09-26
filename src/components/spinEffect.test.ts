@@ -91,11 +91,20 @@ describe('spinEffect: 済んだ回転数と glow から演出の段階を決め�
     expect(spinEffect(3, 'featured')).toMatchObject({ warm: true, aura: true, tag: true, rays: true })
   })
 
-  test('同じ入力には同じ結果を返し、呼び出し側が結果を変えても影響しない', () => {
+  test('同じ入力には同じ結果を返し、呼び出し側が結果（配列を含む）を変えても次の呼び出しに影響しない', () => {
     const a = spinEffect(2, 'sparkle')
     const b = spinEffect(2, 'sparkle')
     expect(a).toEqual(b)
     expect(a).not.toBe(b)
+    a.stars.push({ x: 0, y: 0, size: 1, tone: 0 })
+    a.grains.push({ x: 0, y: 0 })
+    a.grains[0].x = 999
+    expect(spinEffect(2, 'sparkle')).toEqual(b)
+    const none = spinEffect(0, 'featured')
+    none.stars.push({ x: 0, y: 0, size: 1, tone: 0 })
+    none.grains.push({ x: 0, y: 0 })
+    expect(spinEffect(0, 'normal').stars).toEqual([])
+    expect(spinEffect(0, 'sparkle').grains).toEqual([])
   })
 })
 

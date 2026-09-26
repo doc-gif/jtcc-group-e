@@ -102,12 +102,13 @@ export function Machine({ className = '', label = 'ガチャガチャ。つま�
         {/* 演出の色は glow の className から CSS 変数で入る（gacha.css） */}
         <radialGradient id="m-aura"><stop offset="0" stopColor="#f9dfa8" stopOpacity="0.65" /><stop offset="1" stopColor="#f9dfa8" stopOpacity="0" /></radialGradient>
         <linearGradient id="m-sheen" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#fff" stopOpacity="0.35" /><stop offset="0.5" stopColor="#f6c4d8" stopOpacity="0.22" /><stop offset="1" stopColor="#a6d6f0" stopOpacity="0.2" /></linearGradient>
-        <radialGradient id="m-light"><stop offset="0" className="fx-light-0" /><stop offset="0.55" className="fx-light-1" /><stop offset="1" className="fx-light-1" stopOpacity="0" /></radialGradient>
-        <radialGradient id="m-ring"><stop offset="0" className="fx-ring-0" /><stop offset="0.6" className="fx-ring-1" /><stop offset="1" className="fx-ring-1" stopOpacity="0" /></radialGradient>
+        <radialGradient id="m-light"><stop offset="0" className="fx-light-0" /><stop offset="0.55" className="fx-light-1" /><stop offset="1" className="fx-light-end" /></radialGradient>
+        <radialGradient id="m-ring"><stop offset="0" className="fx-ring-0" /><stop offset="0.6" className="fx-ring-1" /><stop offset="1" className="fx-ring-end" /></radialGradient>
       </defs>
       <rect width="350" height="424" className="m-bg" />
       {/* featured の turn3 から: 筐体の後ろの暖かい光（楕円 470×470、中心 (175,212)。部品の枠で切れる） */}
       {effect?.aura && <circle className="m-aura" cx="175" cy="212" r="235" fill="url(#m-aura)" />}
+      {/* 筐体の本体: 静止の絵・演出の層・案内の矢印・つまみ。turn3 の「ぷるっ」はこの group ごと揺れる（つまみも一緒） */}
       <g className="m-body">
       <g className="m-art">
         {/* 台座と影 */}
@@ -151,8 +152,7 @@ export function Machine({ className = '', label = 'ガチャガチャ。つま�
         {/* つまみの台 */}
         <circle cx={KNOB.x} cy={KNOB.y} r="68" fill="#f4b5c8" />
       </g>
-      </g>
-      {/* 回転ごとの演出（#116）。飾りなので読み上げない。色は glow の className から CSS で付く */}
+      {/* 回転ごとの演出（#116）。飾りなので読み上げない。色は glow の className から CSS で付く。筐体（.m-body）の中なので turn3 の揺れで一緒に動く */}
       {effect && (effect.stars.length > 0 || effect.light || lit) && (
         <g className="m-fx" aria-hidden="true">
           {/* sparkle の turn2 から: ドームに真珠色のつや */}
@@ -198,6 +198,7 @@ export function Machine({ className = '', label = 'ガチャガチャ。つま�
         <path d="M140 296c6-16 20-26 36-28" fill="none" stroke="#fff" strokeWidth="6" strokeLinecap="round" opacity="0.9" />
         <rect x={KNOB.x - 38} y={KNOB.y - 9} width="76" height="18" rx="9" fill="#fff" stroke="#be6482" strokeWidth="2" />
         <circle cx={KNOB.x} cy={KNOB.y} r="4" fill="#be6482" />
+      </g>
       </g>
       {/* 1 周した瞬間の「カチッ」: 短い線 8 本と右上の白い札（3 周目の click3 も。featured の turn3 からは金） */}
       {showClick && (
