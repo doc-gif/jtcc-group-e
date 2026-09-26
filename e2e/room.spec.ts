@@ -92,7 +92,8 @@ test('ホストが作って予約・ピッチ用・今すぐ開始、参加者�
   await expect(heading(guest)).toHaveText('ガチャを回そう', { timeout: 20_000 })
   for (let i = 0; i < 3; i += 1) await guest.getByRole('button', { name: '1タップで1回転' }).click()
   await expect(heading(guest)).toHaveText('カプセルを開けよう')
-  await guest.getByRole('button', { name: 'カプセルを開ける' }).click()
+  // 受け皿のカプセルそのものを1回タップして開ける（下のボタンでも同じ）
+  await guest.locator('.room-draw-capsule').click()
   await expect(heading(guest)).toHaveText('あなたの結果')
   // ピッチ用：参加者は1人なので、その人に目玉が確定する（本物の在庫から）
   await expect(guest.getByRole('heading', { name: '説明用マスコット' })).toBeVisible()

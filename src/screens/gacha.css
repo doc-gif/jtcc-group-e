@@ -115,6 +115,8 @@
   position: absolute; left: 38.6%; top: 74.9%; width: 22.9%; margin: 0; cursor: default; pointer-events: none;
   animation: drop 0.5s cubic-bezier(0.3, 1.5, 0.5, 1) both;
 }
+/* #88: ルームでは受け皿のカプセルを1回タップして開ける（ひとりで回すの受け皿は飾りのまま） */
+.room-draw .capsule-art.is-mini { cursor: pointer; pointer-events: auto; }
 
 /* 今回の結果（267:8438） */
 .result-card {
