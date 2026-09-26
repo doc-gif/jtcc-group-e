@@ -6,6 +6,7 @@ let db
 const users=Array.from({length:42},()=>randomUUID())
 const room=randomUUID()
 let invite
+const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql']
 const call=async(user,sql,args=[])=>{
  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user])
  return (await db.query(sql,args)).rows[0]?.result
@@ -17,7 +18,7 @@ beforeAll(async()=>{
  create schema realtime;create table realtime.messages(extension text,topic text,payload jsonb);
  create function realtime.topic() returns text language sql as $$select current_setting('realtime.topic',true)$$;
  create function realtime.send(payload jsonb,event text,topic text,private boolean) returns void language sql as $$insert into realtime.messages values('broadcast',topic,payload)$$;`)
- await db.exec(await readFile('supabase/drafts/shared_opening.sql','utf8'))
+ for(const file of migrations) await db.exec(await readFile(file,'utf8'))
 },30000)
 afterAll(async()=>{await db?.close()})
 test('40 seats, idempotent joins, atomic shared results, reconnect, host failover and private authorization',async()=>{
@@ -63,6 +64,7 @@ test('40 seats, idempotent joins, atomic shared results, reconnect, host failove
  await expect(call(users[41],'select public.lp_snapshot($1) result',[room])).rejects.toThrow('room-unavailable')
  await db.exec('set role authenticated')
  await expect(db.query('select * from public.lp_rounds')).rejects.toThrow('permission denied')
+ await expect(db.query('select public.lp_is_member($1)',[room])).rejects.toThrow('permission denied')
  await db.exec('reset role')
 },30000)
 test('transaction rolls back every coin and stock mutation when stock is insufficient',async()=>{
@@ -98,7 +100,7 @@ test('core room ledger works before Realtime initializes and blocks a departed m
  const isolated=new PGlite()
  try {
   await isolated.exec("create role anon; create role authenticated; create schema auth; create function auth.uid() returns uuid language sql as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$")
-  await isolated.exec(await readFile('supabase/drafts/shared_opening.sql','utf8'))
+  for(const file of migrations) await isolated.exec(await readFile(file,'utf8'))
   const owner=randomUUID()
   const id=randomUUID()
   await isolated.query("select set_config('request.jwt.claim.sub',$1,false)",[owner])
