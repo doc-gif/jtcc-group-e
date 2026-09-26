@@ -173,8 +173,12 @@ describe('マージのキュー: 1本ずつ・古い順に、Bot が main を取
     prs = [a, b]
     runsBySha = { [a.head.sha]: [ok(9, a, { actor: { login: BOT }, status: 'in_progress', conclusion: null })], [b.head.sha]: [ok(2, b)] }
     behind = { [b.head.sha]: 1 }
+    // A later PR's held runs are not approved while the earlier queue CI runs (one PR at a time).
+    waiting = [held(70, b)]
     expect(await queue()).toContain('queue: waiting for CI of PR #12 (run 9); CI run 9 still running')
     expect(github.rest.repos.merge).not.toHaveBeenCalled()
+    expect(github.rest.actions.approveWorkflowRun).not.toHaveBeenCalled()
+    waiting = []
     // An author's own push running CI does not hold the queue.
     runsBySha[a.head.sha] = [ok(9, a, { status: 'in_progress', conclusion: null })]
     expect(await queue()).toContain('merged main into PR #15')

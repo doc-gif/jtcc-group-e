@@ -142,7 +142,12 @@ async function queuePass({ github, owner, repo, wait }) {
   const prs = (await github.paginate(github.rest.pulls.list, { ...coordinates, state: 'open', base: 'main', per_page: 100 }))
     .filter((pr) => queueable(pr, owner, repo)).sort((a, b) => a.number - b.number)
   if (!prs.length) return { text: 'queue: empty', again: false }
-  // Runs of a queue push that appeared after the pass that pushed it: approve them first.
+  const latest = new Map()
+  for (const pr of prs) latest.set(pr.number, await latestCiRun({ github, owner, repo, sha: pr.head.sha }))
+  // The queue's CI (the bot's push) is still running: one PR at a time. Follow it before touching any other PR.
+  const busy = prs.find((pr) => latest.get(pr.number)?.actor?.login === bot && activeStatus.has(latest.get(pr.number).status))
+  if (busy) return follow(`waiting for CI of PR #${busy.number} (run ${latest.get(busy.number).id})`, latest.get(busy.number).id)
+  // Runs of a queue push that appeared after the pass that pushed it: approve the oldest PR's and follow its CI.
   for (const pr of prs) {
     try {
       const approved = await approveQueueRuns({ github, owner, repo, pr })
@@ -155,11 +160,6 @@ async function queuePass({ github, owner, repo, wait }) {
       await noteApprovalFailure({ github, owner, repo, pr, error })
     }
   }
-  const latest = new Map()
-  for (const pr of prs) latest.set(pr.number, await latestCiRun({ github, owner, repo, sha: pr.head.sha }))
-  // The queue's CI (the bot's push) is still running: one PR at a time. Follow it.
-  const busy = prs.find((pr) => latest.get(pr.number)?.actor?.login === bot && activeStatus.has(latest.get(pr.number).status))
-  if (busy) return follow(`waiting for CI of PR #${busy.number} (run ${latest.get(busy.number).id})`, latest.get(busy.number).id)
   const { data: base } = await github.rest.repos.getBranch({ ...coordinates, branch: 'main' })
   for (const pr of prs) {
     const run = latest.get(pr.number)
