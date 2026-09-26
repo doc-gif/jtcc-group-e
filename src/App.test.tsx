@@ -571,13 +571,17 @@ describe('ガチャの流れ（T08）', () => {
       start('#/gacha/sanrio-capsule/spin')
       expect(document.querySelector('.m-knob-hit')).toBeNull()
       fireEvent.click(button(/使って1回引く/))
+      // 主でない指（2 本目）から始めても、なぞりは始まらない
+      fireEvent.pointerDown(hit(), { pointerId: 2, pointerType: 'touch', button: 0, isPrimary: false, ...at(180) })
+      expect(screen.getByRole('img', { name: /ガチャガチャ/ })).not.toHaveClass('is-dragging')
       down(0)
       down(180, 2)
       sweep(0, 10, 36)
       expect(screen.getByText('回転 1 / 3')).toBeInTheDocument()
-      // 2 本目の指の動き・離しは数えない
+      // 2 本目の指の動き・離し・タップ（click）は数えない
       for (let i = 1; i <= 36; i += 1) move(180 + 10 * i, 2)
       up(180, 2)
+      fireEvent.click(hit())
       expect(screen.getByText('回転 1 / 3')).toBeInTheDocument()
       expect(screen.getByRole('img', { name: /ガチャガチャ/ })).toHaveClass('is-dragging')
       up(0)

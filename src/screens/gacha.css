@@ -3,15 +3,15 @@
  * ここに直接書く色は、カプセルの絵（マスター 267:8387 の塗りと部品 376:11670 の3種）と、友達と回す（デモ）の確定演出の暗い背景の上の白文字（既存の App.css と同じ）だけ。 */
 
 /* 筐体（マスターの部品 T08 / Gacha Machine 419:10377、350×424）。静止の絵で、つまみ（Knob v2）だけが回る。
- * 指で押せるのはつまみの 160×160（.m-knob-hit）。丸くなぞって回すので、その要素は touch-action: none（Machine.tsx のインライン）。 */
+ * 指で押せるのはつまみの 160×160（.m-knob-hit。筐体の上に重ねた HTML の丸で、Machine.tsx が位置と touch-action: none をインラインで持つ）。
+ * 筐体のほかの部分は manipulation のままにして、ページのスクロールを妨げない。 */
 .machine { cursor: default; touch-action: manipulation; }
-.machine.is-turnable { touch-action: none; }
+.machine-wrap .m-knob-hit { position: absolute; aspect-ratio: 1; border-radius: 50%; cursor: grab; }
+.machine-wrap .m-knob-hit.is-dragging { cursor: grabbing; }
 .machine .m-bg { fill: var(--soft); }
 /* タップで回したときは 0.35 秒で 1 回転。指でなぞっている間は遅らせずに追従する（動きを減らす設定では src/index.css で止まる） */
 .machine .m-knob { transform-box: view-box; transform-origin: 175px 316px; transition: transform 0.35s ease-out; }
 .machine.is-dragging .m-knob { transition: none; }
-.machine .m-knob-hit { cursor: grab; }
-.machine.is-dragging .m-knob-hit { cursor: grabbing; }
 .machine .m-click text { font-family: inherit; }
 .spin-content .machine-wrap { width: min(100%, 22rem); }
 

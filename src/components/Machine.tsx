@@ -62,7 +62,8 @@ export function Machine({ className = '', label = 'ガチャガチャ。つま�
   const angle = Math.round((turns * 360 + progress) * 10) / 10
   const turnable = Boolean(onHandleTap)
   return (
-    <svg className={`machine${turnable ? ' is-turnable' : ''}${dragging ? ' is-dragging' : ''} ${className}`.trim()} viewBox="0 0 350 424" role="img" aria-label={label}>
+    <>
+    <svg className={`machine${dragging ? ' is-dragging' : ''} ${className}`.trim()} viewBox="0 0 350 424" role="img" aria-label={label}>
       <defs>
         <linearGradient id="m-outlet" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#c27a94" />
@@ -135,14 +136,18 @@ export function Machine({ className = '', label = 'ガチャガチャ。つま�
           <text x="278" y="243" textAnchor="middle" fontSize="16" fontWeight="700" fill="#a94a68">カチッ</text>
         </g>
       )}
-      {/* 指で押す範囲 160×160（読み上げ・キーボードはボタンで操作する）。なぞってもページが動かないよう touch-action: none */}
-      {turnable && (
-        <circle
-          className="m-knob-hit" cx={KNOB.x} cy={KNOB.y} r={HIT_RADIUS} fill="transparent" style={{ touchAction: 'none' }}
-          onClick={knob ? knob.onClick : onHandleTap}
-          onPointerDown={knob?.onPointerDown} onPointerMove={knob?.onPointerMove} onPointerUp={knob?.onPointerUp} onPointerCancel={knob?.onPointerCancel}
-        />
-      )}
     </svg>
+    {/* 指で押す範囲 160×160（マスターの Knob drag target）。SVG の中の要素では Chromium が touch-action を見ないので、
+        筐体の上に重ねた HTML の丸だけを touch-action: none にする（筐体のほかの部分はページのスクロールを妨げない）。
+        読み上げ・キーボードは画面の「1タップで1回転」ボタンで操作する */}
+    {turnable && (
+      <div
+        className={`m-knob-hit${dragging ? ' is-dragging' : ''}`} aria-hidden="true"
+        style={{ left: `${((KNOB.x - HIT_RADIUS) / 350) * 100}%`, top: `${((KNOB.y - HIT_RADIUS) / 424) * 100}%`, width: `${((HIT_RADIUS * 2) / 350) * 100}%`, touchAction: 'none' }}
+        onClick={knob ? knob.onClick : onHandleTap}
+        onPointerDown={knob?.onPointerDown} onPointerMove={knob?.onPointerMove} onPointerUp={knob?.onPointerUp} onPointerCancel={knob?.onPointerCancel}
+      />
+    )}
+    </>
   )
 }

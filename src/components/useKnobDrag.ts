@@ -6,7 +6,7 @@ const TAP_TOLERANCE = 10
 /** 押せる範囲の幅に対する、角度を読まない中心の半径の割合（中心の近くは角度が暴れる） */
 const DEAD_ZONE = 0.15
 
-type PointerLike = Pick<ReactPointerEvent<Element>, 'pointerId' | 'pointerType' | 'button' | 'clientX' | 'clientY' | 'currentTarget'>
+type PointerLike = Pick<ReactPointerEvent<Element>, 'pointerId' | 'pointerType' | 'isPrimary' | 'button' | 'clientX' | 'clientY' | 'currentTarget'>
 
 export interface KnobHandlers {
   onPointerDown: (event: PointerLike) => void
@@ -48,8 +48,8 @@ export function useKnobDrag(onTurn: (() => void) | undefined) {
 
   const handlers: KnobHandlers = {
     onPointerDown: (event) => {
-      // 2 本目の指・右クリックは無視。回せない場面では触れても何も起きない
-      if (!turn.current || active.current !== null) return
+      // 2 本目の指（主でないポインタ）・右クリックは無視。回せない場面では触れても何も起きない
+      if (!turn.current || active.current !== null || !event.isPrimary) return
       if (event.pointerType === 'mouse' && event.button !== 0) return
       active.current = event.pointerId
       origin.current = { x: event.clientX, y: event.clientY }
@@ -69,6 +69,8 @@ export function useKnobDrag(onTurn: (() => void) | undefined) {
     onPointerUp: finish,
     onPointerCancel: finish,
     onClick: () => {
+      // なぞっている最中の click は 2 本目の指のタップなので回さない。なぞって離したあとの click も回さない
+      if (active.current !== null) return
       if (moved.current > TAP_TOLERANCE) { moved.current = 0; return }
       turn.current?.()
     },

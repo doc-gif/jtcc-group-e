@@ -284,11 +284,17 @@ async function knobCircle(page: Page) {
   return { box, at: (degrees: number) => ({ x: cx + r * Math.cos((degrees * Math.PI) / 180), y: cy + r * Math.sin((degrees * Math.PI) / 180) }) }
 }
 
-/** つまみの見た目の回転（度）。CSS の transform の行列から読む */
+/** つまみの見た目の回転（度、0 以上 360 未満）。CSS の transform の行列から読むので、ブラウザの丸めで 1° ほどずれる */
 const knobRotation = (page: Page) => page.locator('.m-knob').evaluate((el) => {
   const m = new DOMMatrixReadOnly(getComputedStyle(el).transform)
-  return Math.round((Math.atan2(m.b, m.a) * 180) / Math.PI)
+  return (((Math.atan2(m.b, m.a) * 180) / Math.PI) + 360) % 360
 })
+/** つまみの向きが期待の角度（0 以上 360 未満）に 2° 以内で合う */
+async function expectKnobRotation(page: Page, degrees: number) {
+  const actual = await knobRotation(page)
+  const diff = Math.abs(((actual - degrees + 540) % 360) - 180)
+  expect(diff, `つまみの向き ${actual.toFixed(1)}° は ${degrees}° のはず`).toBeLessThanOrEqual(2)
+}
 
 test('つまみを指で右に丸くなぞって回す（#115、マスター 421:9251・421:9270）：左回りは進まず、1 周で 1 回転、3 回転でカプセルが出る', async ({ page }) => {
   // 3 周分（100 点以上）ポインタを動かすので、通常の 3 倍の時間を許す
@@ -312,11 +318,11 @@ test('つまみを指で右に丸くなぞって回す（#115、マスター 421
   await expect(page.getByText('そのまま右にぐるっと一周！')).toBeVisible()
   await expect(page.locator('.m-hint')).toHaveCount(0)
   await expect(page.getByText('回転 0 / 3')).toBeVisible()
-  expect(await knobRotation(page)).toBe(0)
+  await expectKnobRotation(page, 0)
   // 右回りに半周: まだ進まないが、つまみは指に追従して回っている
   for (let d = 10; d <= 180; d += 10) await moveTo(d)
   await expect(page.getByText('回転 0 / 3')).toBeVisible()
-  expect(Math.abs(await knobRotation(page))).toBe(180)
+  await expectKnobRotation(page, 180)
   // 残りの半周で 1 回転。「カチッ」（click1）
   for (let d = 190; d <= 360; d += 10) await moveTo(d)
   await expect(page.getByText('回転 1 / 3')).toBeVisible()
