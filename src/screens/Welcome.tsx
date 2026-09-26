@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { track } from '../app/analytics'
 import { asset, useApp } from '../app/appContext'
 import { navigate, paths } from '../app/router'
 import { pipiLines } from '../copy/pipi'
@@ -17,6 +18,8 @@ export function Welcome() {
     if (!result.ok) { setError(result.message); return }
     update(() => result.state)
     navigate(paths.town)
+    // 計測（本番の公開 URL だけ。ニックネームは送らない）
+    track('demo_start')
   }
   return (
     <div className="screen welcome-screen">
