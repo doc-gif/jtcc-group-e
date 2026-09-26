@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { asset, useApp } from '../app/appContext'
 import { paths } from '../app/router'
 import { coinText } from '../domain/odds'
+import './pageHeader.css'
 
 /** コイン残高（マイページへ）とマイページへの入口。demo のときは「デモ」と文字でも示す。 */
 export function CoinPill({ demo = false }: { demo?: boolean }) {
@@ -36,6 +37,23 @@ export function BackBar({ title, back, backLabel = 'もどる', children }: { ti
     <header className="backbar">
       <a className="back-link" href={back}><span aria-hidden="true">‹</span>{backLabel}</a>
       <h1 id="page-title" tabIndex={-1}>{title}</h1>
+      {children}
+    </header>
+  )
+}
+
+/**
+ * デザインマスター（T08・T09）の上部。提案モックの1行、枠付きの「戻る」、見出しの順に並べる。
+ * 回転・開封の途中など、マスターに戻る操作がない画面では back を渡さない。
+ */
+export function PageHeader({ title, back, children }: { title: string; back?: string; children?: ReactNode }) {
+  return (
+    <header className="page-header">
+      <p className="page-header-notice">提案モック・公式サービスではありません</p>
+      <div className="page-header-row">
+        {back && <a className="btn btn-outline page-header-back" href={back}>戻る</a>}
+        <h1 id="page-title" tabIndex={-1}>{title}</h1>
+      </div>
       {children}
     </header>
   )

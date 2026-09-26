@@ -2,7 +2,7 @@ import './shelf.css'
 import { useApp } from '../app/appContext'
 import { paths } from '../app/router'
 import { friendsOf } from '../domain/shelf'
-import { BackBar, MockNotice, TabBar } from '../components/Chrome'
+import { MockNotice, PageHeader, TabBar } from '../components/Chrome'
 
 /** フレンドなしのイラスト（T09 267:8884 のベクター画をコードで描き直したもの）。 */
 function FriendsArt() {
@@ -10,7 +10,7 @@ function FriendsArt() {
     <span className="friend-art is-round" aria-hidden="true">
       <svg viewBox="0 0 160 120" width="160" height="120" focusable="false">
         <circle cx="62" cy="44" r="20" className="art-fill-soft" stroke="currentColor" strokeWidth="3" opacity="0.8" />
-        <circle cx="100" cy="44" r="20" className="art-fill" stroke="currentColor" strokeWidth="3" />
+        <circle cx="100" cy="44" r="20" className="art-fill-mint" stroke="currentColor" strokeWidth="3" />
         <path d="M30 112c0-26 14-42 32-42s32 16 32 42" className="art-fill" stroke="currentColor" strokeWidth="3" opacity="0.8" />
         <path d="M68 112c0-26 14-42 32-42s32 16 32 42" className="art-fill" stroke="currentColor" strokeWidth="3" />
       </svg>
@@ -24,7 +24,7 @@ export function Together() {
   const friends = friendsOf(state)
   return (
     <div className="screen">
-      <BackBar title="フレンド" back={paths.town} backLabel="戻る" />
+      <PageHeader title="フレンド" back={paths.town} />
       <main className="content">
         {friends.length === 0 ? (
           <div className="friend-empty">

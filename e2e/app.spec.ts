@@ -52,7 +52,7 @@ async function tapTurns(page: Page, count: number) {
 
 /** 回す前の確認で確定する（ここで初めてコインを使う） */
 async function confirmSpin(page: Page) {
-  await page.getByRole('button', { name: /コイン使って1回引く/ }).click()
+  await page.getByRole('button', { name: /使って1回引く/ }).click()
 }
 
 /** カプセルは揺れる演出があるため、必要なタップ数（ラベルの「あとN回」）だけ押す */
@@ -187,17 +187,22 @@ test('ひとりで回す：詳細 → 3回転 → 開封 → 当てたもの →
   await page.goto('./#/gacha')
   await page.getByRole('link', { name: /マイメロディ 周年限定ガチャの中身/ }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('ガチャ詳細')
-  await expect(page.getByText('✦ 目玉')).toBeVisible()
+  await expect(page.getByText('目玉の候補')).toBeVisible()
   await expect(page.locator('body')).not.toContainText(/残り\s*\d+\s*\/\s*\d+/)
   await page.getByRole('link', { name: /1回引く準備へ/ }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('回す前に')
   await confirmSpin(page)
   await tapTurns(page, 3)
   await openCapsule(page)
-  await expect(page.getByText('使ったコイン')).toBeVisible()
-  await page.getByRole('link', { name: '当てたものを見る' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('今回の結果')
+  await expect(page.getByText('1,500使用・残高1,500・1点を獲得')).toBeVisible()
+  // 結果の操作はマスターどおり「街へ戻る」だけ。当てたものは下のタブ「コレクション」→「一覧」から
+  await page.getByRole('link', { name: '街へ戻る' }).click()
+  await page.getByRole('navigation', { name: 'メイン' }).getByRole('link', { name: 'コレクション' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('わたしの棚')
+  await expect(page.getByText('1 / 12 枠')).toBeVisible()
+  await page.getByRole('link', { name: /当てたもの\s*一覧/ }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/当てたもの/)
-  await expect(page.getByRole('link', { name: /コイン残高 1,500/ })).toBeVisible()
   await page.getByRole('checkbox').first().check()
   await page.getByRole('button', { name: 'コインに交換', exact: true }).click()
   const sheet = page.getByRole('dialog', { name: 'コインに交換しますか？' })
@@ -210,22 +215,18 @@ test('ひとりで回す：詳細 → 3回転 → 開封 → 当てたもの →
   expect(errors).toEqual([])
 })
 
-test('ハンドルを指でなぞって回せる', async ({ page }) => {
+test('右のハンドルをタップして回せる（マスター 267:8348）。押せる範囲は44px以上', async ({ page }) => {
   await page.goto('./#/gacha/sanrio-capsule/spin')
   await confirmSpin(page)
-  const machine = page.getByRole('img', { name: /ガチャガチャ/ })
-  await machine.scrollIntoViewIfNeeded()
-  const box = (await machine.boundingBox())!
-  const cx = box.x + (130 / 260) * box.width
-  const cy = box.y + (284 / 370) * box.height
-  const r = (30 / 260) * box.width
-  await page.mouse.move(cx + r, cy)
-  await page.mouse.down()
-  for (let step = 1; step <= 3 * 24 + 2; step += 1) {
-    const angle = (step / 24) * Math.PI * 2
-    await page.mouse.move(cx + r * Math.cos(angle), cy + r * Math.sin(angle))
+  const handle = page.locator('.m-handle-hit')
+  await handle.scrollIntoViewIfNeeded()
+  const box = (await handle.boundingBox())!
+  expect(box.width).toBeGreaterThanOrEqual(44)
+  expect(box.height).toBeGreaterThanOrEqual(44)
+  for (const turn of [1, 2, 3]) {
+    await handle.click()
+    if (turn < 3) await expect(page.getByText(`回転 ${turn} / 3`)).toBeVisible()
   }
-  await page.mouse.up()
   await expect(page.getByRole('button', { name: /カプセルをタップ/ })).toBeVisible()
 })
 
@@ -260,33 +261,39 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     await expect(page.getByRole('table').getByRole('row')).toHaveCount(10)
     await page.getByRole('link', { name: '500コインで1回引く準備へ' }).click()
     await expect(page.getByText(/所持 3,000/)).toContainText('確定後 2,500')
+    await checkState(page, 't08-confirm', testInfo)
     await confirmSpin(page)
+    const heading = page.getByRole('heading', { level: 1 })
     await expect(page.getByText('回転 0 / 3')).toBeVisible()
+    // マスターどおり、回転・開封の途中は戻る・下のタブを出さない
+    await expect(page.getByRole('link', { name: '戻る' })).toHaveCount(0)
+    await expect(page.getByRole('navigation', { name: 'メイン' })).toHaveCount(0)
     await tapTurns(page, 1)
     await expect(page.getByText('回転 1 / 3')).toBeVisible()
     await checkState(page, 't08-turn-1', testInfo)
     await tapTurns(page, 2)
-    const open = page.getByRole('dialog', { name: 'カプセルをひらく' })
+    await expect(heading).toHaveText('カプセルをひらく')
     for (const step of [1, 2, 3]) {
-      await expect(open.getByText(`開封 ${step} / 3`)).toBeVisible()
+      await expect(page.getByText(`開封 ${step} / 3`)).toBeVisible()
+      await expect(page.getByRole('link', { name: '戻る' })).toHaveCount(0)
       await checkState(page, `t08-open-${step}`, testInfo)
-      await open.getByRole('button', { name: /カプセルをタップ/ }).click()
+      await page.getByRole('button', { name: /カプセルをタップ/ }).click()
     }
-    const result = page.getByRole('dialog', { name: 'ぬいぐるみマスコット' })
-    await expect(result.getByText('今回の結果')).toBeVisible()
-    await expect(result.getByText('500コイン使用・残高 2,500・1点を獲得')).toBeVisible()
+    await expect(heading).toHaveText('今回の結果')
+    const result = page.getByRole('article', { name: 'ぬいぐるみマスコット' })
+    await expect(result.getByText('500使用・残高2,500・1点を獲得')).toBeVisible()
     await checkState(page, 't08-result', testInfo)
     // 回帰：文字200%で結果が画面より高くなっても、先頭（今回の結果）までスクロールで戻れる
     await page.addStyleTag({ content: 'html { font-size: 200% !important; }' })
     const top = await page.evaluate(() => {
-      const scene = document.querySelector('.open-scene')!
-      scene.scrollTop = 0
-      return document.querySelector('.result-kicker')!.getBoundingClientRect().top - scene.getBoundingClientRect().top
+      window.scrollTo(0, 0)
+      return document.getElementById('page-title')!.getBoundingClientRect().top
     })
     expect(top).toBeGreaterThanOrEqual(0)
-    await testInfo.attach(`t08-result-large-text-${testInfo.project.name}`, { body: await page.screenshot(), contentType: 'image/png' })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await testInfo.attach(`t08-result-large-text-${testInfo.project.name}`, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' })
     await page.addStyleTag({ content: 'html { font-size: 100% !important; }' })
-    await result.getByRole('link', { name: '街へ戻る' }).click()
+    await page.getByRole('link', { name: '街へ戻る' }).click()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('ラストピース')
     expect(errors).toEqual([])
   })
@@ -340,16 +347,27 @@ test('棚とフレンド：飾る → お気に入りと取り消し → 見え�
   })
   await page.reload()
   await expect(page.getByText('2 / 9 枠')).toBeVisible()
-  const board = page.getByRole('list', { name: /わたしの棚/ })
+  const board = page.getByRole('list', { name: 'わたしの棚' })
   await expect(board.getByText('持っている')).toHaveCount(2)
   await expect(board.getByText('未入手')).toHaveCount(7)
+  // マスターどおり棚の中だけをスクロールし、最後の枠（09 缶バッジ）まで見られる
+  const shelf = page.getByRole('region', { name: /わたしの棚/ })
+  const lastInside = await shelf.evaluate((el) => {
+    el.scrollTop = el.scrollHeight
+    const box = el.getBoundingClientRect()
+    const last = [...el.querySelectorAll('.slot-note')].at(-1)!
+    const rect = last.getBoundingClientRect()
+    return { text: last.textContent, inside: rect.top >= box.top && rect.bottom <= box.bottom }
+  })
+  expect(lastInside).toEqual({ text: '缶バッジ', inside: true })
   await board.getByRole('link', { name: /02 \/ 09/ }).click()
   await expect(heading).toHaveText('わたしの1点')
   await page.getByRole('button', { name: 'お気に入りにする' }).click()
   await expect(page.getByRole('status')).toHaveText(/お気に入りにしました/)
   await expect(heading).toHaveText('お気に入りの1点')
   await page.reload()
-  await expect(page.getByText('♡ お気に入り・棚 01 / 09')).toBeVisible()
+  // 枠は中身の種類ごとに決まっているので、お気に入りにしても 02 のまま
+  await expect(page.getByText('♡ お気に入り・棚 02 / 09')).toBeVisible()
   await page.getByRole('button', { name: 'お気に入りをやめる' }).click()
   await expect(page.getByText('あなたの持ち物・棚 02 / 09')).toBeVisible()
   await page.getByRole('link', { name: '戻る' }).click()

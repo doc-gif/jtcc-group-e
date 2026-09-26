@@ -88,7 +88,7 @@ function GachaCard({ gacha }: { gacha: Gacha }) {
         </ul>
       </div>
       <div className="card-foot">
-        <p className="price"><b>{coinText(gacha.price)}</b> コイン／1回</p>
+        <p className="price"><b>{coinText(gacha.price)}</b> デモコイン／1回</p>
         <RemainBar gacha={gacha} stock={state.stock} />
       </div>
       <div className="card-actions">

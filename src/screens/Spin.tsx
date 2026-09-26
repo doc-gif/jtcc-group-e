@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useApp } from '../app/appContext'
 import { buzz, chime, CHIMES, speak } from '../app/feedback'
 import { paths } from '../app/router'
 import { pipiLines } from '../copy/pipi'
 import { findGacha } from '../domain/catalog'
 import { DEMO_FRIENDS, shouldShowKakutei, spin, spinCheck, spinQuote, type SpinOutcome } from '../domain/game'
-import { coinText, tapsToOpen, yen } from '../domain/odds'
-import { openLine, revealLine, tapMessage, TIMING, turnEffect, TURNS } from '../domain/spinScript'
+import { coinText, OPEN_TAPS, yen } from '../domain/odds'
+import { openLine, revealLine, TIMING, turnEffect, TURNS } from '../domain/spinScript'
 import type { Gacha, Prize } from '../domain/types'
-import { BackBar, MockNotice, SaveWarning, TabBar } from '../components/Chrome'
+import { MockNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { LuxBackdrop } from '../components/LuxBackdrop'
 import { Machine } from '../components/Machine'
@@ -17,8 +17,6 @@ import { Pipi } from '../components/Pipi'
 import { NotFound } from './NotFound'
 import './gacha.css'
 
-const TAU = Math.PI * 2
-const FULL = TAU * TURNS
 const NO_FRIENDS: string[] = []
 /** 自分の表示名。初期のニックネーム「あなた」のときは重ねない。 */
 const selfLabel = (name: string) => name === 'あなた' ? 'あなた' : `${name}（あなた）`
@@ -36,26 +34,29 @@ export function Spin({ id, mode }: { id: string; mode: Mode }) {
   return <SpinStage key={`${id}-${mode}`} gacha={gacha} mode={mode} />
 }
 
+/**
+ * 回す画面。ひとりで回す流れはデザインマスター T08（回す前 267:8335・回転 267:8348〜8374・開封 267:8387〜8421・結果 267:8438）に合わせる。
+ * 筐体は静止の絵（267:10520）で、回転・開封の途中は戻る・下のタブを出さない。右のハンドルか「1タップで1回転」で進める。
+ * 友達と回す（デモ）は T10 の画面を作るまで、これまでの演出（背景の豪華化・ピピ・確定の札）を残す。確定の札は本当に目玉のときだけ。
+ */
 function SpinStage({ gacha, mode }: { gacha: Gacha; mode: Mode }) {
   const { state, update } = useApp()
-  const companions = mode === 'room' ? DEMO_FRIENDS : NO_FRIENDS
+  const room = mode === 'room'
+  const companions = room ? DEMO_FRIENDS : NO_FRIENDS
   const [round, setRound] = useState(0)
   const [won, setWon] = useState<Won | null>(null)
-  const [acc, setAcc] = useState(0)
+  const [turns, setTurns] = useState(0)
   const [phase, setPhase] = useState<Phase>('confirm')
-  const [pipi, setPipi] = useState<{ text: string; cheer: boolean }>({ text: mode === 'room' ? pipiLines.roomStart : pipiLines.soloStart, cheer: false })
+  const [pipi, setPipi] = useState<{ text: string; cheer: boolean }>({ text: pipiLines.roomStart, cheer: false })
   const [chip, setChip] = useState<{ text: string; key: number } | null>(null)
   const [banner, setBanner] = useState<BigBanner | null>(null)
   const [burst, setBurst] = useState<Burst | null>(null)
   const [bubbles, setBubbles] = useState<Record<string, { text: string; key: number }>>({})
   const [progress, setProgress] = useState<number[]>(companions.map(() => 0))
   const shownTurns = useRef(0)
-  const lastAngle = useRef<number | null>(null)
   const counter = useRef(0)
   const turnButton = useRef<HTMLButtonElement>(null)
   const confirmButton = useRef<HTMLButtonElement>(null)
-  const turns = Math.min(TURNS, Math.floor(acc / TAU + 1e-9))
-  const glow = won?.prize.glow ?? 'normal'
   const problem = won ? null : spinCheck(state, gacha.id)
   const { voiceOn, soundOn } = state
 
@@ -68,10 +69,12 @@ function SpinStage({ gacha, mode }: { gacha: Gacha; mode: Mode }) {
     counter.current += 1
     setBubbles((current) => ({ ...current, [who]: { text, key: counter.current } }))
   }, [])
+  /** ピピのひとこと。ピピが出るのは友達と回す（デモ）だけ（ひとりで回す画面のマスターにはいない）。 */
   const talk = useCallback((text: string, cheer = false) => {
+    if (!room) return
     setPipi({ text, cheer })
     if (voiceOn) speak(text)
-  }, [voiceOn])
+  }, [room, voiceOn])
   const ring = useCallback((notes: number[], pattern: number | number[] = 30) => {
     if (!soundOn) return
     chime(notes)
@@ -107,7 +110,7 @@ function SpinStage({ gacha, mode }: { gacha: Gacha; mode: Mode }) {
     update(() => result.state)
     setWon(result)
     setPhase('turning')
-    talk(mode === 'room' ? pipiLines.roomStart : pipiLines.soloStart)
+    talk(pipiLines.roomStart)
   }
 
   // 押したボタンが消えるので、次に押すボタンへ焦点を移す（確定 →「1タップで1回転」、もう1回 → 確定）
@@ -116,21 +119,21 @@ function SpinStage({ gacha, mode }: { gacha: Gacha; mode: Mode }) {
     if (phase === 'confirm' && round > 0) confirmButton.current?.focus()
   }, [phase, turns, round])
 
-  const advance = (delta: number) => {
-    if (delta <= 0 || phase !== 'turning' || !won) return
-    setAcc((value) => Math.min(value + delta, FULL))
-  }
-
+  /** 右のハンドルか「1タップで1回転」で、1回転ずつ進める。 */
   const oneTurn = () => {
     if (phase !== 'turning' || !won) return
-    setAcc((value) => Math.min((Math.floor(value / TAU + 1e-9) + 1) * TAU, FULL))
+    setTurns((value) => Math.min(value + 1, TURNS))
   }
 
-  // 1 回転ごとの演出
+  // 1 回転ごとの演出。ひとりで回すときは音（ON のときだけ）とハンドルの動きだけで、筐体・背景は変えない
   useEffect(() => {
     if (!won || turns <= shownTurns.current) return
     for (let turn = shownTurns.current + 1; turn <= turns; turn += 1) {
-      const effect = turnEffect(turn, won.prize.glow, companions.length > 0)
+      if (!room) {
+        ring(CHIMES.turn, turn === TURNS ? [40, 60, 80] : 30)
+        continue
+      }
+      const effect = turnEffect(turn, won.prize.glow, true)
       talk(effect.pipi, turn === 3 || Boolean(effect.banner))
       setChip({ text: effect.chip, key: turn })
       if (effect.banner && (effect.banner.kind !== 'kakutei' || shouldShowKakutei(won.prize))) setBanner({ ...effect.banner, key: turn })
@@ -140,7 +143,7 @@ function SpinStage({ gacha, mode }: { gacha: Gacha; mode: Mode }) {
     }
     shownTurns.current = turns
     if (turns === TURNS) setPhase('dropping')
-  }, [turns, won, companions, fire, say, talk, ring])
+  }, [turns, won, room, companions, fire, say, talk, ring])
 
   useEffect(() => {
     if (phase !== 'dropping' || !won) return
@@ -156,29 +159,9 @@ function SpinStage({ gacha, mode }: { gacha: Gacha; mode: Mode }) {
     return () => window.clearTimeout(timer)
   }, [spinning, progress])
 
-  const angleOf = (event: ReactPointerEvent<SVGSVGElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect()
-    const scale = rect.width / 260
-    return Math.atan2(event.clientY - (rect.top + 284 * scale), event.clientX - (rect.left + 130 * scale))
-  }
-  const onPointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
-    try { event.currentTarget.setPointerCapture(event.pointerId) } catch { /* 捕捉できない環境ではそのまま */ }
-    lastAngle.current = angleOf(event)
-  }
-  const onPointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
-    if (lastAngle.current === null) return
-    const angle = angleOf(event)
-    let delta = angle - lastAngle.current
-    if (delta > Math.PI) delta -= TAU
-    if (delta < -Math.PI) delta += TAU
-    lastAngle.current = angle
-    advance(delta)
-  }
-  const onPointerUp = () => { lastAngle.current = null }
-
   const again = () => {
     setRound((value) => value + 1)
-    setWon(null); setAcc(0); setPhase('confirm'); setBanner(null); setChip(null); setBurst(null); setBubbles({})
+    setWon(null); setTurns(0); setPhase('confirm'); setBanner(null); setChip(null); setBurst(null); setBubbles({})
     setProgress(companions.map(() => 0)); shownTurns.current = 0
     talk(pipiLines.again)
   }
@@ -186,73 +169,75 @@ function SpinStage({ gacha, mode }: { gacha: Gacha; mode: Mode }) {
   const onReveal = () => {
     if (!won) return
     setPhase('revealed')
+    ring(won.prize.glow === 'normal' ? [784, 988, 1175] : CHIMES.big, [60, 40, 90])
+    if (!room) return
     talk(revealLine(won.prize.glow), true)
     fire(14, won.prize.glow === 'normal' ? 12 : 30, won.prize.glow === 'featured')
-    ring(won.prize.glow === 'normal' ? [784, 988, 1175] : CHIMES.big, [60, 40, 90])
     if (won.prize.glow === 'featured') setBanner({ title: 'おめでとうございます！', sub: '✦ すごーい！ ✦', kind: 'congrats', key: nextKey() })
-    if (companions.length > 0) say(companions[0], won.prize.glow === 'featured' ? 'えー！すごーい！！' : 'かわいい〜！')
+    say(companions[0], won.prize.glow === 'featured' ? 'えー！すごーい！！' : 'かわいい〜！')
   }
 
   if (problem) return <SpinProblem gacha={gacha} problem={problem} />
 
-  const machineClass = [
-    turns >= 1 ? 'lv1' : '', turns >= 2 ? 'lv2' : '', turns >= 3 ? 'lv3' : '',
-    won && turns >= 1 ? `bow-${glow}` : '', won && turns >= 2 && glow !== 'normal' ? `cap-${glow}` : '',
-  ].filter(Boolean).join(' ')
-  const kakutei = Boolean(won && shouldShowKakutei(won.prize) && turns >= 2)
+  const kakutei = Boolean(room && won && shouldShowKakutei(won.prize) && turns >= 2)
   const status = (index: number) => phase === 'confirm' ? '準備OK' : progress[index] >= 1 ? '出た！' : `${Math.floor(progress[index] * TURNS)} / ${TURNS} 回転`
   const confirming = phase === 'confirm'
+  const opened = phase === 'opening' || phase === 'revealed' || phase === 'board'
   const quote = spinQuote(state, gacha)
 
   return (
     <div className={`screen spin-screen${kakutei ? ' is-kakutei' : ''}${confirming ? ' is-confirm' : ''}`}>
-      <LuxBackdrop level={turns} kakutei={kakutei} />
-      <BackBar title={confirming ? '回す前に' : 'ハンドルを回す'} back={paths.gacha(gacha.id)} backLabel="詳細へ">
-        <p className="backbar-sub">{confirming ? gacha.title : mode === 'room' ? `${gacha.title}・ROOM・${companions.length + 1}人でいっしょに（友達はデモ）` : `${gacha.title}・ひとりで回す`}</p>
-      </BackBar>
-      <main className="content spin-content">
-        {mode === 'room' && (
-          <ul className="spin-members" aria-label="ルームのメンバー">
-            <MemberRing name={state.nickname} me progress={acc / FULL} bubble={bubbles.me} status={confirming ? '確認中' : turns >= TURNS ? '開封中…' : `${turns} / ${TURNS} 回転`} />
-            {companions.map((name, index) => <MemberRing key={name} name={name} progress={progress[index]} bubble={bubbles[name]} status={status(index)} />)}
-          </ul>
-        )}
-        <div className="machine-wrap">
-          <Machine price={gacha.price} angle={acc} className={machineClass} label={confirming ? 'ガチャガチャ。確定すると回せます' : undefined}
-            onPointerDown={confirming ? undefined : onPointerDown} onPointerMove={confirming ? undefined : onPointerMove} onPointerUp={confirming ? undefined : onPointerUp} />
-          {!confirming && phase !== 'turning' && <span className={`drop-cap cap-${glow}`} aria-hidden="true" />}
-          {chip && <span key={chip.key} className="turn-chip" aria-hidden="true">{chip.text}</span>}
-          <Particles burst={burst} />
-        </div>
-        {confirming ? (
-          <>
-            <h2 className="confirm-title">1回だけ引きます</h2>
-            <div className="pay-card">
-              <p className="pay-need">必要 <b>{coinText(quote.price)}</b> コイン</p>
-              <p className="pay-balance">所持 {coinText(quote.balance)} <span aria-hidden="true">→</span><span className="visually-hidden">から</span> 確定後 {coinText(quote.after)}</p>
-              <p className="fine confirm-lead">確定すると結果が決まり、{TURNS}回転で出てきます。ハンドルかボタンで進めます。確率と残りは、確定の直前にもう一度確かめます。</p>
-            </div>
-            <button ref={confirmButton} type="button" className="btn btn-main btn-block" onClick={confirm}>{coinText(quote.price)}コイン使って1回引く</button>
-          </>
-        ) : (
-          <>
-            <p className="turn-count" aria-live="polite">{phase === 'turning' ? `回転 ${turns} / ${TURNS}` : 'ガチャが出たよ！'}</p>
-            <p className="turn-bars" aria-hidden="true">{Array.from({ length: TURNS }, (_, i) => <span key={i} className={i < turns ? 'on' : ''} />)}</p>
-            <p className="lead spin-lead">ハンドルを指で時計回りになぞるか、下のボタンで進めます。</p>
-            <Pipi text={pipi.text} cheer={pipi.cheer} />
-            <button ref={turnButton} type="button" className="btn btn-outline btn-block" onClick={oneTurn} disabled={phase !== 'turning'}>1タップで1回転</button>
-            <p className="fine spent">{coinText(gacha.price)}コイン使用済み・残高 {coinText(state.coins)}</p>
-            <p className="fine">確定演出は、本当に目玉が出るときだけ出ます。</p>
-          </>
-        )}
-        <MockNotice />
-      </main>
-      {mode === 'room' && phase !== 'board' && <StampBar onStamp={(text) => say('me', text)} />}
-      {banner && <div key={banner.key} className={`big-banner ${banner.kind}`} role="status"><b>{banner.title}</b><small>{banner.sub}</small></div>}
-      {won && (phase === 'opening' || phase === 'revealed') && (
+      {room && !opened && <LuxBackdrop level={turns} kakutei={kakutei} />}
+      {won && opened ? (
         <OpenScene key={round} won={won} gacha={gacha} mode={mode} balance={state.coins} onReveal={onReveal} onTap={() => ring(CHIMES.tap, 30)}
-          onBoard={() => setPhase('board')} onAgain={again} canAgain={spinCheck(state, gacha.id) === null} revealed={phase === 'revealed'} />
+          onBoard={() => setPhase('board')} revealed={phase !== 'opening'} />
+      ) : (
+        <>
+          <PageHeader title={confirming ? '回す前に' : 'ハンドルを回す'} back={confirming ? paths.gacha(gacha.id) : undefined}>
+            {room && <p className="page-header-sub">{`${gacha.title}・ROOM・${companions.length + 1}人でいっしょに（友達はデモ）`}</p>}
+          </PageHeader>
+          <main className="content spin-content">
+            {room && (
+              <ul className="spin-members" aria-label="ルームのメンバー">
+                <MemberRing name={state.nickname} me progress={turns / TURNS} bubble={bubbles.me} status={confirming ? '確認中' : turns >= TURNS ? '開封中…' : `${turns} / ${TURNS} 回転`} />
+                {companions.map((name, index) => <MemberRing key={name} name={name} progress={progress[index]} bubble={bubbles[name]} status={status(index)} />)}
+              </ul>
+            )}
+            <div className="machine-wrap">
+              <Machine turns={turns} label={confirming ? 'ガチャガチャ。確定すると回せます' : undefined} onHandleTap={phase === 'turning' ? oneTurn : undefined} />
+              {chip && <span key={chip.key} className="turn-chip" aria-hidden="true">{chip.text}</span>}
+              {room && <Particles burst={burst} />}
+            </div>
+            {confirming ? (
+              <>
+                <h2 className="confirm-title">1回だけ引きます</h2>
+                <div className="pay-card confirm-card">
+                  <p className="pay-need">必要 <b>{coinText(quote.price)}</b> デモコイン</p>
+                  <p className="pay-balance">所持 {coinText(quote.balance)} <span aria-hidden="true">→</span><span className="visually-hidden">から</span> 確定後 {coinText(quote.after)}</p>
+                  <p className="fine confirm-lead">確定後に{TURNS}回転。ハンドルかボタンで進めます。</p>
+                  <p className="fine">確率と在庫は確定直前に再確認。</p>
+                </div>
+                <button ref={confirmButton} type="button" className="btn btn-main btn-block" onClick={confirm}>{coinText(quote.price)}使って1回引く</button>
+              </>
+            ) : (
+              <>
+                <p className="turn-count" aria-live="polite">回転 {turns} / {TURNS}</p>
+                <p className="spin-lead">右のハンドルをタップして進めます</p>
+                <p className="fine spin-sub">下のボタンでも同じように進められます。</p>
+                <p className="turn-bars" aria-hidden="true">{Array.from({ length: TURNS }, (_, i) => <span key={i} className={i < turns ? 'on' : ''} />)}</p>
+                {room && <Pipi text={pipi.text} cheer={pipi.cheer} />}
+                <button ref={turnButton} type="button" className="btn btn-outline btn-block" onClick={oneTurn} disabled={phase !== 'turning'}>1タップで1回転</button>
+                <p className="fine spent">{coinText(gacha.price)}コイン使用済み・残高{coinText(state.coins)}</p>
+                {room && <p className="fine">確定演出は、本当に目玉が出るときだけ出ます。</p>}
+              </>
+            )}
+            <MockNotice />
+          </main>
+          {!room && confirming && <TabBar active="gacha" />}
+        </>
       )}
+      {room && phase !== 'board' && <StampBar onStamp={(text) => say('me', text)} />}
+      {banner && <div key={banner.key} className={`big-banner ${banner.kind}`} role="status"><b>{banner.title}</b><small>{banner.sub}</small></div>}
       {won && phase === 'board' && (
         <ResultBoard won={won} gacha={gacha} nickname={state.nickname} onAgain={again} canAgain={spinCheck(state, gacha.id) === null}
           onFriendReveal={(name, prize) => {
@@ -288,27 +273,26 @@ function StampBar({ onStamp }: { onStamp: (text: string) => void }) {
   )
 }
 
-interface OpenProps { won: Won; gacha: Gacha; mode: Mode; balance: number; revealed: boolean; onReveal: () => void; onTap: () => void; onBoard: () => void; onAgain: () => void; canAgain: boolean }
+interface OpenProps { won: Won; gacha: Gacha; mode: Mode; balance: number; revealed: boolean; onReveal: () => void; onTap: () => void; onBoard: () => void }
 
-/** カプセルの見た目の段階。閉じている → すきまが光る → ふたが離れる。 */
+/** カプセルの見た目の段階（マスター 267:8387 閉じている → 8404 すきまがあく → 8421 ふたが離れる）。 */
 const CAPSULE_STAGES = ['closed', 'crack', 'apart'] as const
 
 /**
  * 開封（マスター 267:8387 / 8404 / 8421）と今回の結果（267:8438）。
- * タップの回数は光り方で決まる（ほか1回・キラキラ2回・目玉3回）。動きを減らす設定でも、段階の絵と文字で進む。
+ * 光り方にかかわらず、いつも3回タップで開く（カプセルの見た目も同じ）。動きを減らす設定でも、段階の絵と文字で進む。
+ * 開封の途中は戻る・下のタブを出さない。結果は保存済みなので、結果の画面からは戻れる。
  */
-function OpenScene({ won, gacha, mode, balance, revealed, onReveal, onTap, onBoard, onAgain, canAgain }: OpenProps) {
+function OpenScene({ won, gacha, mode, balance, revealed, onReveal, onTap, onBoard }: OpenProps) {
   const { saveFailed } = useApp()
-  const need = tapsToOpen(won.prize.glow)
   const [taps, setTaps] = useState(0)
   const [opening, setOpening] = useState(false)
   const ref = useRef<HTMLButtonElement>(null)
-  const resultRef = useRef<HTMLHeadingElement>(null)
   const revealRef = useRef(onReveal)
   useEffect(() => { revealRef.current = onReveal })
   useEffect(() => { ref.current?.focus() }, [])
   // 結果が出たら、タップのボタンが消えるので結果の見出しへ焦点を移す
-  useEffect(() => { if (revealed) resultRef.current?.focus() }, [revealed])
+  useEffect(() => { if (revealed) document.getElementById('page-title')?.focus({ preventScroll: true }) }, [revealed])
   useEffect(() => {
     if (!opening) return
     const timer = window.setTimeout(() => revealRef.current(), TIMING.open)
@@ -319,51 +303,46 @@ function OpenScene({ won, gacha, mode, balance, revealed, onReveal, onTap, onBoa
     onTap()
     const next = taps + 1
     setTaps(next)
-    if (next >= need) setOpening(true)
+    if (next >= OPEN_TAPS) setOpening(true)
   }
-  const step = opening ? need : taps + 1
+  const step = opening ? OPEN_TAPS : taps + 1
   const stage = opening ? 'apart' : CAPSULE_STAGES[Math.min(taps, CAPSULE_STAGES.length - 1)]
-  return (
-    <div className={`open-scene glow-${won.prize.glow}${revealed ? ' is-revealed' : ''}`} role="dialog" aria-modal="true" aria-labelledby="open-title">
-      {!revealed ? (
-        <div className="open-stage">
-          <h2 id="open-title" className="open-title">カプセルをひらく</h2>
+  if (!revealed) {
+    return (
+      <>
+        <PageHeader title="カプセルをひらく" />
+        <main className="content open-stage">
           {/* 指で押しやすい大きな絵。キーボードと読み上げでは下のボタンを使う */}
           <div className={`capsule-art stage-${stage}${taps > 0 && !opening ? ` shake-${Math.min(taps, 2)}` : ''}`} aria-hidden="true" onClick={tap}>
             <span className="capsule-glow" /><span className="capsule-top" /><span className="capsule-bottom" /><span className="capsule-band" /><span className="capsule-knob" />
           </div>
-          <p className="open-step">開封 {step} / {need}</p>
+          <p className="open-step" aria-live="polite">開封 {step} / {OPEN_TAPS}</p>
           <p className="open-sub">ゆっくり、好きなタイミングで。</p>
-          <p className="turn-bars" aria-hidden="true">{Array.from({ length: need }, (_, i) => <span key={i} className={i < step ? 'on' : ''} />)}</p>
-          <p className="open-msg" aria-live="polite">{opening ? 'ひらくよ…！' : tapMessage(need - taps, need)}</p>
-          <button ref={ref} type="button" className="btn btn-main btn-block open-tap" onClick={tap} aria-label={`カプセルをタップ（あと${Math.max(need - taps, 0)}回であきます）`}>カプセルをタップ</button>
+          <p className="turn-bars" aria-hidden="true">{Array.from({ length: OPEN_TAPS }, (_, i) => <span key={i} className={i < step ? 'on' : ''} />)}</p>
+          <button ref={ref} type="button" className="btn btn-main btn-block open-tap" onClick={tap} aria-label={`カプセルをタップ（あと${Math.max(OPEN_TAPS - taps, 0)}回であきます）`}>カプセルをタップ</button>
           <MockNotice />
-        </div>
-      ) : (
-        <div className="prize-reveal">
-          <p className="result-kicker">今回の結果</p>
-          {won.prize.glow === 'featured' && <p className="congrats">おめでとうございます！</p>}
+        </main>
+      </>
+    )
+  }
+  return (
+    <>
+      <PageHeader title="今回の結果" back={paths.gacha(gacha.id)} />
+      <main className="content result-content">
+        <p className="fine result-kicker">デモ・結果は抽選ごとに変わります</p>
+        <article className="result-card" aria-labelledby="result-name">
           <GoodsImage art={won.prize.art} glow={won.prize.glow} size="lg" />
-          <h2 id="open-title" ref={resultRef} tabIndex={-1} className="reveal-name">{won.prize.name}</h2>
-          <p className="versus"><span>使ったコイン<b>{coinText(gacha.price)}</b></span><span aria-hidden="true">→</span><span>当たった物<b>{yen(won.prize.refPrice)}<small>相当</small></b></span></p>
-          <p className="result-meta">{coinText(gacha.price)}コイン使用・残高 {coinText(balance)}・1点を獲得</p>
-          {saveFailed ? <SaveWarning /> : <p className="result-saved">この1点は「当てたもの」に記録しました。</p>}
-          <p className="fine">検品済みの正規品として扱う想定です。参考価格は目安で、買取額や交換額ではありません。</p>
-          <div className="reveal-actions">
-            {mode === 'room' ? (
-              <button type="button" className="btn btn-lux btn-block" onClick={onBoard}>みんなの結果を見る</button>
-            ) : (
-              <>
-                <a className="btn btn-main btn-block" href={paths.collection}>当てたものを見る</a>
-                <button type="button" className="btn btn-outline btn-block" onClick={onAgain} disabled={!canAgain}>{canAgain ? 'もう1回まわす' : 'コインが足りないか、売り切れです'}</button>
-                <a className="btn btn-text btn-block" href={paths.town}>街へ戻る</a>
-              </>
-            )}
-          </div>
-          <MockNotice />
-        </div>
-      )}
-    </div>
+          <h2 id="result-name" className="reveal-name">{won.prize.name}</h2>
+          <p className="result-sub">{gacha.title}で獲得</p>
+          <p className="result-meta">{coinText(gacha.price)}使用・残高{coinText(balance)}・1点を獲得</p>
+        </article>
+        {saveFailed ? <SaveWarning /> : <p className="result-saved">この1点はコレクションに保存されます。</p>}
+        {mode === 'room'
+          ? <button type="button" className="btn btn-lux btn-block" onClick={onBoard}>みんなの結果を見る</button>
+          : <a className="btn btn-main btn-block" href={paths.town}>街へ戻る</a>}
+        <MockNotice />
+      </main>
+    </>
   )
 }
 
@@ -432,35 +411,30 @@ function SpinProblem({ gacha, problem }: { gacha: Gacha; problem: NonNullable<Re
   const soldOut = problem !== 'insufficient-coins'
   return (
     <div className="screen">
-      <BackBar title={soldOut ? '売り切れ' : 'コイン不足'} back={paths.gacha(gacha.id)} backLabel="詳細へ">
-        <p className="backbar-sub">{gacha.title}</p>
-      </BackBar>
+      <PageHeader title={soldOut ? '売り切れ' : 'コイン不足'} back={paths.gacha(gacha.id)} />
       <main className="content problem-content">
         {soldOut ? (
           <>
             <div className="machine-wrap is-soldout">
-              <Machine price={gacha.price} angle={0} className="soldout" label="売り切れのガチャガチャ。回せません" />
+              <Machine className="soldout" label="売り切れのガチャガチャ。回せません" />
             </div>
             <h2 className="problem-title">このガチャは売り切れです</h2>
-            <p className="lead problem-lead">抽選はできません。コインは減っていません。</p>
-            <p className="problem-balance">いまの残高 <b>{coinText(state.coins)}</b> コイン</p>
-            <p className="fine">次の入荷の時期は決まっていません。</p>
-            <a className="btn btn-outline btn-block" href={paths.gachaList}>ガチャ一覧に戻る</a>
+            <p className="lead problem-lead">抽選はできません。コインは減りません。</p>
+            <p className="fine">次の入荷時期は未定です。</p>
           </>
         ) : (
           <>
             <div className="short-card">
-              <p className="short-main">あと <b>{coinText(quote.shortBy)}</b> コイン</p>
+              <p className="short-main">あと <b>{coinText(quote.shortBy)}</b> デモコイン</p>
               <p>所持 {coinText(quote.balance)}</p>
               <p>必要 {coinText(quote.price)}</p>
             </div>
             <h2 className="problem-title">今回は引けません</h2>
-            <p className="lead problem-lead">コインが足りません。残高はそのままです。</p>
-            <p className="fine">コインの購入や決済は、この提案モックにはありません。マイページのデモ操作でコインを増やせます。</p>
-            <a className="btn btn-main btn-block" href={paths.me}>マイページでコインを追加</a>
-            <a className="btn btn-outline btn-block" href={paths.gachaList}>ガチャ一覧に戻る</a>
+            <p className="lead problem-lead">残高はそのままです。</p>
+            <p className="fine">コインの購入や決済は、この提案モックにはありません。</p>
           </>
         )}
+        <a className="btn btn-outline btn-block" href={paths.gachaList}>ガチャ一覧に戻る</a>
         <MockNotice />
       </main>
       <TabBar active="gacha" />
