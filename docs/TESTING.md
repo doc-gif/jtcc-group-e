@@ -40,6 +40,7 @@ Linux の CI は `playwright install --with-deps chromium webkit` で OS 依存�
 - 法務・ブランドのきまり（禁止語、注記、ピピのセリフ、画像の許可リスト、交換シートの文言、残り口数を出さない）を `scripts/governance.test.mjs` で検証。
 - ブラウザで、ひとりで回す → 当てたもの → コインに交換、つまみのタップで回す操作を `e2e/app.spec.ts` で検証。
 - つまみを指で丸くなぞって回す（#115）: 角度の積み上げ（右回りだけ・1 周で 1 回転・半周では進まない・左回りは進まない／戻らない・速すぎても 1 回に 1 回転まで・指が外れる・中心に寄りすぎた点・浮動小数の誤差）を `src/components/knobTurn.test.ts` で、画面（Pointer Events でなぞって進む・追従・矢印とカチッの出し方・なぞって離した click では進まない・タップでは進む・2 本目の指・回せない場面）を `src/App.test.tsx` で、ブラウザでは `e2e/app.spec.ts` がマウスの pointer を円に動かして左回り → 半周 → 1 周 → 3 回転（全 5 構成、`test.slow()`）、Chromium の Android 相当では CDP のタッチの列でページが動かないことを確かめる。iPhone の実際の指（`touch-action: none`・ピンチ）は実機で確かめる（[MULTI_DEVICE.md](MULTI_DEVICE.md)）。UI/UX 検査の場面は `spin-turning`。
+- 回転ごとの演出（#116）: 済んだ回転数と glow から段階を決める純粋関数（1 回転目は glow によらず演出なし・turn2 / turn3 / click3 の境界・星の数と色の順・normal で背景・札・金色を出さない・カプセルが出る動きの時間の表と開封へ進む時間）を `src/components/spinEffect.test.ts` で、画面（normal / sparkle / featured の各段階の className と演出の層 `.m-fx`、click3 のカチッ、S5 の光の輪、演出の層が `aria-hidden`、開封への遷移）を `src/App.test.tsx` で、ブラウザでは `e2e/app.spec.ts` が featured（背景クリーム・札・金の筋。動きを減らす設定で 100ms を超えて動く animation が 0）と normal（背景・札・金色なし。通常は星がまたたく。3 周目の後の本文と className の変化を MutationObserver で記録）を確かめる。UI/UX 検査の場面は `spin-turn-2/3-normal/sparkle/featured`（在庫をその光り方の 1 品だけにして抽選の結果を決める）。
 - Chromium の小型スマホ・Android 相当・デスクトップ、WebKit の iPhone 相当・横向き。
 - 最新 URL と過去バージョン URL、一覧からの移動と再読込。
 - JavaScript／HTTP エラー、横はみ出し、WCAG AA、操作領域、文字 200%、動きを減らす設定。

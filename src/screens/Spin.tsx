@@ -12,6 +12,7 @@ import { Capsule, type CapsuleStage } from '../components/Capsule'
 import { ExampleNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { Machine } from '../components/Machine'
+import { capsuleDropMs, capsuleLitMs, spinEffect } from '../components/spinEffect'
 import { useKnobDrag } from '../components/useKnobDrag'
 import { NotFound } from './NotFound'
 import './gacha.css'
@@ -24,6 +25,8 @@ const capsuleName = (glow: Glow) => (glow === 'normal' ? 'カプセル' : `${glo
 type Phase = 'confirm' | 'turning' | 'dropping' | 'opening' | 'revealed'
 /** 1 周した瞬間の「カチッ」（マスターの state=click1）を見せる時間（ミリ秒、0.3〜0.5 秒） */
 const CLICK_MS = 400
+/** 動きを減らす設定（星・揺れ・光の動きを止め、カプセルは 1 段のフェード）。jsdom など matchMedia が無い環境は通常の動き */
+const prefersReducedMotion = () => typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 export function Spin({ id }: { id: string }) {
   const gacha = findGacha(id)
@@ -33,8 +36,10 @@ export function Spin({ id }: { id: string }) {
 
 /**
  * ひとりで回す画面。デザインマスター T08（回す前 267:8335・回転 267:8348〜8374・なぞり中 421:9251・カチッ 421:9270・開封 267:8387〜8421・結果 267:8438）に合わせる。
- * 筐体は静止の絵（部品 419:10377）で、回転・開封の途中は戻る・下のタブを出さない。
+ * 筐体は部品 419:10377 で、回転・開封の途中は戻る・下のタブを出さない。
  * 主の操作はつまみを指で右に丸くなぞること（1 周で 1 回転、#115）。つまみのタップと「1タップで1回転」でも進める。
+ * 1 回転ごとの演出（#116）は spinEffect(turns, glow) で段階を決め、className の切り替えだけで描く（turn2 星 → turn3 星と揺れ → click3 光 →
+ * カプセルが出る S1〜S5 は CSS の keyframes）。featured は turn2 から背景がクリーム、turn3 から札。normal では出さない。
  * 友達といっしょに開ける体験は、共有ルーム（T10・F05、src/screens/Room.tsx）で行う。
  */
 function SpinStage({ gacha }: { gacha: Gacha }) {
@@ -42,8 +47,10 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
   const [won, setWon] = useState<Won | null>(null)
   const [turns, setTurns] = useState(0)
   const [phase, setPhase] = useState<Phase>('confirm')
-  /** 直前に 1 周した回転の番号。CLICK_MS の間だけ「カチッ」を見せる（3 回転目はカプセルが出るので出さない） */
+  /** 直前に 1 周した回転の番号。CLICK_MS の間だけ「カチッ」を見せる（3 回転目の「カチッ」は click3 として筐体が出す） */
   const [clicked, setClicked] = useState<number | null>(null)
+  /** 3 回転目のあと、カプセルが受け皿に着地して光った（S5）。ここで「カプセルが出てきました」 */
+  const [landed, setLanded] = useState(false)
   const turnButton = useRef<HTMLButtonElement>(null)
   const problem = won ? null : spinCheck(state, gacha.id)
   const { soundOn } = state
@@ -77,7 +84,7 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
     setTurns(next)
     if (soundOn) chime(CHIMES.turn)
     buzz(next === TURNS ? [40, 60, 80] : 30)
-    // 3 回転目はカプセルが出る（#116 の click3）ので「カチッ」は出さず、残っていれば消す
+    // 3 回転目の「カチッ」は click3 として筐体が出し、カプセルが出はじめたら消える（#116）。ここの札は消す
     setClicked(next < TURNS ? next : null)
     if (next === TURNS) {
       setPhase('dropping')
@@ -95,10 +102,14 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
     return () => window.clearTimeout(timer)
   }, [clicked])
 
+  // カプセルが出る動き（click3 → S1〜S5、CSS の keyframes）と同じ時間で、光ったら文言を変え、少し見せてから開封へ。
+  // spinScript の TIMING.drop は下限（capsuleDropMs）。動きを減らす設定では 1 段のフェードの時間
   useEffect(() => {
     if (phase !== 'dropping' || !won) return
-    const timer = window.setTimeout(() => setPhase('opening'), TIMING.drop)
-    return () => window.clearTimeout(timer)
+    const reduced = prefersReducedMotion()
+    const lit = window.setTimeout(() => setLanded(true), capsuleLitMs(reduced))
+    const timer = window.setTimeout(() => setPhase('opening'), capsuleDropMs(reduced))
+    return () => { window.clearTimeout(lit); window.clearTimeout(timer) }
   }, [phase, won])
 
   const onReveal = () => {
@@ -114,15 +125,17 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
   const dropped = phase === 'dropping' && won ? won : null
   const quote = spinQuote(state, gacha)
   const turning = phase === 'turning'
-  // 本文（マスター turn1〜3 / dragging / click1）。3 回転の直後はカプセルが出た案内（#86）
-  const lead = dropped ? <>カプセルが出てきました<span className="visually-hidden">（{capsuleName(dropped.prize.glow)}）</span></>
+  // 回転ごとの演出の段階（#116）。抽選の結果は確定の時点で決まっている
+  const effect = spinEffect(turns, won?.prize.glow ?? 'normal')
+  // 本文（マスター turn1〜3 / dragging / click1）。3 回転の直後はカプセルが出る（S1〜S4）→ 出てきた（S5、#86）
+  const lead = dropped ? (landed ? <>カプセルが出てきました<span className="visually-hidden">（{capsuleName(dropped.prize.glow)}）</span></> : 'カプセルが出てくるよ…')
     : clicked !== null ? `${clicked} 回転、できた！`
     : knob.dragging ? 'そのまま右にぐるっと一周！'
     : 'つまみを右にくるっと回そう'
-  const sub = clicked !== null ? 'つづけて右に回そう。' : '右回りに一周で 1 回転。ボタンでも回せます。'
+  const sub = dropped ? 'そのまま待ってね。' : clicked !== null ? 'つづけて右に回そう。' : '右回りに一周で 1 回転。ボタンでも回せます。'
 
   return (
-    <div className={`screen spin-screen${confirming ? ' is-confirm' : ''}`}>
+    <div className={`screen spin-screen${confirming ? ' is-confirm' : ''}${effect.warm ? ' is-warm' : ''}`}>
       {won && opened ? (
         <OpenScene won={won} gacha={gacha} balance={state.coins} onReveal={onReveal} onTap={() => ring(CHIMES.tap, 30)} revealed={phase !== 'opening'} />
       ) : (
@@ -133,9 +146,10 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
               <Machine
                 turns={turns} progress={knob.progress} dragging={knob.dragging} hint={turning && !knob.dragging && clicked === null} click={clicked !== null}
                 label={confirming ? 'ガチャガチャ。確定すると回せます' : undefined} onHandleTap={turning ? oneTurn : undefined} knob={knob.handlers}
+                effect={effect} capsule={dropped ? (landed ? 'lit' : 'out') : 'none'}
               />
-              {/* 3回転の直後、受け皿にカプセルが出る（マスター 380:3371 / 3391 / 3411）。光り方で当たりが分かる */}
-              {dropped && <Capsule glow={dropped.prize.glow} className="is-mini" />}
+              {/* 3 回転の直後、取り出し口からカプセルが出て受け皿に着地する（click3 421:9289〜 S5 380:3371 / 3391 / 3411）。光り方で当たりが分かる */}
+              {dropped && <Capsule glow={dropped.prize.glow} className={`is-mini${landed ? ' is-landed' : ''}`} />}
             </div>
             {confirming ? (
               <>
@@ -150,7 +164,11 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
               </>
             ) : (
               <>
-                <p className="turn-count" aria-live="polite">回転 {turns} / {TURNS}</p>
+                <div className="turn-row">
+                  <p className="turn-count" aria-live="polite">回転 {turns} / {TURNS}</p>
+                  {/* featured の turn3 から: 札（マスター 421:9403）。当たりの回だけ出す */}
+                  {effect.tag && <p className="turn-tag">きらきら… いい予感！</p>}
+                </div>
                 <p className="spin-lead" aria-live="polite">{lead}</p>
                 <p className="fine spin-sub">{sub}</p>
                 {/* 1 周した瞬間、その分のバーが --main で点灯してから --primary に落ち着く */}

@@ -7,6 +7,11 @@ import { createAssetGate, LOADING_DELAY } from './app/assets'
 import { createInitialState } from './domain/game'
 import { STORAGE_KEY } from './domain/storage'
 import { TIMING } from './domain/spinScript'
+import { CAPSULE_LIT_HOLD_MS, capsuleDropMs, capsuleLitMs, spinEffect } from './components/spinEffect'
+
+// jsdom には matchMedia が無いので通常の動き: カプセルが光るまで 1.61 秒、開封へ進むまでその 0.35 秒後（#116。TIMING.drop 0.9 秒が下限）
+const LIT_MS = capsuleLitMs(false)
+const DROP_MS = capsuleDropMs(false)
 
 class MemoryStorage {
   data = new Map<string, string>()
@@ -35,7 +40,7 @@ function start(hash = '#/') {
 function spinAndOpen() {
   fireEvent.click(button(/使って1回引く/))
   for (let i = 0; i < 3; i += 1) fireEvent.click(button(/1タップで1回転/))
-  tick(TIMING.drop)
+  tick(DROP_MS)
   for (let i = 0; i < 3; i += 1) {
     const capsule = screen.queryByRole('button', { name: /カプセルをタップ/ })
     if (capsule) fireEvent.click(capsule)
@@ -473,20 +478,131 @@ describe('ガチャの流れ（T08）', () => {
     expect(screen.getByText('2 回転、できた！')).toBeVisible()
   })
 
-  test('筐体は静止の絵で、回しても飾りや背景は増えない。つまみだけが 1 回転 = 360° 回る（部品 419:10377）', () => {
+  test('筐体そのものは静止の絵で、回しても変わらない。つまみだけが 1 回転 = 360° 回り、演出は別の層 .m-fx（部品 419:10377）', () => {
     start('#/gacha/sanrio-capsule/spin')
     const machine = () => screen.getByRole('img', { name: /ガチャガチャ/ })
     const art = () => machine().querySelector('.m-art')!.innerHTML
     const knob = () => machine().querySelector<SVGGElement>('.m-knob')!
     const before = art()
     expect(knob().style.transform).toBe('rotate(0deg)')
+    expect(machine().querySelector('.m-fx')).toBeNull()
     fireEvent.click(button(/使って1回引く/))
     fireEvent.click(button('1タップで1回転'))
     expect(knob().style.transform).toBe('rotate(360deg)')
     fireEvent.click(button('1タップで1回転'))
     expect(knob().style.transform).toBe('rotate(720deg)')
     expect(art()).toBe(before)
+    expect(machine().querySelector('.m-fx')).toHaveAttribute('aria-hidden', 'true')
     expect(document.querySelector('.lux, .pipi, .big-banner, .turn-chip')).toBeNull()
+  })
+
+  describe('回転ごとの演出（#116、spinEffect と className）', () => {
+    const machine = () => screen.getByRole('img', { name: /ガチャガチャ/ })
+    const count = (selector: string) => document.querySelectorAll(selector).length
+    const turn = () => fireEvent.click(button('1タップで1回転'))
+
+    test('normal: 1 回転目は演出なし、1 周の後は星 3 つ、2 周の後は星 5 つと揺れ、3 周目の後は取り出し口の光と寄る星 4 つ。背景・札・金色は出さない', () => {
+      // Math.random は 0.99（ふつうの品）
+      start('#/gacha/sanrio-capsule/spin')
+      fireEvent.click(button(/使って1回引く/))
+      expect(machine()).toHaveClass('state-turn1', 'glow-normal')
+      expect(count('.m-star')).toBe(0)
+      turn()
+      expect(machine()).toHaveClass('state-turn2', 'glow-normal')
+      expect(count('.m-fx > .m-star')).toBe(3)
+      expect(count('.m-grain, .m-shake, .m-light, .m-sheen, .m-aura')).toBe(0)
+      turn()
+      expect(machine()).toHaveClass('state-turn3', 'glow-normal')
+      expect(count('.m-fx > .m-star')).toBe(5)
+      expect(count('.m-shake')).toBe(1)
+      expect(count('.m-light')).toBe(0)
+      // 2 周目の「カチッ」も wine のまま（金にしない）。画面の背景も変えず、札も出さない
+      expect(document.querySelector('.machine.glow-featured')).toBeNull()
+      expect(document.querySelector('.spin-screen')).not.toHaveClass('is-warm')
+      expect(screen.queryByText('きらきら… いい予感！')).toBeNull()
+      turn()
+      expect(machine()).toHaveClass('state-click3', 'glow-normal')
+      expect(count('.m-light')).toBe(1)
+      expect(count('.m-light .m-gather .m-star')).toBe(4)
+      expect(count('.m-rays, .m-aura, .m-sheen')).toBe(0)
+      expect(count('.m-shake')).toBe(0)
+      // 着地して光ったら（S5）取り出し口の光は消え、カプセルの後ろに光の輪と星 4 つ
+      tick(LIT_MS)
+      expect(machine()).toHaveClass('is-lit')
+      expect(count('.m-light')).toBe(0)
+      expect(count('.m-lit')).toBe(1)
+      expect(count('.m-lit .m-star')).toBe(4)
+      expect(count('.m-lit .m-rays')).toBe(0)
+      expect(document.querySelector('.spin-screen')).not.toHaveClass('is-warm')
+    })
+
+    test('sparkle: 星が増え（turn2 4・turn3 8）、粒 3 つとドームのつや。寄る星 6 つ。背景は変えず札も出さない', () => {
+      vi.mocked(Math.random).mockReturnValue(0.05)
+      start('#/gacha/sanrio-capsule/spin')
+      fireEvent.click(button(/使って1回引く/))
+      expect(machine()).toHaveClass('state-turn1', 'glow-normal')
+      turn()
+      expect(machine()).toHaveClass('state-turn2', 'glow-sparkle')
+      expect(count('.m-fx > .m-star')).toBe(4)
+      expect(count('.m-grain')).toBe(3)
+      expect(count('.m-sheen')).toBe(1)
+      expect(document.querySelector('.spin-screen')).not.toHaveClass('is-warm')
+      turn()
+      expect(count('.m-fx > .m-star')).toBe(8)
+      expect(count('.m-aura')).toBe(0)
+      expect(screen.queryByText('きらきら… いい予感！')).toBeNull()
+      turn()
+      expect(count('.m-light .m-gather .m-star')).toBe(6)
+      expect(count('.m-rays')).toBe(0)
+      tick(LIT_MS)
+      expect(count('.m-lit .m-star')).toBe(6)
+    })
+
+    test('featured: turn2 から背景がクリーム、turn3 から暖かい光と札「きらきら… いい予感！」、click3 で金の光の筋 4 本と寄る星 8 つ', () => {
+      seed({ forceFeaturedNext: true })
+      start('#/gacha/sanrio-capsule/spin')
+      fireEvent.click(button(/使って1回引く/))
+      // 1 回転目の途中は当たりでも何も出さない
+      expect(machine()).toHaveClass('state-turn1', 'glow-normal')
+      expect(document.querySelector('.spin-screen')).not.toHaveClass('is-warm')
+      turn()
+      expect(machine()).toHaveClass('state-turn2', 'glow-featured')
+      expect(document.querySelector('.spin-screen')).toHaveClass('is-warm')
+      expect(count('.m-fx > .m-star')).toBe(4)
+      expect(count('.m-aura')).toBe(0)
+      expect(screen.queryByText('きらきら… いい予感！')).toBeNull()
+      turn()
+      expect(machine()).toHaveClass('state-turn3', 'glow-featured')
+      expect(count('.m-aura')).toBe(1)
+      expect(count('.m-shake')).toBe(1)
+      expect(screen.getByText('きらきら… いい予感！')).toBeVisible()
+      turn()
+      expect(count('.m-light .m-rays')).toBe(1)
+      expect(count('.m-light .m-gather .m-star')).toBe(8)
+      // 3 周目の「カチッ」は click3 として出す
+      expect(count('.machine.state-click3 .m-click')).toBe(1)
+      tick(LIT_MS)
+      expect(count('.m-lit .m-rays')).toBe(1)
+      expect(count('.m-lit .m-star')).toBe(8)
+      expect(count('.m-click')).toBe(0)
+      expect(screen.getByText('きらきら… いい予感！')).toBeVisible()
+      // 開封の画面へ進んだら演出の層は無い
+      tick(CAPSULE_LIT_HOLD_MS)
+      expect(heading()).toHaveTextContent('カプセルをひらく')
+      expect(count('.m-fx, .turn-tag')).toBe(0)
+    })
+
+    test('段階は純粋関数 spinEffect の結果そのもの（描画は className の切り替えだけ）', () => {
+      seed({ forceFeaturedNext: true })
+      start('#/gacha/sanrio-capsule/spin')
+      fireEvent.click(button(/使って1回引く/))
+      for (const turns of [1, 2, 3]) {
+        turn()
+        const expected = spinEffect(turns, 'featured')
+        expect(machine().getAttribute('class')).toContain(expected.className)
+        expect(count('.m-fx > .m-star')).toBe(expected.stars.length)
+      }
+    })
   })
 
   describe('つまみを指で丸くなぞって回す（#115、Pointer Events）', () => {
@@ -558,12 +674,14 @@ describe('ガチャの流れ（T08）', () => {
       expect(screen.getByText('回転 2 / 3')).toBeInTheDocument()
       sweep(180, 10, 36)
       expect(screen.getByText('回転 3 / 3')).toBeInTheDocument()
-      expect(screen.getByText(/カプセルが出てきました/)).toBeVisible()
-      // 3 回転目は「カチッ」ではなくカプセルが出る（#116 の click3）。回し終わったら押せる範囲も消え、それ以上は進まない
-      expect(document.querySelector('.m-click')).toBeNull()
+      expect(screen.getByText('カプセルが出てくるよ…')).toBeVisible()
+      // 3 回転目の「カチッ」は筐体の click3（0.2 秒で消える）で、カプセルが出る。回し終わったら押せる範囲も消え、それ以上は進まない
+      expect(document.querySelector('.machine.state-click3 .m-click')).not.toBeNull()
       expect(document.querySelector('.m-knob-hit')).toBeNull()
       expect(screen.getByText('回転 3 / 3')).toBeInTheDocument()
-      tick(TIMING.drop)
+      tick(LIT_MS)
+      expect(screen.getByText(/カプセルが出てきました/)).toBeVisible()
+      tick(DROP_MS - LIT_MS)
       expect(button(/カプセルをタップ/)).toBeVisible()
     })
 
@@ -593,7 +711,7 @@ describe('ガチャの流れ（T08）', () => {
     start('#/gacha/sanrio-capsule/spin')
     fireEvent.click(button(/使って1回引く/))
     for (let i = 0; i < 3; i += 1) fireEvent.click(button('1タップで1回転'))
-    tick(TIMING.drop)
+    tick(DROP_MS)
     expect(heading()).toHaveTextContent('カプセルをひらく')
     expect(screen.queryByRole('link', { name: '戻る' })).toBeNull()
     expect(nav()).toBeNull()
@@ -611,7 +729,7 @@ describe('ガチャの流れ（T08）', () => {
     start('#/gacha/sanrio-capsule/spin')
     fireEvent.click(button(/使って1回引く/))
     for (let i = 0; i < 3; i += 1) fireEvent.click(button('1タップで1回転'))
-    tick(TIMING.drop)
+    tick(DROP_MS)
     expect(screen.getByText('開封 1 / 3')).toBeVisible()
     expect(screen.getByText(/ラストピースは開発中のサービスです/, { selector: '.page-header-notice' })).toBeVisible()
     fireEvent.click(button(/あと3回/))
@@ -651,9 +769,15 @@ describe('ガチャの流れ（T08）', () => {
     const mini = document.querySelector('.machine-wrap .capsule-art.is-mini')
     expect(mini).toHaveClass(`glow-${glow}`)
     expect(mini).toHaveAttribute('aria-hidden', 'true')
+    // 出る途中（S1〜S4）は「カプセルが出てくるよ…」、着地して光ったら（S5）「カプセルが出てきました」と読み上げ用の名前
+    expect(screen.getByText('カプセルが出てくるよ…')).toBeVisible()
+    expect(screen.getByText('そのまま待ってね。')).toBeVisible()
+    expect(mini).not.toHaveClass('is-landed')
+    tick(LIT_MS)
     expect(screen.getByText(/カプセルが出てきました/)).toBeVisible()
     expect(screen.getByText(`（${name}）`)).toHaveClass('visually-hidden')
-    tick(TIMING.drop)
+    expect(document.querySelector('.machine-wrap .capsule-art.is-mini')).toHaveClass('is-landed')
+    tick(CAPSULE_LIT_HOLD_MS)
     const big = document.querySelector('.open-stage .capsule-art')
     expect(big).toHaveClass(`glow-${glow}`, 'stage-closed')
     // 粒はキラキラ・目玉だけ。どれも点滅しない静止の絵
