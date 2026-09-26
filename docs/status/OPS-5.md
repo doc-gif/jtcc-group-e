@@ -24,6 +24,8 @@ OPS-4（#90）のキューは、main を取り込んだ後の CI を `workflow_d
 ## 残課題
 
 - main の `.github/workflows` が変わった後は、Bot が取り込めない（OPS-4 と同じ）。
+- `ci.yml` の `workflow_dispatch`（`queue_base`）の入力と「キューが起動する」というコメントは古いが、この PR では変えていない。workflow を変えると、マージ直後に他の Ready の PR へ Bot が取り込めなくなり、この修正の実地確認も遅れるため。次に workflow を変える PR で、入力を外すかコメントを「手での確認用」に直す。
+- `auto-merge.yml` の `workflow_run` の条件に残る `workflow_dispatch` も同じ（`autoMerge` が skip するので害はない）。
 
 ## ブランチ・記録
 
