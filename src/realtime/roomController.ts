@@ -8,6 +8,8 @@ import {
 
 /** 接続中のポーリング間隔。契約の上限 20 秒より短くし、SQL の 10 秒間隔の heartbeat と両立させる。 */
 export const ROOM_POLL_MS = 15_000
+/** 自分のカプセルを開ける間（startsAt〜revealAt）に、起床通知がないとき、ほかの人が開けたかを取り直す間隔（#88）。 */
+export const ROOM_OPENING_POLL_MS = 2_000
 /** startsAt の直後に再取得するまでの余裕。結果は必ずサーバーの snapshot から受け取る。 */
 export const ROOM_REVEAL_MARGIN_MS = 250
 /** 通信失敗時の再試行間隔。最後の値を上限として繰り返す。 */
@@ -66,9 +68,14 @@ export interface RoomControllerOptions {
 }
 
 export type RoomPhase =
-  | 'idle' | 'connecting' | 'lobby' | 'ready' | 'countdown' | 'opening' | 'results' | 'cooldown'
+  | 'idle' | 'connecting' | 'lobby' | 'ready' | 'countdown'
+  /** #88: startsAt から、抽選に入った本人が自分のカプセルをまだ開けていない。 */
+  | 'opening'
+  /** #88: 自分のカプセルを開けた、または見守る人（抽選に入っていない）。全員の結果（revealAt）を待つ。 */
+  | 'waiting'
+  | 'results' | 'cooldown'
   | 'unavailable' | 'reconnecting'
-export type RoomAction = 'create' | 'join' | 'resume' | 'ready' | 'start' | 'schedule' | 'pitch' | 'rename' | 'leave'
+export type RoomAction = 'create' | 'join' | 'resume' | 'ready' | 'start' | 'schedule' | 'pitch' | 'rename' | 'open' | 'leave'
 export interface RoomNotice {
   code: RoomErrorCode | null
   message: string
@@ -120,10 +127,19 @@ export interface RoomState {
   canStart: boolean
   /** ホストが開始できない理由。errorMessage(code) で案内に使える。SQL の確認と同じ順。 */
   startBlockedBy: 'host-required' | 'round-active' | 'need-more-players' | 'nobody-ready' | null
-  /** countdown は startsAt まで、results/cooldown は nextReadyAt までの秒数。 */
+  /** countdown は startsAt まで、opening/waiting は revealAt（全員の結果）まで、results/cooldown は nextReadyAt までの秒数。 */
   secondsLeft: number | null
   round: Round | null
-  /** 最新ラウンドで公開済みの自分の賞品。 */
+  /** 最新ラウンドの抽選に入っている（自分のカプセルがある）。見守る人は false。 */
+  isEntrant: boolean
+  /** 最新ラウンドの自分のカプセルを開けた。 */
+  hasOpened: boolean
+  /** 最新ラウンドで開けた人・抽選に入った人の数（「みんなが開けています N/M 人」）。 */
+  openedCount: number
+  entrantCount: number
+  /** 自分のカプセルを開けられるか（opening の間）。 */
+  canOpen: boolean
+  /** 最新ラウンドの自分の賞品。開けた後（全員の結果の前でも）か、全員の結果の後に決まる。 */
   myPrize: SharedPrize | null
   myResults: MyResult[]
   /** まだ確認していない公開済みの自分の結果（再接続後の回収用）。 */
@@ -190,6 +206,8 @@ export interface RoomController {
   schedule(minutes: ScheduleMinutes | null): Promise<RoomResult>
   /** ホストだけ。ピッチモードを切り替える。次に始まるラウンドから効く。 */
   setPitchMode(on: boolean): Promise<RoomResult>
+  /** #88: 抽選に入った本人が最新ラウンドの自分のカプセルを開ける（startsAt 以後）。送り直しても同じ。 */
+  openCapsule(): Promise<RoomResult>
   leave(): Promise<RoomResult>
   refresh(): Promise<void>
   /** 結果画面を閉じ、今ある自分の結果を確認済みにする。 */
@@ -245,6 +263,11 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     const members = snap?.members ?? []
     const self = snap ? members.find(member => member.id === snap.self) ?? null : null
     const round = snap?.round ?? null
+    const entrants = round?.entrants ?? []
+    const isEntrant = snap !== null && entrants.includes(snap.self)
+    const myPrize = round && snap ? snap.myResults.find(result => result.roundNo === round.number)?.prize ?? null : null
+    // 開けた応答（myResults に自分の賞品）が先に届けば、opened の一覧を待たずに開けたとみなす。
+    const hasOpened = snap !== null && ((round?.opened ?? []).includes(snap.self) || (isEntrant && myPrize !== null))
     const locked = round !== null && serverNow < Date.parse(round.nextReadyAt)
     const myResults = snap?.myResults ?? []
     const unseenResults = snap ? myResults.filter(result => !seen.has(seenKey(snap.id, result.roundNo))) : []
@@ -261,14 +284,17 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     else if (!roomId) phase = busy === 'create' || busy === 'join' || busy === 'resume' ? 'connecting' : 'idle'
     else if (connection === 'reconnecting') phase = 'reconnecting'
     else if (!snap) phase = 'connecting'
-    else if (round && round.results === null) phase = serverNow < Date.parse(round.startsAt) ? 'countdown' : 'opening'
+    else if (round && round.results === null) {
+      phase = serverNow < Date.parse(round.startsAt) ? 'countdown' : isEntrant && !hasOpened ? 'opening' : 'waiting'
+    }
     else if (round && !dismissed.has(round.number)
       && (locked || watchedPending.has(round.number) || unseenResults.some(result => result.roundNo === round.number))) phase = 'results'
     else if (locked) phase = 'cooldown'
     else phase = self?.ready ? 'ready' : 'lobby'
 
     let secondsLeft: number | null = null
-    if (round && (phase === 'countdown' || phase === 'opening')) secondsLeft = secondsUntil(round.startsAt, now, offset)
+    if (round && phase === 'countdown') secondsLeft = secondsUntil(round.startsAt, now, offset)
+    else if (round && (phase === 'opening' || phase === 'waiting')) secondsLeft = secondsUntil(round.revealAt, now, offset)
     else if (round && locked && (phase === 'results' || phase === 'cooldown')) secondsLeft = secondsUntil(round.nextReadyAt, now, offset)
 
     const startBlockedBy = !isHost ? 'host-required' : locked ? 'round-active' : missing > 0 ? 'need-more-players'
@@ -296,7 +322,10 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       canStart: live && busy === null && startBlockedBy === null,
       startBlockedBy: snap ? startBlockedBy : null,
       secondsLeft, round,
-      myPrize: round?.results?.find(result => result.userId === snap?.self)?.prize ?? null,
+      isEntrant, hasOpened,
+      openedCount: round?.opened.length ?? 0, entrantCount: entrants.length,
+      canOpen: live && busy === null && phase === 'opening',
+      myPrize,
       myResults, unseenResults,
       scheduledAt,
       secondsToScheduled: scheduledAt ? secondsUntil(scheduledAt, now, offset) : null,
@@ -354,10 +383,13 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     const round = snapshot?.round
     if (!round) return
     const startsAt = Date.parse(round.startsAt)
-    // 公開時刻の直後に取り直す。過ぎても未公開なら、サーバーの時刻に追いつくまで 1 秒ごとに取り直す。
-    const reveal = startsAt + ROOM_REVEAL_MARGIN_MS - serverNow
+    const revealAt = Date.parse(round.revealAt)
+    // 全員の結果の時刻（revealAt）の直後に取り直す。過ぎても未公開なら、サーバーの時刻に追いつくまで 1 秒ごとに取り直す。
+    // 全員が開ければ revealAt は早まる。その知らせは起床通知で届き、届かないとき（ポーリングだけ）は短い間隔で取り直す。
+    const reveal = revealAt + ROOM_REVEAL_MARGIN_MS - serverNow
     if (round.results === null) after(reveal > 0 ? reveal : 1000, () => void sync())
-    const target = round.results === null ? startsAt : Date.parse(round.nextReadyAt)
+    if (round.results === null && !hinted && serverNow >= startsAt - ROOM_OPENING_POLL_MS) after(lastSyncAt + ROOM_OPENING_POLL_MS - now, () => void sync())
+    const target = round.results === null ? (serverNow < startsAt ? startsAt : revealAt) : Date.parse(round.nextReadyAt)
     const remaining = target - serverNow
     if (remaining > 0) after(remaining % 1000 || 1000, emit)
   }
@@ -622,6 +654,12 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       const room = requireRoom()
       if (!room) return Promise.resolve({ ok: false, error: null })
       return perform('pitch', () => transport.setPitchMode(room, on))
+    },
+    openCapsule() {
+      const room = requireRoom()
+      const round = snapshot?.round
+      if (!room || !round) return Promise.resolve({ ok: false, error: null })
+      return perform('open', () => transport.open(room, round.number))
     },
     async leave() {
       const room = roomId

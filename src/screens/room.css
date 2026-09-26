@@ -15,7 +15,7 @@
   background: var(--soft); border-radius: 999px; padding: 0.2rem 0.8rem; line-height: 1.6;
 }
 
-/* 舞台（街の開封広場） */
+/* 舞台（街の開封広場とガチャ筐体・集まる人。Issue #87） */
 .room-stage {
   margin: 0; overflow: hidden; border-radius: 22px; border: 1px solid var(--line);
   background: var(--room-mint);
@@ -32,13 +32,18 @@
 .house-wall { fill: var(--surface); stroke: var(--line); stroke-width: 2; }
 .house-roof { fill: var(--head); }
 .house-door { fill: var(--deep); opacity: 0.85; }
-.gift-halo { fill: var(--surface); opacity: 0.9; }
-.gift-box, .gift-lid-top { fill: var(--main); }
-.gift-bow { fill: var(--head); stroke: var(--surface); stroke-width: 3; }
-.gift-ribbon { fill: var(--surface); }
-.stage-open .gift-lid { transform: translate(0, -14px) rotate(-8deg); transform-origin: 170px 66px; animation: room-lid 0.6s ease-out; }
-.stage-closed .gift-box, .stage-closed .gift-lid-top { fill: var(--head); }
-@keyframes room-lid { from { transform: none; } }
+.stage-halo { fill: var(--surface); opacity: 0.9; }
+/* 真ん中のガチャ筐体（部品 267:10520 と同じ Machine）。飾りなので押せず、指の縦スクロールも止めない */
+.room-machine { grid-area: 1 / 1; align-self: start; width: min(44%, 9.5rem); pointer-events: none; }
+.room-machine .machine { cursor: default; touch-action: auto; }
+.room-machine .m-bg { fill: none; }
+.room-stage.is-compact .room-machine { width: min(42%, 6.5rem); }
+.stage-closed .room-machine { opacity: 0.55; }
+/* 同時開封: 筐体の横でカプセルが開く */
+.capsule-top { fill: var(--main); stroke: var(--surface); stroke-width: 2; }
+.capsule-bottom { fill: var(--surface); stroke: var(--main); stroke-width: 2; }
+.stage-capsule { transform-box: fill-box; transform-origin: center; transform: rotate(14deg); animation: room-capsule 0.6s ease-out; }
+@keyframes room-capsule { from { transform: translate(-40px, 60px) scale(0.4) rotate(14deg); opacity: 0; } }
 
 .room-countdown {
   grid-area: 1 / 1; display: grid; place-items: center; width: min(9.5rem, 100%); aspect-ratio: 1; border-radius: 50%;
@@ -54,24 +59,70 @@
 .stage-sparkle .room-sparkles { margin-top: 0.1rem; }
 @keyframes room-pop { from { transform: scale(0.6); opacity: 0; } }
 .room-prize-card {
-  grid-area: 1 / 1; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+  grid-area: 1 / 1; position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
   background: var(--surface); border-radius: 18px; padding: 0.6rem 0.8rem; box-shadow: var(--shadow);
   font-size: 0.9375rem; font-weight: 800; color: var(--deep);
 }
 /* ピッチ用の実物グッズ写真（F15。ルームの中で読めたときだけ）と権利表記 */
 .room-prize-card .goods-photo img { object-fit: cover; }
 .room-photo-credit { margin: 0; padding: 0.35rem 0.9rem 0.5rem; text-align: center; overflow-wrap: anywhere; background: var(--surface); border-top: 1px solid var(--line); }
+/*
+ * 集まっている人（マスターの部品「T10 / Room crowd」）。人数で crowd-few（1〜3人・離れて並ぶ）、
+ * crowd-some（4〜9人・6人が寄る）、crowd-lively（10人〜・10人が2段で囲み「+N」）。吹き出しも1・2・3個に増える。
+ */
+.room-crowd { position: absolute; left: 0; right: 0; bottom: 0.4rem; pointer-events: none; }
 .room-faces {
-  position: absolute; left: 0; right: 0; bottom: 0.5rem; list-style: none; margin: 0; padding: 0;
-  display: flex; justify-content: center; gap: min(1rem, 3vw);
+  list-style: none; margin: 0 auto; padding: 0 0.5rem; max-width: 100%;
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: min(0.6rem, 2vw);
 }
+.crowd-few .room-faces { justify-content: space-between; max-width: min(15rem, 80%); }
+.crowd-some .room-faces { gap: 0.1rem; max-width: 20rem; }
+.crowd-lively .room-faces { gap: 0; max-width: min(13rem, 76%); }
 .face {
-  display: grid; place-items: center; width: min(2.4rem, 12vw); height: min(2.4rem, 12vw); overflow: hidden; border-radius: 50%;
+  --face: min(2.6rem, 12vw);
+  position: relative; display: grid; place-items: center; width: var(--face); height: var(--face); border-radius: 50%;
   border: 2px solid var(--surface); font-weight: 800; font-size: 0.9375rem; color: var(--text); background: var(--head);
+  animation: room-bob 3s ease-in-out 2;
 }
+/* ほっぺ */
+.face::before, .face::after {
+  content: ''; position: absolute; top: 66%; width: 15%; height: 9%; border-radius: 50%; background: var(--main); opacity: 0.75;
+}
+.face::before { left: 17%; }
+.face::after { right: 17%; }
+.crowd-some .face { --face: min(2.35rem, 11vw); }
+.crowd-lively .face { --face: min(2.15rem, 10vw); margin: -0.2rem -0.15rem; font-size: 0.875rem; }
 .face.f2 { background: var(--surface); border-color: var(--line); }
-.face.f3 { background: var(--soft); }
-.face.f4 { background: #EAD5DC; }
+.face.f3 { background: #C7DED1; }
+.face.f4 { background: #EBD7E6; }
+.face.f5 { background: #FBE3C6; }
+.face.f6 { background: var(--soft); }
+.face.f7 { background: #DBE8F5; }
+.face.f8 { background: #F7CBD9; }
+.face.f9 { background: #E9D3F0; }
+.face.f10 { background: #CFE6DC; }
+.face:nth-child(2n) { animation-delay: -1.5s; }
+.face:nth-child(3n) { animation-delay: -0.8s; }
+.face-more {
+  align-self: center; margin-left: 0.25rem; border-radius: 999px; padding: 0 0.5rem;
+  background: var(--deep); color: #fff; font-weight: 800; font-size: 0.8125rem; line-height: 1.6;
+}
+@keyframes room-bob { 50% { transform: translateY(-3px); } }
+/* 吹き出し（飾り） */
+.room-cheer {
+  position: absolute; bottom: calc(100% + 0.35rem); white-space: nowrap;
+  background: var(--surface); border: 1.5px solid #F7CBD9; border-radius: 12px; padding: 0 0.5rem;
+  font-weight: 800; font-size: 0.8125rem; line-height: 1.7; color: var(--deep);
+}
+.room-cheer::after {
+  content: ''; position: absolute; top: 100%; left: 1rem; border: 5px solid transparent; border-top-color: var(--surface);
+}
+.room-cheer.c1 { left: 4%; }
+.room-cheer.c2 { right: 4%; }
+.room-cheer.c2::after { left: auto; right: 1rem; }
+.room-cheer.c3 { left: 4%; bottom: calc(100% + 2.2rem); }
+.crowd-few .room-cheer.c1 { left: max(4%, calc(10% - 1rem)); }
+.room-stage.is-compact .room-cheer { font-size: 0.75rem; }
 
 /* 集まっている人・抽選の準備（上限は出さない） */
 .room-stats {
@@ -170,7 +221,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stage-open .gift-lid, .room-pop { animation: none; }
+  .stage-capsule, .room-pop, .face { animation: none; }
 }
 
 /* ホスト用リンク（ホストだけ・共有シートの中） */

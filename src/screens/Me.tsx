@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { asset, useApp } from '../app/appContext'
 import { addDemoCoins, COIN_PACKS, createInitialState, NICKNAME_MAX, setForceFeatured, setNickname, toggleSetting } from '../domain/game'
 import { coinText, EXCHANGE_RATE } from '../domain/odds'
-import { MockNotice, SaveWarning, TabBar, TopBar } from '../components/Chrome'
+import { ExampleNotice, SaveWarning, TabBar, TopBar } from '../components/Chrome'
 
 export function Me() {
   const { state, update } = useApp()
@@ -25,7 +25,7 @@ export function Me() {
       <TopBar title="マイページ" sub="MY PAGE" />
       <main className="content">
         <p className="lead mypage-lead">コインの残高と、名前・きまり・デモ操作をまとめています。</p>
-        {notice && <p className="toast" role="status">{notice}</p>}
+        {notice && <p className="toast" role="status" data-clarity-mask="true">{notice}</p>}
         <section className="panel coin-panel" aria-labelledby="coin-title">
           <h2 id="coin-title"><img src={asset('assets/icons/coin.png')} alt="" width="28" height="28" />コイン残高</h2>
           <p className="coin-big">{coinText(state.coins)}<small>コイン</small></p>
@@ -43,10 +43,10 @@ export function Me() {
           <form className="name-form" onSubmit={saveName} noValidate>
             <label htmlFor="nickname">ルームで友達に見える名前（{NICKNAME_MAX}文字まで）</label>
             <div className="name-row">
-              <input id="nickname" value={name} onChange={(event) => setName(event.target.value)} aria-invalid={nameError ? true : undefined} aria-describedby={nameError ? 'nickname-error' : undefined} autoComplete="nickname" />
+              <input id="nickname" data-clarity-mask="true" value={name} onChange={(event) => setName(event.target.value)} aria-invalid={nameError ? true : undefined} aria-describedby={nameError ? 'nickname-error' : undefined} autoComplete="nickname" />
               <button type="submit" className="btn btn-main">保存</button>
             </div>
-            {nameError && <p id="nickname-error" className="field-error">{nameError}</p>}
+            {nameError && <p id="nickname-error" data-clarity-mask="true" className="field-error">{nameError}</p>}
           </form>
         </section>
         <section className="panel" aria-labelledby="sound-title">
@@ -71,7 +71,7 @@ export function Me() {
           <details><summary>確率の表示について</summary><p>中身ごとの確率は、いまの残りの数から計算した値をそのまま表示します。残りの数そのものは表示せず、全体の残りをバーと言葉で示します。</p></details>
           <details><summary>コインについて</summary><p>当たった物は参考価格の一律{Math.round(EXCHANGE_RATE * 100)}%のコインに交換できます。コインはアプリの中だけで使え、出金はできません。</p></details>
           <details><summary>取り扱い商品のルール</summary><p>発売から90日以内の商品は扱わない方針です（転売の助長を避けるため）。</p></details>
-          <details><summary>特定商取引法・資金決済法に基づく表示</summary><p>提案モックのため未作成です。正式なサービスでは必ず掲載します。</p></details>
+          <details><summary>特定商取引法・資金決済法に基づく表示</summary><p>開発中のため準備中です。正式なサービスでは必ず掲載します。</p></details>
         </section>
         <section className="panel" aria-labelledby="demo-title">
           <h2 id="demo-title">デモ操作（審査用）</h2>
@@ -91,7 +91,7 @@ export function Me() {
           )}
         </section>
         <SaveWarning />
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <TabBar />
     </div>

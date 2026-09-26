@@ -6,14 +6,14 @@
 function demoState(extra: Record<string, unknown> = {}): string {
   const win = (id: string, prizeId: string, companions: string[]) => ({ id, gachaId: 'sanrio-capsule', prizeId, spent: 500, wonAt: '2026-09-20T00:00:00.000Z', companions, status: 'kept' })
   return JSON.stringify({
-    version: 1, coins: 2000, nickname: 'あなた', stock: {}, forceFeaturedNext: false, nextWinSeq: 3, welcomed: true, voiceOn: false, soundOn: false,
+    version: 1, coins: 29000, nickname: 'あなた', stock: {}, forceFeaturedNext: false, nextWinSeq: 3, welcomed: true, voiceOn: false, soundOn: false,
     wins: [win('w2', 'sanrio-capsule-2', ['ゆい', 'さき']), win('w1', 'sanrio-capsule-1', [])], favorites: [], reactions: [], ...extra,
   })
 }
 export const SEED_STORAGE_KEY = 'lastpiece_app_v1'
 
 /** ガチャの流れ（F03）用：売り切れ・コイン不足を再現する状態 */
-const gachaState = (extra: Record<string, unknown> = {}) => JSON.stringify({ version: 1, coins: 3000, nickname: 'あなた', stock: {}, wins: [], forceFeaturedNext: false, nextWinSeq: 1, ...extra })
+const gachaState = (extra: Record<string, unknown> = {}) => JSON.stringify({ version: 1, coins: 30000, nickname: 'あなた', stock: {}, wins: [], forceFeaturedNext: false, nextWinSeq: 1, ...extra })
 const soldOutStock = { 'sanrio-capsule': Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`sanrio-capsule-${i + 1}`, 0])) }
 
 // room: 共有ルーム（T10）の端末内デモの保存データと端末の時刻（e2e/room-seeds.ts）。steps: 開いたあとの操作。heading: 確かめる見出し。
@@ -78,6 +78,8 @@ export const uxScenarios: Array<{
   { name: 'room-guest-schedule-waiting', path: roomPath, scalableText: '.room-body', room: roomSeed({ members: [{ id: 'host', nickname: 'ミオ' }, { id: 'me', nickname: 'もも', ready: true }], scheduledAt: ROOM_T0, pitchMode: true }), heading: /になりました$/ },
   { name: 'room-host-link-invalid', path: './#/host/old-key', scalableText: '.room-body', heading: 'ホスト用リンクが無効です' },
   { name: 'spin-solo-confirm', path: './#/gacha/melody-anniv/spin', scalableText: '.confirm-lead' },
+  // 回転 1（なぞる前、マスター 267:8348）: つまみの上に右回りの矢印。なぞる操作そのものは e2e/app.spec.ts で確かめる
+  { name: 'spin-turning', path: './#/gacha/sanrio-capsule/spin', scalableText: '.spin-lead', steps: [{ click: /使って1回引く/ }], heading: 'ハンドルを回す' },
   { name: 'spin-sold-out', path: './#/gacha/sanrio-capsule/spin', scalableText: '.problem-lead', seed: gachaState({ stock: soldOutStock }) },
   { name: 'spin-insufficient-coins', path: './#/gacha/sanrio-capsule/spin', scalableText: '.problem-lead', seed: gachaState({ coins: 100 }) },
   { name: 'gacha-detail-insufficient-coins', path: './#/gacha/sanrio-capsule', scalableText: '.detail-lead', seed: gachaState({ coins: 100 }) },

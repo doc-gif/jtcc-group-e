@@ -1,0 +1,58 @@
+{
+  "uiDigest": "3cd202cc75a8e084bd9d6b41fe671ffd54ce07e7d144af80de1f5a1510200c60",
+  "reviewer": "Claude (AN-6 / #67: Microsoft Clarity)",
+  "reviewedAt": "2026-09-26",
+  "summary": "#67。担当者の指示で、LP と同じ Microsoft Clarity（プロジェクト yo6yjo7ath）をデモにも入れた。GA4 と同じ shouldTrack を満たす本番の公開 URL でだけ読み込む。Clarity は開始時と送信のたびに、その時点の location.href をハッシュ込みで記録する。伏せる設定はない。そこで招待・ホストの画面（#/room/<招待>・#/host）と解釈できないハッシュへは、URL が変わる前に止める（リンクを押したとき・アプリの navigate()・Navigation API）。そのまま開いたときは start を渡さず、いったん止めたらこのページでは再開しない。URL が変わる前に止める手段（Navigation API）がないブラウザでは Clarity を読み込まない（Copilot の指摘）。ニックネームの入力欄・エラー・保存の知らせ・ルームの名前・顔の文字・「〇〇」で入りますの見出し・「〇〇さんのルーム」の補足・名前の候補のボタン・「いまのルームに戻る」リンク・ロビーに残るエラー（名前の候補を含む）に data-clarity-mask を付けた。ルームのすべての状態見本で、画面のニックネームが隠す印の中にあることを E2E で確かめた。見た目は変えていない（属性だけ）。320px でマイページ・ルームを作る・ようこそを見て、表示と JS エラーなしを確認した。",
+  "criteria": [
+    {
+      "id": "HIG-01",
+      "result": "not-applicable",
+      "evidence": "文字・色・大きさを変えていない。data-clarity-mask 属性は表示に影響しない。320px でマイページ・ルームを作る・ようこそを開き、以前と同じ表示であることを確認した。"
+    },
+    {
+      "id": "HIG-02",
+      "result": "not-applicable",
+      "evidence": "操作要素・フォーカス順・読み上げを変えていない。「いまのルームに戻る」はリンクのままで、捕捉段階のクリック処理は既定の動作を止めない。"
+    },
+    {
+      "id": "HIG-03",
+      "result": "not-applicable",
+      "evidence": "レイアウトを変えていない。e2e/analytics.spec.ts を 5 端末構成で実行し、画面の移動で見出しが表示され、JS エラーがないことを確認した。"
+    },
+    {
+      "id": "HIG-04",
+      "result": "pass",
+      "evidence": "Clarity の制御は例外を握りつぶし、画面の処理に返さない。router の navigate() は登録された関数を呼んでから移る（analytics.test.ts「onBeforeNavigate は URL が変わる前に呼ばれ、解除できる」）。Clarity のタグは async で読み込み、表示を待たせない。"
+    },
+    {
+      "id": "HIG-05",
+      "result": "not-applicable",
+      "evidence": "演出・音・動きを追加していない。動きを減らす設定の扱いも変えていない。"
+    },
+    {
+      "id": "GAME-01",
+      "result": "not-applicable",
+      "evidence": "見た目・画面構成・状態を変えていない（属性の追加だけ）。Figma マスター 267:8198 の変更や照合は不要。公表文の画面は #46 で Figma と合わせて扱う。"
+    },
+    {
+      "id": "GAME-02",
+      "result": "pass",
+      "evidence": "コイン・在庫・ルームの状態を読まず、変えない。本物の Clarity（0.8.70）を本番 URL に見立てて読み込み、送信を止めて中身を確かめた。ルームを作る→招待の画面→戻る→リンクで戻る→マイページ、ホスト用リンクで直接開く、の流れで、送信内容に招待コード・ホストキー・ニックネームは含まれなかった。修正前は、止めたときの送信に招待の URL が入ることをこの確認で見つけた。 アドレス欄から招待の URL へ移る場合（Navigation API で URL が変わる前に止める）も、送信内容に招待コードは含まれなかった。"
+    },
+    {
+      "id": "GAME-03",
+      "result": "pass",
+      "evidence": "通知・バッジ・催促を追加していない。?internal=1 で GA4 と一緒に Clarity も読み込まない。招待・ホストの画面では記録しない。"
+    },
+    {
+      "id": "GAME-04",
+      "result": "not-applicable",
+      "evidence": "着せ替え・選択肢・公開範囲は変えていない。ニックネームを録画に映さないよう、表示と入力に data-clarity-mask を付けた。e2e/analytics.spec.ts でルームのすべての状態見本（名前を決めずに入る・名前の重複を含む）を開き、画面に出るニックネームが隠す印の外に 0 件であることを確かめた。"
+    },
+    {
+      "id": "GAME-05",
+      "result": "not-applicable",
+      "evidence": "画面の文言を追加していない。Clarity への外部送信の説明は #46 の公表文に追記する（#46 の本文を更新済み）。"
+    }
+  ]
+}

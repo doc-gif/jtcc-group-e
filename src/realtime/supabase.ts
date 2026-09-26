@@ -39,6 +39,7 @@ export function supabaseTransport(client: SupabaseClient): RoomTransport {
     setPitchMode: (room, on) => rpc('lp_set_pitch_mode', { p_room: room, p_on: on }),
     resumeHost: (hostKey, room) => rpc('lp_resume_host', { p_key: hostKey, p_room: room }),
     rename: (room, name) => rpc('lp_rename', { p_room: room, p_name: name }),
+    open: (room, roundNo) => rpc('lp_open', { p_room: room, p_round: roundNo }),
     leave: async room => { await rpc('lp_leave', { p_room: room }) },
     subscribe: (room, refresh, onStatus) => {
       // Broadcast is an optional wake-up hint. Auth and every result still come from RPC snapshots.

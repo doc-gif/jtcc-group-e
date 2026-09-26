@@ -7,6 +7,7 @@ import { NICKNAME_MAX } from '../domain/game'
 import type { ScheduleMinutes, SharedPrize } from '../realtime/protocol'
 import { glowLabel } from '../domain/odds'
 import { GoodsImage } from './Goods'
+import { Machine } from './Machine'
 
 /*
  * 共有ルーム（デザインマスター T10）の部品。画面の組み立ては src/screens/Room.tsx。
@@ -30,12 +31,55 @@ function PrizePicture({ prize, photo, onBroken }: { prize: SharedPrize; photo: S
   )
 }
 
-/** 舞台の絵（マスターの「街の開封広場」をコードの SVG で描き直したもの）。 */
-export function RoomStage({ caption, variant = 'gift', faces = [], countdown, prize, photo = null, compact = false }: {
+/** 集まっている人の賑やかさ（マスターの部品「T10 / Room crowd」の 1〜3人・4〜9人・10人〜）。 */
+type CrowdLevel = 'few' | 'some' | 'lively'
+
+function crowdLevel(count: number): CrowdLevel {
+  return count <= 3 ? 'few' : count <= 9 ? 'some' : 'lively'
+}
+
+/** 並べる人数と吹き出しの数。10人〜は並ばない人を「+N」で出す。 */
+const CROWD: Record<CrowdLevel, { faces: number; cheers: number }> = {
+  few: { faces: 3, cheers: 1 },
+  some: { faces: 6, cheers: 2 },
+  lively: { faces: 10, cheers: 3 },
+}
+
+/** 吹き出しの言葉。待っている間・秒読み・開いた後で変える（マスター T10 と同じ）。 */
+const CHEERS: Record<'wait' | 'countdown' | 'joy', readonly string[]> = {
+  wait: ['わくわく', 'まだかな？', '楽しみ！'],
+  countdown: ['せーの！', 'ドキドキ', 'いくよ〜'],
+  joy: ['やったー！', '見せて！', 'おめでとう'],
+}
+
+/** 集まっている人（名前の頭文字）と吹き出し。人数は下の「集まっている人 N人」で伝えるので、ここは飾りとして読み上げない。 */
+function RoomCrowd({ names, count, variant }: { names: string[]; count: number; variant: StageVariant }) {
+  const level = crowdLevel(count)
+  const shown = names.slice(0, CROWD[level].faces)
+  const more = count - shown.length
+  const mood = variant === 'countdown' ? 'countdown' : variant === 'gift' || variant === 'closed' ? 'wait' : 'joy'
+  return (
+    <div className="room-crowd" aria-hidden="true" data-clarity-mask="true">
+      {CHEERS[mood].slice(0, CROWD[level].cheers).map((cheer, index) => <span key={cheer} className={`room-cheer c${index + 1}`}>{cheer}</span>)}
+      <ul className="room-faces">
+        {shown.map((face, index) => <li key={index} className={`face f${index + 1}`}>{face}</li>)}
+        {level === 'lively' && more > 0 && <li className="face-more">+{more}</li>}
+      </ul>
+    </div>
+  )
+}
+
+/**
+ * 舞台の絵（マスター T10 の「Opening stage」）。家並みはコードの SVG、真ん中はガチャ筐体（部品 267:10520 と同じ Machine）。
+ * 集まっている人数（state.seats.taken）で crowd-few / crowd-some / crowd-lively を付け、並ぶ人と吹き出しを増やす。
+ */
+export function RoomStage({ caption, variant = 'gift', faces = [], crowd = 0, countdown, prize, photo = null, compact = false }: {
   caption: string
   variant?: StageVariant
-  /** 集まっている人の頭文字（最大4人）。飾りなので読み上げない。 */
+  /** 集まっている人の頭文字（最大10人）。空ならルームの外の画面として人を出さない。 */
   faces?: string[]
+  /** 集まっている人数（state.seats.taken）。 */
+  crowd?: number
   countdown?: string
   prize?: SharedPrize | null
   /** ルームの中で読み込めた実物グッズ写真（F15）。null なら元の絵。 */
@@ -44,8 +88,9 @@ export function RoomStage({ caption, variant = 'gift', faces = [], countdown, pr
 }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
   const shown = photo && failedUrl !== photo.url ? photo : null
+  const people = faces.length > 0 ? Math.max(crowd, faces.length) : 0
   return (
-    <figure className={`room-stage stage-${variant}${compact ? ' is-compact' : ''}`}>
+    <figure className={`room-stage stage-${variant}${people > 0 ? ` crowd-${crowdLevel(people)}` : ''}${compact ? ' is-compact' : ''}`}>
       <figcaption className="room-stage-caption">{caption}</figcaption>
       <div className="room-stage-body">
         <svg className="room-stage-art" viewBox="0 0 340 170" aria-hidden="true" focusable="false">
@@ -60,19 +105,15 @@ export function RoomStage({ caption, variant = 'gift', faces = [], countdown, pr
             <rect x="258" y="52" width="70" height="16" rx="8" className="house-roof" />
             <rect x="286" y="84" width="14" height="30" rx="7" className="house-door" />
           </g>
-          {variant !== 'countdown' && variant !== 'prize' && (
-            <g className="stage-gift">
-              <circle cx="170" cy="84" r="62" className="gift-halo" />
-              <rect x="128" y="74" width="84" height="66" rx="6" className="gift-box" />
-              <g className="gift-lid">
-                <rect x="120" y="54" width="100" height="24" rx="6" className="gift-lid-top" />
-                <circle cx="157" cy="46" r="12" className="gift-bow" />
-                <circle cx="183" cy="46" r="12" className="gift-bow" />
-              </g>
-              <rect x="164" y="54" width="12" height="86" className="gift-ribbon" />
+          {variant !== 'countdown' && <circle cx="170" cy="76" r="64" className="stage-halo" />}
+          {variant === 'open' && (
+            <g className="stage-capsule">
+              <path d="M244 30a18 18 0 0 1 36 0z" className="capsule-top" />
+              <path d="M244 38a18 18 0 0 0 36 0z" className="capsule-bottom" />
             </g>
           )}
         </svg>
+        {variant !== 'countdown' && <div className="room-machine" aria-hidden="true"><Machine /></div>}
         {variant === 'countdown' && (
           <p className="room-countdown" role="timer" aria-live="off">
             <span className="visually-hidden">開封まで</span>{countdown}
@@ -86,11 +127,7 @@ export function RoomStage({ caption, variant = 'gift', faces = [], countdown, pr
             <span>今日のピース</span>
           </div>
         )}
-        {faces.length > 0 && (
-          <ul className="room-faces" aria-hidden="true">
-            {faces.slice(0, 4).map((face, index) => <li key={index} className={`face f${index + 1}`}>{face}</li>)}
-          </ul>
-        )}
+        {people > 0 && <RoomCrowd names={faces} count={people} variant={variant} />}
       </div>
       {variant === 'prize' && prize && shown && <p className="fine room-photo-credit">{shown.credit}</p>}
     </figure>
@@ -115,13 +152,14 @@ export function RoomStats({ items }: { items: [RoomStat, RoomStat] }) {
 }
 
 /** 見出しの小札（CHOOSE・READY など）と説明、下の淡いミントの一言。 */
-export function RoomCard({ kicker, title, children, note, labelledBy }: {
-  kicker: string; title: string; children?: ReactNode; note?: ReactNode; labelledBy: string
+/** privateTitle: 見出しにニックネームを含むとき、録画（Clarity）で隠す。 */
+export function RoomCard({ kicker, title, children, note, labelledBy, privateTitle = false }: {
+  kicker: string; title: string; children?: ReactNode; note?: ReactNode; labelledBy: string; privateTitle?: boolean
 }) {
   return (
     <section className="room-card" aria-labelledby={labelledBy}>
       <p className="room-kicker" lang={/^[A-Z ]+$/.test(kicker) ? 'en' : undefined}>{kicker}</p>
-      <h2 id={labelledBy} className="room-card-title">{title}</h2>
+      <h2 id={labelledBy} className="room-card-title" data-clarity-mask={privateTitle ? 'true' : undefined}>{title}</h2>
       {children}
       {note && <p className="room-note">{note}</p>}
     </section>
@@ -184,10 +222,10 @@ export function RoomNameForm({ id, value, onChange, busy, error, onSubmit }: {
   return (
     <form id={id} className="name-form room-name-form" onSubmit={submit} noValidate>
       <label htmlFor={`${id}-input`}>表示する名前</label>
-      <input id={`${id}-input`} value={value} onChange={(event) => onChange(event.target.value)} autoComplete="nickname" placeholder="例：もも"
+      <input id={`${id}-input`} data-clarity-mask="true" value={value} onChange={(event) => onChange(event.target.value)} autoComplete="nickname" placeholder="例：もも"
         aria-invalid={error ? true : undefined} aria-describedby={`${id}-hint${error ? ` ${id}-error` : ''}`} disabled={busy} />
       <p id={`${id}-hint`} className="room-hint">{NICKNAME_MAX}文字まで。ほかの人と同じ名前は使えません。</p>
-      {error && <p id={`${id}-error`} className="field-error" role="alert">{error}</p>}
+      {error && <p id={`${id}-error`} className="field-error" role="alert" data-clarity-mask="true">{error}</p>}
     </form>
   )
 }
@@ -254,7 +292,7 @@ export function ResultRow({ nickname, prize, self }: { nickname: string; prize: 
   return (
     <li className={`room-result${self ? ' is-self' : ''}`}>
       <span className={`room-result-mark mark-${prize}`} aria-hidden="true">{self ? '♥' : PRIZE_ART[prize].mark}</span>
-      <span>{self ? 'あなた' : nickname}<span aria-hidden="true">  ·  </span><span className="visually-hidden">：</span>{prizeName(prize)}</span>
+      <span data-clarity-mask="true">{self ? 'あなた' : nickname}<span aria-hidden="true">  ·  </span><span className="visually-hidden">：</span>{prizeName(prize)}</span>
     </li>
   )
 }
