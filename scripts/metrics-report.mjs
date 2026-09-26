@@ -39,6 +39,14 @@ export function buildGa4Requests({ days = 7, lpPath = LP_PATH } = {}) {
       dimensionFilter: landingIsLp,
       limit: 200,
     },
+    // プロパティ全体（LP が 0 のとき、データが来ているか・入口の URL が想定と違うかを見分ける）
+    overview: {
+      dateRanges,
+      dimensions: [{ name: 'landingPage' }],
+      metrics: [{ name: 'sessions' }, { name: 'totalUsers' }],
+      orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+      limit: 10,
+    },
     // デモ側のイベント（本番公開後）
     events: {
       dateRanges,
@@ -52,7 +60,7 @@ export function buildGa4Requests({ days = 7, lpPath = LP_PATH } = {}) {
 const rowsOf = (report) => (report?.rows ?? []).map((r) => ({ d: (r.dimensionValues ?? []).map((v) => v.value), m: (r.metricValues ?? []).map((v) => num(v.value)) }))
 
 /** GA4 の 3 つの結果を 1 つの要約にする。 */
-export function summarizeGa4({ landing, funnel, events }, { demoPath = DEMO_PATH } = {}) {
+export function summarizeGa4({ landing, funnel, events, overview }, { demoPath = DEMO_PATH } = {}) {
   const l = rowsOf(landing)
   const sum = (i) => l.reduce((a, r) => a + r.m[i], 0)
   const sessions = sum(0)
@@ -71,6 +79,9 @@ export function summarizeGa4({ landing, funnel, events }, { demoPath = DEMO_PATH
   const pages = f.map((r) => ({ path: r.d[1], sessions: r.m[0], views: r.m[1] })).sort((a, b) => b.sessions - a.sessions).slice(0, 10)
 
   const ev = Object.fromEntries(rowsOf(events).map((r) => [r.d[0], { count: r.m[0], sessions: r.m[1], users: r.m[2] }]))
+  const ov = rowsOf(overview)
+  const allSessions = ov.reduce((a, r) => a + r.m[0], 0)
+  const topLanding = ov.slice(0, 10).map((r) => ({ path: r.d[0], sessions: r.m[0], users: r.m[1] }))
 
   return {
     sessions, engaged, engagedRate: pct(engaged, sessions), users, newUsers,
@@ -78,6 +89,7 @@ export function summarizeGa4({ landing, funnel, events }, { demoPath = DEMO_PATH
     scrolledUsers, scrolledRate: pct(scrolledUsers, users),
     toDemoSessions, toDemoSessionsUpper, toDemoRate: pct(toDemoSessions, sessions),
     pages, events: ev,
+    allSessions, topLanding,
   }
 }
 
@@ -138,6 +150,18 @@ export function renderMarkdown({ days, ga4, clarity, errors = [] }, now = new Da
       lines.push('| ページ | セッション | 表示 |')
       lines.push('| --- | --- | --- |')
       for (const p of ga4.pages) lines.push(`| \`${p.path}\` | ${p.sessions} | ${p.views} |`)
+      lines.push('')
+    }
+    if (ga4.sessions === 0) {
+      lines.push(`LP のセッションが 0 です。プロパティ全体のセッション（同じ期間）: **${ga4.allSessions}**。`)
+      if (ga4.allSessions === 0) lines.push('プロパティ全体も 0 なので、`GA4_PROPERTY_ID` が測定 ID `G-3DDS1NJZXS` のプロパティか、LP が GA4 に送っているか、データの反映（最大 24〜48 時間）を確かめてください。')
+      else {
+        lines.push('全体には来ているので、入口の URL が `' + LP_PATH + '` と違う可能性があります。多い入口:')
+        lines.push('')
+        lines.push('| 入口（landingPage） | セッション | ユーザー |')
+        lines.push('| --- | --- | --- |')
+        for (const t of ga4.topLanding) lines.push(`| \`${t.path}\` | ${t.sessions} | ${t.users} |`)
+      }
       lines.push('')
     }
     const evNames = Object.keys(ga4.events)
