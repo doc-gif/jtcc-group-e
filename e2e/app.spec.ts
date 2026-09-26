@@ -153,9 +153,9 @@ test('回帰：ガチャ詳細を開いたあとも、街の注目カードは�
     const read = (selector: string) => getComputedStyle(element.querySelector(selector)!)
     return { kicker: read('.feature-kicker').fontSize, name: read('.feature-name').color, radius: getComputedStyle(element).borderTopLeftRadius }
   })
-  // 街（App.css）の値：見出し 17px・商品名はワイン・角丸 20px（ガチャ詳細の値で上書きされない）
+  // 街（App.css）の値：見出し 17px・商品名は本文色 #172324（マスター 267:8203）・角丸 20px（ガチャ詳細の値で上書きされない）
   expect(styles.kicker).toBe('17px')
-  expect(styles.name).toBe('rgb(74, 42, 54)')
+  expect(styles.name).toBe('rgb(23, 35, 36)')
   expect(styles.radius).toBe('20px')
 })
 
@@ -337,6 +337,9 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
 
 test('友達と回す（デモ）：ルーム → 待ち合わせ → 目玉確定 → みんなの結果', async ({ page }) => {
   const errors = watchErrors(page)
+  // 待ち合わせ・3回転・開封・友達の結果（900ms×2）を順に待つ長い流れ。WebKit の CI では約19秒かかり、
+  // shard の最初（ブラウザ起動直後）に当たると30秒を超えたため、通常の3倍の時間を許す
+  test.slow()
   await page.goto('./#/me')
   await page.getByRole('button', { name: /次の1回を目玉確定にする/ }).click()
   await page.goto('./#/gacha/melody-anniv')

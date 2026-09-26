@@ -24,7 +24,8 @@
 
 - 変数: `Lastpiece v2 / Primitives`（`177:15`、14変数）と `Lastpiece v2 / Tokens`（`177:16`、30変数、mode Light）。マスター `267:8198` の変数結合はすべてこの2つ。
 - 部品: `LP v2 / Button`（`179:34`、説明 `179:19`）Primary / Outline × Default / Focus / Disabled = 6、高さ48px。`LP v2 / Navigation Item`（`180:27`）Selected / Default / Focus、`LP v2 / Bottom Navigation`（`180:28`）。本体は Town v2 `134:2` にあり、マスターが live 参照する。
-- 文字スタイル: `Lastpiece v2/` の Display 32/44（Shippori Mincho Bold）、Title 24/32、Body 17/29、Label 16/24、Caption 14/22（サイズ/行高、px。Noto Sans JP）。
+- 文字スタイル: `Lastpiece v2/` の Display 32/44（Shippori Mincho Bold）、Title 24/32、Body 17/29、Label 16/24、**Button 19/28（Bold）**、Caption 14/22（サイズ/行高、px。Noto Sans JP）の6種。Button は 2026-09-26 に追加し、Button 部品の6状態に適用した（マスター内 90 か所）。
+- 色の使い分け（担当者の判断、2026-09-26。Figma を先に直し、F06 で Web に反映）: `color/action/primary` `#be6482` は主ボタンの塗りと、枠ボタンの文字・枠だけに使う。ボタンの文字は 19px 太字で WCAG の「大きい文字」（18.66px 以上の太字）に当たるので、白/`#be6482` の 3.94:1 が 3:1 の基準を満たす。基準は下げていない。19px 太字より小さいピンクの文字はすべて `color/accent/wine` `#a94a68`。下のタブの選択中はミント `color/nav/selected` `#e3f1e7` の地にワインの文字。
 - Figma に残る緑: `color/action/pressed` → `primitive/forest-deep` `#0e4b39`。マスターと部品は参照していないため、`tokens.css` に定義しない。Figma 変数はマスターの見た目に直結するので、この整理では変更していない。
 - `primitive/forest` は名前だけ旧版の名残で、値はピンク `#be6482`。
 
@@ -36,11 +37,12 @@
 
 ## コードとの対応
 
-- [`../design-system/tokens.css`](../design-system/tokens.css): `Lastpiece v2` の変数（緑の `action/pressed` を除く）と、文字スタイル・Button のフォーカスを CSS にした参照用ファイル。現行アプリはまだ import していない。次の UI 実装 PR で必要な箇所へ適用し、実画面を検証する。
+- [`../design-system/tokens.css`](../design-system/tokens.css): `Lastpiece v2` の変数（緑の `action/pressed` を除く）と、文字スタイル・Button のフォーカスを CSS にした参照用ファイル。アプリは import せず、同じ値を `src/index.css` に持つ（下の対応）。
 - [`../design-system/figma-manifest.json`](../design-system/figma-manifest.json): コレクション、変数の値・alias・マスターでの結合件数、部品、文字スタイル、コントラスト、現行 Web との差、初版の履歴。
 - CSS 名は Figma 変数の WEB code syntax と同じ。`--bg`・`--surface`・`--soft`・`--main`・`--deep` は `src/index.css` と同名・同値。その他は `--lp-v2-*`。初版の `--jtcc-*` は使わない。`--lp-v2-type-*` と `--lp-v2-focus-ring` は Figma 変数がないため CSS 側で名前を付けた。
 - Figma の文字寸法は px、CSS は16px基準の rem。ブラウザの文字拡大を維持する。Web は Noto Sans JP を先頭にした OS フォントのスタックで、同じ字形・改行は保証しない。
-- **現行 Web（`src/index.css`）との差:** 本文 Figma `#172324` / Web `#5C4A50`、補助文 `#52615a` / `#7D646C`、主操作 `#be6482` / `#A94A68`、フォーカス `#be6482` / `#A94A68`、区切り線 `#d8c9cf` / `#F5DDE4`。無効の塗り `#d4dcd7` とタブ選択 `#e3f1e7` は Web にない。Web 実装時にどちらへ揃えるかを決める（下の確認記録）。
+- **Web（`src/index.css`）との対応（F06、2026-09-26）:** `--text` #172324（text/primary）、`--sub` #52615a（text/secondary・disabled）、`--primary` #be6482（action/primary）、`--deep` #a94a68（accent/wine）、`--mint` #e3f1e7（nav/selected）、`--disabled` #d4dcd7（action/disabled）、`--disabled-line` #d8c9cf（border/default、無効の枠だけ）、`--button-size`/`--button-line` 1.1875rem/1.75rem（Button 19/28）。旧名 `--wine` は見出し用で値は `--text` と同じ（Figma の accent/wine は `--deep`）。
+- **残る差:** フォーカス線は Web が `#a94a68` の 3px（Button の Focus の外側リングと同じ色。Figma の `border/focus` は `#be6482`）。区切り線は Web が `--line` #F5DDE4（Figma `#d8c9cf`）。どちらも操作の境界や文字ではなく、コントラスト基準に影響しない。
 - Figma の `JTCC / Lastpiece`（`83:18`）は `src/index.css` と同じ値の変数集だが、マスターは参照していない。
 
 ## 作業者・エージェントの手順
@@ -71,10 +73,27 @@ Figma の node URL は編集後も同じ URL になり得る。各採用 PR に�
 
 ## トークンの確認記録
 
-2026-09-26、Figma を読み取り専用で確認した（変数・部品は変更していない）。WCAG 相対輝度、小数第3位切り捨て。本文・操作ラベルは4.5:1、非文字の境界は3:1以上。
+2026-09-26、Figma を読み取り専用で確認した（変数・部品は変更していない）。WCAG 相対輝度、小数第3位切り捨て（主操作と白は 3.936… で、Figma の記載に合わせ 3.94 と書く）。本文・操作ラベルは4.5:1、19px 以上の太字（大きい文字）は3:1、非文字の境界は3:1以上。
 
-- 合格: 本文/背景15.49:1、本文/淡いピンク14.35:1、補助文/背景6.27:1、補助文/白6.52:1、補助文/淡いピンク5.81:1、ワイン `#a94a68`/白5.43:1、フォーカス線/白3.93:1。
-- **不足:** 白/主操作 `#be6482` 3.93:1（Button Primary の16px Bold ラベル）、主操作色の文字/白3.93:1（Outline のラベル）、主操作色の文字/背景3.78:1、主操作色/タブ選択 `#e3f1e7` 3.37:1（14pxラベル）。マスターの見た目のままでは操作ラベルが基準に届かない。現行 Web の主操作 `#A94A68` は白文字5.43:1で合格。Figma を直すか Web の値を正とするかは未決。
+- 合格: 本文/背景15.49:1、本文/淡いピンク14.35:1、補助文/背景6.27:1、補助文/白6.52:1、補助文/淡いピンク5.81:1、ワイン `#a94a68`/白5.43:1、フォーカス線（Figma の `border/focus` `#be6482`）/白3.94:1、Web のフォーカス線（ワイン）/白5.43:1。
+- F01 時点の不足（白/主操作 3.93:1 の16pxラベルなど）は、2026-09-26 の判断で次のとおり解消した。
+
+| 組合せ | 比 | 基準 | 使う場所 |
+| --- | --- | --- | --- |
+| 白 / `#be6482` | 3.94:1 | 3:1（19px 太字） | 主ボタン・街の「ガチャのお店」 |
+| `#be6482` / 白 | 3.94:1 | 3:1（19px 太字） | 枠ボタン・街の場所名の文字 |
+| `#be6482` / 白（枠線） | 3.94:1 | 3:1（非文字） | 枠ボタンの枠 |
+| `#be6482` / ミント `#e3f1e7` | 3.37:1 | 3:1（非文字） | 選択中のタブのアイコン |
+| ワイン `#a94a68` / 白 | 5.43:1 | 4.5:1 | 小さいピンクの文字、枠ボタン内の小さい文字 |
+| ワイン / 背景 `#fff9fa` | 5.22:1 | 4.5:1 | 見出しの補足・リンク |
+| ワイン / 淡いピンク `#fdeef2` | 4.83:1 | 4.5:1 | タグ・チップ |
+| ワイン / ミント `#e3f1e7` | 4.65:1 | 4.5:1 | 選択中のタブの文字（12〜14px）、コイン札 |
+| 白 / ワイン | 5.43:1 | 4.5:1 | 選択中のスイッチ・チェック |
+| 本文 `#172324` / ピンクの帯 `#f2a7bc` | 8.46:1 | 4.5:1 | 上部の帯の見出し |
+| 補助文 `#52615a` / ミント | 5.59:1 | 4.5:1 | T10 の注意書き（マスター。Web は F05 で実装） |
+| 補助文 / 無効の塗り `#d4dcd7` | 4.66:1 | 対象外 | 無効のボタン（読める濃さを確認） |
+
+- 使わない組合せ: `#be6482` の19px未満の文字（白地 3.94:1、背景 3.78:1、淡いピンク 3.50:1、ミント 3.37:1 で4.5:1未満）、ワイン/ピンクの帯 `#f2a7bc` 2.85:1。主ボタンの中に小さい文字（small）を置かない。
 - `border/default` `#d8c9cf`/白1.59:1 は区切り・無効枠だけに使い、操作境界に使わない。
 
 ### 初版の確認記録（履歴）
