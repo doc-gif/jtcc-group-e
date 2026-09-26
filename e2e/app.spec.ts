@@ -85,10 +85,15 @@ for (const path of ['./', './versions/v0.0.0/']) {
 
 test('街：導入は3秒で街に着き、地図をドラッグして場所へ行ける。下のタブで行き来できる', async ({ page }, testInfo) => {
   const errors = watchErrors(page)
-  await page.clock.install()
+  await page.clock.install({ time: 0 })
+  await page.clock.pauseAt(1000)
   await page.goto('./')
   const heading = page.getByRole('heading', { level: 1 })
   await expect(heading).toHaveText('好きが集まる、あなたの街へ。')
+  // 導入の地図は飾り。場所の名前を読み上げや焦点の対象にしない
+  const openingTree = await page.locator('body').ariaSnapshot()
+  expect(openingTree).not.toContain('当てたもの')
+  expect(openingTree).not.toContain('フレンド')
   await page.clock.runFor(1200)
   await expect(heading).toHaveText('いっしょに、わくわくを開けよう。')
   await page.clock.runFor(1800)
@@ -102,6 +107,14 @@ test('街：導入は3秒で街に着き、地図をドラッグして場所へ�
   await expect(shop).toBeInViewport()
   await expect(map.getByRole('link', { name: 'コレクション' })).toBeInViewport()
   await expect(map.getByRole('link', { name: 'フレンド' })).toBeInViewport()
+  // 横向きなど低い画面でも、最初から3つの場所が下のタブに隠れていない
+  for (const name of ['ガチャのお店', 'コレクション', 'フレンド']) {
+    const hit = await map.getByRole('link', { name }).evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      return el.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2))
+    })
+    expect(hit, `${name} が見えて押せる`).toBe(true)
+  }
   const before = await map.evaluate((el) => ({ x: el.scrollLeft, y: el.scrollTop }))
   const box = (await map.boundingBox())!
   await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.85)
@@ -132,10 +145,13 @@ test('街：導入は3秒で街に着き、地図をドラッグして場所へ�
 
 test('街：動きを減らす設定では導入を1枚にし、自動では進めない', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.clock.install()
+  await page.clock.install({ time: 0 })
+  await page.clock.pauseAt(1000)
   await page.goto('./')
   const heading = page.getByRole('heading', { level: 1 })
   await expect(heading).toHaveText('ようこそ、ラストピースへ。')
+  // 地図の寄り（town-arrive）や文の動きを再生しない
+  expect(await page.evaluate(() => document.getAnimations().map((animation) => (animation as CSSAnimation).animationName).filter((name) => name === 'town-arrive' || name === 'opening-fade'))).toEqual([])
   await page.clock.runFor(5000)
   await expect(heading).toHaveText('ようこそ、ラストピースへ。')
   await page.getByRole('button', { name: '街へ', exact: true }).click()

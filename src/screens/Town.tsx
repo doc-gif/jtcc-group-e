@@ -54,7 +54,7 @@ function Opening({ onDone }: { onDone: () => void }) {
         <button type="button" className="btn btn-outline opening-skip" onClick={onDone}>スキップ</button>
       </header>
       <main className="opening-main">
-        <div className="opening-town" aria-hidden="true">
+        <div className="opening-town" aria-hidden="true" inert>
           <TownMapLayer interactive={false} winCount={state.wins.length} />
         </div>
         <div className="opening-copy">
