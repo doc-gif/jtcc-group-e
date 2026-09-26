@@ -4,7 +4,7 @@
   "fileKey": "yeDF1BwhrxpXI57Daainle",
   "designStatus": "adopted-master",
   "implementationStatus": "applied-to-app-css",
-  "implementationNote": "アプリは tokens.css を import せず、同じ値を src/index.css に持つ（F06、2026-09-26）。対応は appMapping。",
+  "implementationNote": "アプリは tokens.css を import せず、同じ値を src/index.css に持つ（F06、2026-09-26）。対応は appMapping。 ただし F14 の Lastpiece v2 / Sanrio World (F14)（323:3784）の --lp-v2-sanrio-* はアプリ未実装（collections の implementationStatus を見る）。",
   "paletteDecision": "Pink \"Sakura Milk\" (さくらミルク) is the adopted palette (owner, 2026-09-26). Green accent version 252:2 is rejected; primary actions are not green. Primary stays #be6482 with 19px bold button labels (WCAG large text); smaller pink text uses wine #a94a68; mint #e3f1e7 is kept for the selected tab and coin badge (owner, 2026-09-26).",
   "pinkTextRule": {
     "decidedOn": "2026-09-26",
@@ -82,7 +82,8 @@
           "modeId": "177:0"
         }
       ],
-      "count": 14
+      "count": 14,
+      "implementationStatus": "applied-to-app-css"
     },
     {
       "id": "VariableCollectionId:177:16",
@@ -93,7 +94,8 @@
           "modeId": "177:1"
         }
       ],
-      "count": 30
+      "count": 30,
+      "implementationStatus": "applied-to-app-css"
     },
     {
       "id": "VariableCollectionId:323:3784",
@@ -106,7 +108,9 @@
       ],
       "count": 11,
       "adoptedOn": "2026-09-26",
-      "note": "F14 サンリオの世界観。作業領域 323:3796 で作り、担当者の承認でマスターへ反映（Issue #50 のロック下）。旧名 \"(F14 draft)\"。177:15・177:16 は変えていない"
+      "note": "F14 サンリオの世界観。作業領域 323:3796 で作り、担当者の承認でマスターへ反映（Issue #50 のロック下）。旧名 \"(F14 draft)\"。177:15・177:16 は変えていない",
+      "implementationStatus": "pending-app",
+      "implementationNote": "マスターには反映済み。src/index.css にはまだない。アプリへの反映は別タスク（STATUS.md の「F14 のアプリ実装」）"
     }
   ],
   "cssNaming": "CSS 名は Figma 変数の WEB code syntax と同じ。--bg/--surface/--soft/--main/--deep は src/index.css と同名・同値。それ以外は --lp-v2-*。v0.1 の --jtcc-* は使わない。文字スタイル由来の --lp-v2-type-*（button を含む） と --lp-v2-focus-ring は CSS 側で付けた名前。",
