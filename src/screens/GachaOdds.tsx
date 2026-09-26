@@ -1,8 +1,10 @@
 import { useApp } from '../app/appContext'
 import { paths } from '../app/router'
 import { findGacha } from '../domain/catalog'
+import { spinCheck } from '../domain/game'
 import { coinText, formatPercent, oddsOf } from '../domain/odds'
 import { BackBar, MockNotice, TabBar } from '../components/Chrome'
+import { SpinLink, SpinUnavailable } from '../components/SpinGate'
 import { NotFound } from './NotFound'
 import './gacha.css'
 
@@ -14,6 +16,7 @@ export function GachaOdds({ id }: { id: string }) {
   const gacha = findGacha(id)
   if (!gacha) return <NotFound />
   const rows = oddsOf(gacha, state.stock)
+  const problem = spinCheck(state, gacha.id)
   return (
     <div className="screen">
       <BackBar title="中身と確率" back={paths.gacha(gacha.id)} backLabel="詳細へ" />
@@ -39,7 +42,8 @@ export function GachaOdds({ id }: { id: string }) {
           </tbody>
         </table>
         <p className="fine">並びは参考価格の高い順です。確率は小数第1位（とても小さいときは第2位）までの表示のため、足すと100%から少しずれることがあります。</p>
-        <a className="btn btn-main btn-block" href={paths.soloSpin(gacha.id)}>{coinText(gacha.price)}コインで1回引く準備へ</a>
+        <SpinUnavailable problem={problem} />
+        <SpinLink gachaId={gacha.id} problem={problem}>{coinText(gacha.price)}コインで1回引く準備へ</SpinLink>
         <MockNotice />
       </main>
       <TabBar active="gacha" />

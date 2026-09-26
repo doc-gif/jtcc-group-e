@@ -8,7 +8,7 @@ import { DEMO_FRIENDS, shouldShowKakutei, spin, spinCheck, spinQuote, type SpinO
 import { coinText, tapsToOpen, yen } from '../domain/odds'
 import { openLine, revealLine, tapMessage, TIMING, turnEffect, TURNS } from '../domain/spinScript'
 import type { Gacha, Prize } from '../domain/types'
-import { BackBar, MockNotice, TabBar } from '../components/Chrome'
+import { BackBar, MockNotice, SaveWarning, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { LuxBackdrop } from '../components/LuxBackdrop'
 import { Machine } from '../components/Machine'
@@ -298,6 +298,7 @@ const CAPSULE_STAGES = ['closed', 'crack', 'apart'] as const
  * タップの回数は光り方で決まる（ほか1回・キラキラ2回・目玉3回）。動きを減らす設定でも、段階の絵と文字で進む。
  */
 function OpenScene({ won, gacha, mode, balance, revealed, onReveal, onTap, onBoard, onAgain, canAgain }: OpenProps) {
+  const { saveFailed } = useApp()
   const need = tapsToOpen(won.prize.glow)
   const [taps, setTaps] = useState(0)
   const [opening, setOpening] = useState(false)
@@ -336,6 +337,7 @@ function OpenScene({ won, gacha, mode, balance, revealed, onReveal, onTap, onBoa
           <p className="turn-bars" aria-hidden="true">{Array.from({ length: need }, (_, i) => <span key={i} className={i < step ? 'on' : ''} />)}</p>
           <p className="open-msg" aria-live="polite">{opening ? 'ひらくよ…！' : tapMessage(need - taps, need)}</p>
           <button ref={ref} type="button" className="btn btn-main btn-block open-tap" onClick={tap} aria-label={`カプセルをタップ（あと${Math.max(need - taps, 0)}回であきます）`}>カプセルをタップ</button>
+          <MockNotice />
         </div>
       ) : (
         <div className="prize-reveal">
@@ -345,7 +347,7 @@ function OpenScene({ won, gacha, mode, balance, revealed, onReveal, onTap, onBoa
           <h2 id="open-title" ref={resultRef} tabIndex={-1} className="reveal-name">{won.prize.name}</h2>
           <p className="versus"><span>使ったコイン<b>{coinText(gacha.price)}</b></span><span aria-hidden="true">→</span><span>当たった物<b>{yen(won.prize.refPrice)}<small>相当</small></b></span></p>
           <p className="result-meta">{coinText(gacha.price)}コイン使用・残高 {coinText(balance)}・1点を獲得</p>
-          <p className="result-saved">この1点は「当てたもの」に記録しました。</p>
+          {saveFailed ? <SaveWarning /> : <p className="result-saved">この1点は「当てたもの」に記録しました。</p>}
           <p className="fine">検品済みの正規品として扱う想定です。参考価格は目安で、買取額や交換額ではありません。</p>
           <div className="reveal-actions">
             {mode === 'room' ? (
@@ -358,6 +360,7 @@ function OpenScene({ won, gacha, mode, balance, revealed, onReveal, onTap, onBoa
               </>
             )}
           </div>
+          <MockNotice />
         </div>
       )}
     </div>
@@ -416,6 +419,7 @@ function ResultBoard({ won, gacha, nickname, onAgain, canAgain, onFriendReveal }
           <a className="btn btn-outline btn-block" href={paths.collection}>当てたものを見る</a>
         </div>
         <p className="fine">友達の結果はデモの再現です。結果を画像で保存・シェアする機能は次のフェーズで作ります。当てた物は「当てたもの」から届けてもらうか、コインに交換できます。</p>
+        <MockNotice />
       </div>
     </div>
   )
@@ -439,6 +443,7 @@ function SpinProblem({ gacha, problem }: { gacha: Gacha; problem: NonNullable<Re
             </div>
             <h2 className="problem-title">このガチャは売り切れです</h2>
             <p className="lead problem-lead">抽選はできません。コインは減っていません。</p>
+            <p className="problem-balance">いまの残高 <b>{coinText(state.coins)}</b> コイン</p>
             <p className="fine">次の入荷の時期は決まっていません。</p>
             <a className="btn btn-outline btn-block" href={paths.gachaList}>ガチャ一覧に戻る</a>
           </>

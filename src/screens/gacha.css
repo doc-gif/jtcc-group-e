@@ -3,16 +3,16 @@
  * ここに直接書く色は、カプセルの絵・光る縁（ローズゴールド・パール）の飾りと、確定演出の暗い背景の上の白文字（既存の App.css と同じ）だけ。 */
 
 /* ガチャ詳細（267:8279）：目玉の候補 */
-.feature-card {
+.gacha-feature {
   display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem;
   background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 0.9rem;
 }
-.feature-card .goods-lg { width: 8rem; height: 8rem; }
-.feature-text { flex: 1 1 9rem; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
-.feature-kicker { font-size: 0.875rem; font-weight: 700; color: var(--deep); }
-.feature-name { font-size: 1.125rem; font-weight: 800; color: var(--text); line-height: 1.45; overflow-wrap: anywhere; }
-.feature-odds { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 0.5rem; font-size: 0.875rem; font-weight: 700; color: var(--deep); }
-.feature-odds b { font-size: 1.375rem; font-variant-numeric: tabular-nums; }
+.gacha-feature .goods-lg { width: 8rem; height: 8rem; }
+.gacha-feature-text { flex: 1 1 9rem; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.gacha-feature-kicker { font-size: 0.875rem; font-weight: 700; color: var(--deep); }
+.gacha-feature-name { font-size: 1.125rem; font-weight: 800; color: var(--text); line-height: 1.45; overflow-wrap: anywhere; }
+.gacha-feature-odds { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 0.5rem; font-size: 0.875rem; font-weight: 700; color: var(--deep); }
+.gacha-feature-odds b { font-size: 1.375rem; font-variant-numeric: tabular-nums; }
 
 /* 支払う金額（詳細 267:8279・回す前 267:8335） */
 .pay-card { display: flex; flex-direction: column; gap: 0.3rem; background: var(--soft); border-radius: 18px; padding: 0.9rem 1rem; }
@@ -103,3 +103,7 @@
 .short-card { display: flex; flex-direction: column; gap: 0.35rem; background: var(--soft); border-radius: 18px; padding: 1.25rem 1.1rem; font-size: 1.0625rem; color: var(--text); font-variant-numeric: tabular-nums; }
 .short-main { font-size: 1.25rem; font-weight: 800; color: var(--deep); }
 .short-main b { font-size: 1.625rem; }
+.problem-balance { font-size: 1.0625rem; color: var(--text); font-variant-numeric: tabular-nums; }
+.problem-balance b { font-size: 1.25rem; }
+/* 開封・結果の重なりの中でも、提案モックの注記を読める幅で出す */
+.open-stage .mock-notice, .prize-reveal .mock-notice { width: 100%; text-align: left; }

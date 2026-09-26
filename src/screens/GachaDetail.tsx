@@ -8,6 +8,7 @@ import { BackBar, MockNotice, TabBar } from '../components/Chrome'
 import { Banner, GoodsImage, RemainBar } from '../components/Goods'
 import { InviteActions, WaitingRoom } from '../components/Room'
 import { Sheet } from '../components/Sheet'
+import { SpinLink, SpinUnavailable } from '../components/SpinGate'
 import { NotFound } from './NotFound'
 import './gacha.css'
 
@@ -30,12 +31,12 @@ export function GachaDetail({ id, room }: { id: string; room: boolean }) {
       <main className="content">
         <Banner gacha={gacha} as="h2" />
         {candidate && (
-          <div className="feature-card">
+          <div className="gacha-feature">
             <GoodsImage art={candidate.art} glow={candidate.glow} size="lg" />
-            <div className="feature-text">
-              <p className="feature-kicker">目玉の候補</p>
-              <p className="feature-name">{candidate.name}</p>
-              <p className="feature-odds">いまの確率<b>{formatPercent(candidateOdds?.probability ?? 0)}</b></p>
+            <div className="gacha-feature-text">
+              <p className="gacha-feature-kicker">目玉の候補</p>
+              <p className="gacha-feature-name">{candidate.name}</p>
+              <p className="gacha-feature-odds">いまの確率<b>{formatPercent(candidateOdds?.probability ?? 0)}</b></p>
               <p className="fine">絵は商品のイメージです。</p>
             </div>
           </div>
@@ -51,14 +52,10 @@ export function GachaDetail({ id, room }: { id: string; room: boolean }) {
           <RemainBar gacha={gacha} stock={state.stock} />
         </section>
         <p className="fine">確率は、回す直前の残りで計算し直します。目玉が当たることを約束するものではありません。</p>
-        {problem === 'sold-out' ? (
-          <p className="detail-note" role="status">このガチャは売り切れました。</p>
-        ) : problem === 'insufficient-coins' ? (
-          <p className="detail-note" role="status">コインが足りません。<a href={paths.me}>マイページでコインを追加</a></p>
-        ) : null}
+        <SpinUnavailable problem={problem} />
         <div className="detail-actions">
           <a className="btn btn-outline" href={paths.odds(gacha.id)}>中身{gacha.prizes.length}種と確率を見る</a>
-          <a className="btn btn-main" href={paths.soloSpin(gacha.id)}>1回引く準備へ</a>
+          <SpinLink gachaId={gacha.id} problem={problem}>1回引く準備へ</SpinLink>
           <a className={`btn btn-lux${problem ? ' is-disabled' : ''}`} href={problem ? undefined : paths.createRoom(gacha.id)} aria-disabled={problem ? true : undefined} role={problem ? 'link' : undefined}>
             ♡ 友達と回す<small>リンクで招待</small>
           </a>

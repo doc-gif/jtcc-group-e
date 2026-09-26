@@ -143,6 +143,22 @@ test('街：導入は3秒で街に着き、地図をドラッグして場所へ�
   expect(errors).toEqual([])
 })
 
+test('回帰：ガチャ詳細を開いたあとも、街の注目カードは街の見た目のまま', async ({ page }) => {
+  await page.goto('./#/gacha/sanrio-capsule')
+  await expect(page.getByText('目玉の候補')).toBeVisible()
+  await page.getByRole('navigation', { name: 'メイン' }).getByRole('link', { name: '街' }).click()
+  const card = page.locator('.feature-card')
+  await expect(card).toBeVisible()
+  const styles = await card.evaluate((element) => {
+    const read = (selector: string) => getComputedStyle(element.querySelector(selector)!)
+    return { kicker: read('.feature-kicker').fontSize, name: read('.feature-name').color, radius: getComputedStyle(element).borderTopLeftRadius }
+  })
+  // 街（App.css）の値：見出し 17px・商品名はワイン・角丸 20px（ガチャ詳細の値で上書きされない）
+  expect(styles.kicker).toBe('17px')
+  expect(styles.name).toBe('rgb(74, 42, 54)')
+  expect(styles.radius).toBe('20px')
+})
+
 test('街：動きを減らす設定では導入を1枚にし、自動では進めない', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.clock.install({ time: 0 })
@@ -215,6 +231,10 @@ test('ハンドルを指でなぞって回せる', async ({ page }) => {
 
 /** 演出の途中の状態も、WCAG AA・44px・横はみ出しなしを確かめて画像を残す */
 async function checkState(page: Page, name: string, testInfo: TestInfo) {
+  // 登場の演出（結果カードの拡大など）が終わった最終の大きさで測る。くり返す飾りの演出は待たない
+  await page.evaluate(() => Promise.all(document.getAnimations()
+    .filter((animation) => Number.isFinite(Number(animation.effect?.getTiming().iterations ?? 1)))
+    .map((animation) => animation.finished.catch(() => undefined))))
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations, name).toEqual([])
   // 演出で要素が入れ替わっても測れるよう、表示中の操作の大きさを1回でまとめて測る
   const small = await page.evaluate(() => [...document.querySelectorAll('button, a[href]')]

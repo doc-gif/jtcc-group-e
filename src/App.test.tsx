@@ -294,6 +294,7 @@ describe('ガチャの流れ（T08）', () => {
     tick(TIMING.drop)
     const dialog = screen.getByRole('dialog', { name: 'カプセルをひらく' })
     expect(within(dialog).getByText('開封 1 / 3')).toBeVisible()
+    expect(within(dialog).getByText(/提案モック・公式サービスではありません/)).toBeVisible()
     fireEvent.click(within(dialog).getByRole('button', { name: /あと3回/ }))
     expect(within(dialog).getByText('開封 2 / 3')).toBeVisible()
     fireEvent.click(within(dialog).getByRole('button', { name: /あと2回/ }))
@@ -305,6 +306,18 @@ describe('ガチャの流れ（T08）', () => {
     expect(within(result).getByText('500コイン使用・残高 2,500・1点を獲得')).toBeVisible()
     expect(within(result).getByRole('heading', { name: 'ぬいぐるみマスコット' })).toHaveFocus()
     expect(within(result).getByRole('link', { name: '街へ戻る' })).toHaveAttribute('href', '#/')
+    expect(within(result).getByText('この1点は「当てたもの」に記録しました。')).toBeVisible()
+    expect(within(result).getByText(/提案モック・公式サービスではありません/)).toBeVisible()
+  })
+
+  test('回帰：保存できない端末では、結果に「記録しました」と出さず保存できないことを伝える', () => {
+    const broken = { getItem: () => null, setItem: () => { throw new Error('quota') } }
+    window.location.hash = '#/gacha/sanrio-capsule/spin'
+    render(<App storage={broken} />)
+    spinAndOpen()
+    const result = screen.getByRole('dialog')
+    expect(within(result).queryByText(/に記録しました/)).toBeNull()
+    expect(within(result).getByRole('status')).toHaveTextContent('この端末では記録を保存できません')
   })
 
   test('売り切れは回す操作を出さず、コインは減らない', () => {
@@ -312,9 +325,16 @@ describe('ガチャの流れ（T08）', () => {
     seed({ stock: { ...createInitialState().stock, ...gacha } })
     start('#/gacha/sanrio-capsule')
     expect(screen.getByRole('status')).toHaveTextContent('このガチャは売り切れました')
+    // 回帰：回せないときは、詳細と確率の画面でも回す操作を出さない
+    expect(screen.getByRole('link', { name: '1回引く準備へ' })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('link', { name: '1回引く準備へ' })).not.toHaveAttribute('href')
+    go('#/gacha/sanrio-capsule/odds')
+    expect(screen.getByRole('status')).toHaveTextContent('抽選はできません')
+    expect(screen.getByRole('link', { name: '500コインで1回引く準備へ' })).not.toHaveAttribute('href')
     go('#/gacha/sanrio-capsule/spin')
     expect(heading()).toHaveTextContent('売り切れ')
     expect(screen.getByText('抽選はできません。コインは減っていません。')).toBeVisible()
+    expect(screen.getByText(/いまの残高/)).toHaveTextContent('いまの残高 3,000 コイン')
     expect(screen.queryByRole('button', { name: /引く|1回転/ })).toBeNull()
     expect(screen.getByRole('link', { name: 'ガチャ一覧に戻る' })).toHaveAttribute('href', '#/gacha')
     expect(saved().coins).toBe(3000)
@@ -322,7 +342,12 @@ describe('ガチャの流れ（T08）', () => {
 
   test('コイン不足は、足りない分と残高を出して支払わない', () => {
     seed({ coins: 100 })
-    start('#/gacha/sanrio-capsule/spin')
+    start('#/gacha/sanrio-capsule/odds')
+    expect(screen.getByRole('status')).toHaveTextContent('コインが足りません')
+    expect(screen.getByRole('link', { name: '500コインで1回引く準備へ' })).toHaveAttribute('aria-disabled', 'true')
+    go('#/gacha/sanrio-capsule')
+    expect(screen.getByRole('link', { name: '1回引く準備へ' })).not.toHaveAttribute('href')
+    go('#/gacha/sanrio-capsule/spin')
     expect(heading()).toHaveTextContent('コイン不足')
     expect(screen.getByText(/あと/)).toHaveTextContent('あと 400 コイン')
     expect(screen.getByText('今回は引けません')).toBeVisible()
