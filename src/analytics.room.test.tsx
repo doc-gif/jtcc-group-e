@@ -9,7 +9,7 @@ import { track } from './app/analytics'
 import { createAssetGate } from './app/assets'
 import { createRoomSession, type KeyValue, type RoomSession } from './app/sharedRoom'
 import { MockRoomServer } from './realtime/mock'
-import { SHARED_START_DELAY_MS } from './realtime/protocol'
+import { SHARED_OPEN_TIMEOUT_MS, SHARED_START_DELAY_MS } from './realtime/protocol'
 import { ROOM_POLL_MS } from './realtime/roomController'
 
 vi.mock('./app/analytics')
@@ -204,8 +204,8 @@ describe('round_start / result_view', () => {
     // 秒読みの間の再描画では増えず、公開前に result_view は送らない
     await advance(3_000)
     expect(events()).toEqual(['room_ready', 'round_start'])
-    // 公開（取り直しの余裕を含めて待つ）: 乱数が固定（0）なので 2 人の賞品は同じ → osoroi=true
-    await advance(SHARED_START_DELAY_MS + 1_000)
+    // 公開（全員が開けるまでの 10 秒と取り直しの余裕を含めて待つ）: 乱数が固定（0）なので 2 人の賞品は同じ → osoroi=true
+    await advance(SHARED_START_DELAY_MS + SHARED_OPEN_TIMEOUT_MS + 1_000) // #88: 開ける操作がない画面では 10 秒で全員の結果
     expect(heading()).toHaveTextContent('せーので、ひらこう！')
     expect(button('結果を見る')).toBeEnabled()
     expect(track).toHaveBeenCalledWith('result_view', { members: 3, osoroi: true })
@@ -224,7 +224,7 @@ describe('round_start / result_view', () => {
     await click('開封をはじめる')
     expect(heading()).toHaveTextContent('もうすぐ開封！')
     expect(track).toHaveBeenCalledWith('round_start', { members: 3, round: 2 })
-    await advance(SHARED_START_DELAY_MS + 1_000)
+    await advance(SHARED_START_DELAY_MS + SHARED_OPEN_TIMEOUT_MS + 1_000) // #88: 開ける操作がない画面では 10 秒で全員の結果
     expect(heading()).toHaveTextContent('せーので、ひらこう！')
     expect(eventsNamed('result_view')).toHaveLength(2)
     expect(eventsNamed('round_start')).toHaveLength(2)
@@ -249,7 +249,7 @@ describe('round_start / result_view', () => {
     await flush()
     expect(heading()).toHaveTextContent('もうすぐ開封！')
     expect(track).toHaveBeenCalledWith('round_start', { members: 3, round: 1 })
-    await advance(SHARED_START_DELAY_MS + 1_000)
+    await advance(SHARED_START_DELAY_MS + SHARED_OPEN_TIMEOUT_MS + 1_000) // #88: 開ける操作がない画面では 10 秒で全員の結果
     expect(heading()).toHaveTextContent('せーので、ひらこう！')
     expect(button('結果を見る')).toBeEnabled()
     expect(track).toHaveBeenCalledWith('result_view', { members: 3, osoroi: false })
