@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { track, trackOnce } from '../app/analytics'
 import { useApp } from '../app/appContext'
 import { buzz, chime, CHIMES } from '../app/feedback'
 import { paths } from '../app/router'
@@ -65,7 +66,12 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
     const next = turns + 1
     setTurns(next)
     ring(CHIMES.turn, next === TURNS ? [40, 60, 80] : 30)
-    if (next === TURNS) setPhase('dropping')
+    if (next === TURNS) {
+      setPhase('dropping')
+      // 計測（本番の公開 URL だけ）。目玉かどうかの真偽値だけで、賞品名・金額は送らない
+      track('spin', { mode: 'solo', featured: won.prize.glow === 'featured' })
+      trackOnce('spin_first', 'spin_first', { mode: 'solo' })
+    }
   }
 
   useEffect(() => {
