@@ -21,7 +21,7 @@ export function GachaDetail({ id, room }: { id: string; room: boolean }) {
 
   return (
     <div className="screen">
-      <BackBar title="ガチャ詳細" back={paths.home} backLabel="一覧へ" />
+      <BackBar title="ガチャ詳細" back={paths.gachaList} backLabel="一覧へ" />
       <main className="content">
         <Banner gacha={gacha} as="h2" />
         <div className="price-row">

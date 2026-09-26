@@ -15,7 +15,8 @@ const sorts: Array<{ id: Sort; label: string }> = [
   { id: 'new', label: '新入荷' },
 ]
 
-export function Home() {
+/** ガチャのお店（ガチャ一覧）。下のタブ「ガチャ」と、街の「ガチャのお店」から来る。 */
+export function GachaList() {
   const { state } = useApp()
   const [series, setSeries] = useState<SeriesId>('sanrio')
   const [category, setCategory] = useState<CategoryId | 'all'>('all')
@@ -28,10 +29,9 @@ export function Home() {
 
   return (
     <div className="screen">
-      <TopBar title="ラストピース" sub="LAST PIECE" brand />
+      <TopBar title="ガチャのお店" sub="GACHA SHOP" />
       <main className="content">
-        <p className="lead home-lead">売り切れて買えなかった限定グッズを、JTCC が買い取って検品。確率を公開したガチャで、友達といっしょに回せます。</p>
-        {!state.welcomed && <a className="welcome-card" href={paths.welcome}><b>はじめての方へ</b><span>ラストピースの遊び方とニックネーム ›</span></a>}
+        <p className="lead shop-lead">売り切れて買えなかった限定グッズを、JTCC が買い取って検品。確率を公開したガチャで、友達といっしょに回せます。</p>
         <div className="series-card" role="group" aria-label="作品をえらぶ">
           {seriesList.map((item) => (
             <button key={item.id} type="button" className="series" aria-pressed={series === item.id} onClick={() => { setSeries(item.id); setCategory('all') }}>
@@ -66,7 +66,7 @@ export function Home() {
         <SaveWarning />
         <MockNotice />
       </main>
-      <TabBar active="home" />
+      <TabBar active="gacha" />
     </div>
   )
 }

@@ -3,12 +3,14 @@ import { asset, useApp } from '../app/appContext'
 import { paths } from '../app/router'
 import { coinText } from '../domain/odds'
 
-export function CoinPill() {
+/** コイン残高（マイページへ）とマイページへの入口。demo のときは「デモ」と文字でも示す。 */
+export function CoinPill({ demo = false }: { demo?: boolean }) {
   const { state } = useApp()
   return (
     <div className="topbar-actions">
-      <a className="coin-pill" href={paths.me} aria-label={`コイン残高 ${coinText(state.coins)}。マイページでコインを追加`}>
+      <a className="coin-pill" href={paths.me} aria-label={`${demo ? 'デモの' : ''}コイン残高 ${coinText(state.coins)}。マイページでコインを追加`}>
         <img src={asset('assets/icons/coin.png')} alt="" width="22" height="22" />
+        {demo && <span className="coin-demo">デモ</span>}
         <span>{coinText(state.coins)}</span>
       </a>
       <a className="icon-link" href={paths.me} aria-label="マイページ"><img src={asset('assets/icons/mypage.png')} alt="" width="28" height="28" /></a>
@@ -16,12 +18,11 @@ export function CoinPill() {
   )
 }
 
-/** タブで行き来する画面の上部。ホームではロゴを主見出しにする。 */
-export function TopBar({ title, sub, brand = false }: { title: string; sub: string; brand?: boolean }) {
+/** タブで行き来する画面の上部。 */
+export function TopBar({ title, sub }: { title: string; sub: string }) {
   return (
     <header className="topbar">
       <div className="topbar-title">
-        {brand && <img className="topbar-logo" src={asset('assets/logo/logo.png')} alt="" width="40" height="40" />}
         <h1 id="page-title" tabIndex={-1}>{title}<small lang="en">{sub}</small></h1>
       </div>
       <CoinPill />
@@ -40,22 +41,45 @@ export function BackBar({ title, back, backLabel = 'もどる', children }: { ti
   )
 }
 
-type Tab = 'home' | 'together' | 'collection'
+export type Tab = 'town' | 'gacha' | 'collection' | 'friend'
 
+/** 下のタブのアイコン。選んでいるタブは塗りつぶして、色だけに頼らず示す。 */
+function TabIcon({ id, active }: { id: Tab; active: boolean }) {
+  const fill = active ? 'currentColor' : 'none'
+  const common = { fill, fillOpacity: 0.22, stroke: 'currentColor', strokeWidth: 2, strokeLinejoin: 'round' as const, strokeLinecap: 'round' as const }
+  return (
+    <svg className="tab-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
+      {id === 'town' && <path {...common} d="M4 11.5 12 4.5l8 7V20h-5.5v-5.5h-5V20H4z" />}
+      {id === 'gacha' && <><circle {...common} cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" fill="currentColor" /></>}
+      {id === 'collection' && <path {...common} d="M12 3.5 20 12l-8 8.5L4 12z" />}
+      {id === 'friend' && <path {...common} d="M12 20s-7.5-4.6-7.5-10.2A4.1 4.1 0 0 1 12 7.4a4.1 4.1 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z" />}
+    </svg>
+  )
+}
+
+/**
+ * 共通の下のタブ（デザインマスター 267:8198 の 4 タブ）。
+ * ガチャ・コレクション・フレンドは、マスターの画面を実装するまで既存の画面へつなぐ。
+ */
 export function TabBar({ active }: { active?: Tab }) {
-  const tabs: Array<{ id: Tab; label: string; href: string; icon: string }> = [
-    { id: 'home', label: 'ガチャ', href: paths.home, icon: 'gacha' },
-    { id: 'together', label: 'いっしょに', href: paths.together, icon: 'together' },
-    { id: 'collection', label: '当てたもの', href: paths.collection, icon: 'collection' },
+  const tabs: Array<{ id: Tab; label: string; href: string }> = [
+    { id: 'town', label: '街', href: paths.town },
+    { id: 'gacha', label: 'ガチャ', href: paths.gachaList },
+    { id: 'collection', label: 'コレクション', href: paths.collection },
+    { id: 'friend', label: 'フレンド', href: paths.together },
   ]
   return (
     <nav className="tabbar" aria-label="メイン">
-      {tabs.map((tab) => (
-        <a key={tab.id} href={tab.href} className={`tab${tab.id === 'together' ? ' tab-mid' : ''}`} aria-current={active === tab.id ? 'page' : undefined}>
-          <img src={asset(`assets/icons/${tab.icon}.png`)} alt="" width="30" height="30" />
-          <span>{tab.label}</span>
-        </a>
-      ))}
+      <ul className="tab-list">
+        {tabs.map((tab) => (
+          <li key={tab.id}>
+            <a href={tab.href} className="tab" aria-current={active === tab.id ? 'page' : undefined}>
+              <TabIcon id={tab.id} active={active === tab.id} />
+              <span>{tab.label}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
     </nav>
   )
 }

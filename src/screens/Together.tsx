@@ -39,7 +39,7 @@ export function Together() {
         </section>
         <MockNotice />
       </main>
-      <TabBar active="together" />
+      <TabBar active="friend" />
     </div>
   )
 }

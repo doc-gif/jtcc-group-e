@@ -9,7 +9,7 @@ test('プレビューは表示できて本番・別ビルドの保存データ�
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('lastpiece_app_v1')!).nickname)).toBe('本番の名前')
   await page.goto('/jtcc-group-e-preview/pr-5/runs/101/')
   await expect(page.getByText('確認用・本番ではありません', { exact: true })).toBeVisible()
-  await expect(page.frameLocator('iframe').getByRole('heading', { level: 1 })).toHaveText(/ラストピース/)
+  await expect(page.frameLocator('iframe').getByRole('heading', { level: 1 })).toHaveText(/ラストピース|あなたの街へ/)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([])
   await testInfo.attach('preview', { body: await page.screenshot(), contentType: 'image/png' })
@@ -28,7 +28,7 @@ test('プレビューは表示できて本番・別ビルドの保存データ�
   await page.reload()
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('lastpiece_preview_pr_5_run_101_v1')!).nickname)).toBe('確認中の名前')
   await page.goto('/jtcc-group-e-preview/pr-5/runs/102/app/')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/ラストピース/)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/ラストピース|あなたの街へ/)
   const names = await page.evaluate(() => ['lastpiece_app_v1', 'lastpiece_preview_pr_5_run_101_v1', 'lastpiece_preview_pr_5_run_102_v1'].map((key) => JSON.parse(localStorage.getItem(key)!).nickname))
   expect(names[0]).toBe('本番の名前')
   expect(names[1]).toBe('確認中の名前')
@@ -64,16 +64,78 @@ for (const path of ['./', './versions/v0.0.0/']) {
   test(`公開パス ${path} が壊れず表示される`, async ({ page }) => {
     const errors = watchErrors(page)
     await page.goto(path)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/あなたの街へ/)
+    await page.getByRole('button', { name: 'スキップ' }).click()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(/ラストピース/)
-    await expect(page.getByRole('article')).toHaveCount(3)
     await expect(page).toHaveTitle('ラストピース')
-    await expect(page.getByText('提案モック・公式サービスではありません', { exact: false })).toBeVisible()
+    await expect(page.getByText('提案モック・公式サービスではありません', { exact: false }).first()).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
     const accessibility = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()
     expect(accessibility.violations).toEqual([])
+    await page.getByRole('navigation', { name: 'メイン' }).getByRole('link', { name: 'ガチャ' }).click()
+    await expect(page.getByRole('article')).toHaveCount(3)
     expect(errors).toEqual([])
   })
 }
+
+test('街：導入は3秒で街に着き、地図をドラッグして場所へ行ける。下のタブで行き来できる', async ({ page }, testInfo) => {
+  const errors = watchErrors(page)
+  await page.clock.install()
+  await page.goto('./')
+  const heading = page.getByRole('heading', { level: 1 })
+  await expect(heading).toHaveText('好きが集まる、あなたの街へ。')
+  await page.clock.runFor(1200)
+  await expect(heading).toHaveText('いっしょに、わくわくを開けよう。')
+  await page.clock.runFor(1800)
+  await expect(heading).toHaveText('ラストピース')
+  await expect(page).toHaveURL(/#\/$/)
+  await page.reload()
+  await expect(heading).toHaveText('ラストピース')
+
+  const map = page.getByRole('region', { name: /街の地図/ })
+  const shop = map.getByRole('link', { name: 'ガチャのお店' })
+  await expect(shop).toBeInViewport()
+  await expect(map.getByRole('link', { name: 'コレクション' })).toBeInViewport()
+  await expect(map.getByRole('link', { name: 'フレンド' })).toBeInViewport()
+  const before = await map.evaluate((el) => ({ x: el.scrollLeft, y: el.scrollTop }))
+  const box = (await map.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.85)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2 - 60, box.y + box.height * 0.85 - 50, { steps: 6 })
+  await page.mouse.up()
+  const after = await map.evaluate((el) => ({ x: el.scrollLeft, y: el.scrollTop }))
+  expect(after.x).toBeGreaterThan(before.x + 40)
+  expect(after.y).toBeGreaterThan(before.y + 30)
+  if (!testInfo.project.use.isMobile) {
+    await map.focus()
+    await page.keyboard.press('ArrowLeft')
+    await expect.poll(() => map.evaluate((el) => el.scrollLeft)).toBeLessThan(after.x)
+  }
+  await shop.click()
+  await expect(heading).toHaveText(/ガチャのお店/)
+
+  const nav = page.getByRole('navigation', { name: 'メイン' })
+  for (const [name, title] of [['コレクション', /当てたもの/], ['フレンド', /いっしょに回す/], ['街', /ラストピース/]] as const) {
+    await nav.getByRole('link', { name }).click()
+    await expect(heading).toHaveText(title)
+    await expect(nav.getByRole('link', { name })).toHaveAttribute('aria-current', 'page')
+  }
+  await page.getByRole('link', { name: /注目のピース/ }).click()
+  await expect(heading).toHaveText('ガチャ詳細')
+  expect(errors).toEqual([])
+})
+
+test('街：動きを減らす設定では導入を1枚にし、自動では進めない', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.clock.install()
+  await page.goto('./')
+  const heading = page.getByRole('heading', { level: 1 })
+  await expect(heading).toHaveText('ようこそ、ラストピースへ。')
+  await page.clock.runFor(5000)
+  await expect(heading).toHaveText('ようこそ、ラストピースへ。')
+  await page.getByRole('button', { name: '街へ', exact: true }).click()
+  await expect(heading).toHaveText('ラストピース')
+})
 
 test('履歴一覧から保存された版を開き、再読み込みできる', async ({ page }) => {
   await page.goto('./versions/')
@@ -85,7 +147,7 @@ test('履歴一覧から保存された版を開き、再読み込みできる',
 
 test('ひとりで回す：詳細 → 3回転 → 開封 → 当てたもの → コインに交換（一律20%）', async ({ page }) => {
   const errors = watchErrors(page)
-  await page.goto('./')
+  await page.goto('./#/gacha')
   await page.getByRole('link', { name: /マイメロディ 周年限定ガチャの中身/ }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('ガチャ詳細')
   await expect(page.getByText('✦ 目玉')).toBeVisible()

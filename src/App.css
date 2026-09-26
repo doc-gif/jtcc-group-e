@@ -45,7 +45,6 @@ img { max-width: 100%; }
   border-radius: 0 0 50% 50% / 0 0 1.5rem 1.5rem;
 }
 .topbar-title { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
-.topbar-logo { width: 2.5rem; height: 2.5rem; border-radius: 50%; box-shadow: 0 0 0 2px #fff; }
 .topbar h1 { font-size: 1.25rem; font-weight: 800; line-height: 1.2; outline-offset: 4px; }
 .topbar h1 small { display: block; font-size: 0.6875rem; letter-spacing: 0.24em; font-weight: 600; }
 .topbar-actions { display: flex; align-items: center; gap: 0.4rem; }
@@ -69,19 +68,27 @@ img { max-width: 100%; }
 .back-link { display: inline-flex; align-items: center; gap: 0.2rem; color: var(--wine); font-weight: 700; text-decoration: none; padding: 0 0.6rem; border-radius: 999px; }
 .back-link span { font-size: 1.5rem; line-height: 1; }
 
-/* ===== 下のタブ ===== */
+/* ===== 下のタブ（マスター 267:8198 の 4 タブ） ===== */
 .tabbar {
   position: sticky; bottom: 0; z-index: 30;
-  display: flex; justify-content: space-around; align-items: flex-end;
-  background: var(--surface); border-top: 1px solid var(--line);
-  padding: 0.3rem 0.5rem calc(0.4rem + env(safe-area-inset-bottom, 0px));
+  container-type: inline-size;
+  background: var(--surface); border: 1px solid var(--line); border-bottom: 0;
+  border-radius: 20px 20px 0 0; box-shadow: 0 -2px 12px rgba(222, 127, 156, 0.12);
+  padding: 0.6rem max(0.4rem, env(safe-area-inset-right, 0px)) calc(0.6rem + env(safe-area-inset-bottom, 0px)) max(0.4rem, env(safe-area-inset-left, 0px));
 }
-.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.1rem; color: var(--sub); text-decoration: none; font-size: 0.8125rem; font-weight: 700; border-radius: 12px; }
-.tab img { width: 1.9rem; height: 1.9rem; opacity: 0.75; }
-.tab[aria-current='page'] { color: var(--deep); }
-.tab[aria-current='page'] span { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.3em; }
-.tab[aria-current='page'] img { opacity: 1; }
-.tab-mid img { width: 3rem; height: 3rem; margin-top: -1.4rem; border-radius: 50%; background: var(--surface); box-shadow: 0 3px 10px rgba(222, 127, 156, 0.4); opacity: 1; }
+.tab-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.25rem; }
+.tab {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15rem;
+  min-height: 4rem; height: 100%; padding: 0.3rem 0.1rem; border-radius: 12px;
+  color: var(--sub); text-decoration: none; font-size: 0.875rem; font-weight: 700; line-height: 1.3; letter-spacing: 0; text-align: center;
+}
+.tab span { word-break: keep-all; }
+.tab-icon { width: 1.5rem; height: 1.5rem; flex: none; }
+.tab[aria-current='page'] { background: var(--soft); color: var(--deep); }
+/* 320px 幅でも「コレクション」を1行で読めるようにする */
+@container (max-width: 23rem) { .tab { font-size: 0.75rem; } }
+/* 文字を大きくしたときは 2×2 に並べて、はみ出さない */
+@container (max-width: 18rem) { .tab-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tab span { word-break: normal; } }
 
 /* ===== ボタン ===== */
 .btn {
@@ -106,7 +113,7 @@ img { max-width: 100%; }
 .chip[aria-pressed='true']::before { content: '✓ '; }
 
 /* ===== ホーム ===== */
-.content > .home-lead { margin-top: 0.25rem; }
+.content > .shop-lead { margin-top: 0.25rem; }
 .welcome-card { display: flex; flex-direction: column; gap: 0.1rem; background: var(--surface); border: 1.5px dashed var(--main); border-radius: var(--radius); padding: 0.75rem 1rem; color: var(--deep); text-decoration: none; }
 .welcome-card span { color: var(--text); font-size: 0.9375rem; }
 .series-card {
@@ -427,3 +434,82 @@ details p { font-size: 0.9375rem; padding-bottom: 0.5rem; }
   .big-banner, .turn-chip { animation: none; }
 }
 .big-banner.congrats { top: 20%; }
+
+/* ===== 街（ホーム・T07） ===== */
+/* 見出しと残高が1行に収まらない幅（320px・文字200%）では、残高を次の行へ回す */
+.town-header {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.25rem 0.5rem;
+  padding: calc(0.5rem + env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px)) 0.5rem max(1rem, env(safe-area-inset-left, 0px));
+}
+.town-header h1 { flex: 1 1 auto; min-width: 0; font-size: 1.5rem; font-weight: 800; line-height: 1.35; color: var(--wine); outline-offset: 4px; }
+.town-header .topbar-actions { margin-left: auto; }
+.town-disclaimer { flex: 1 1 100%; font-size: 0.875rem; color: var(--sub); line-height: 1.6; }
+.town-header .coin-pill { background: var(--soft); color: var(--deep); border: 1px solid var(--line); }
+.town-header .icon-link { background: var(--soft); }
+.coin-demo { font-size: 0.8125rem; }
+.town-main { display: flex; flex-direction: column; }
+.town-area { position: relative; }
+.town-viewport {
+  container-type: inline-size;
+  width: 100%; aspect-ratio: 1; max-height: 70dvh; overflow: auto; overscroll-behavior: contain;
+  background: var(--soft); cursor: grab; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.town-viewport::-webkit-scrollbar { display: none; }
+.town-viewport.is-dragging { cursor: grabbing; user-select: none; }
+.town-viewport:focus-visible { outline-offset: -4px; }
+/*
+ * 地図は窓の幅の 3.5 倍（390px 幅で広場の3つの名前が収まる）。ただし 70rem より小さくしない。
+ * 文字を大きくすると地図も大きくなり、場所の名前どうしが重ならない。
+ */
+.town-map { position: relative; width: max(350cqw, 70rem); aspect-ratio: 1; }
+.town-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.town-map > .town-spot, .town-pipi { position: absolute; transform: translate(-50%, -50%); }
+.town-stack { position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
+.town-spot {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 3rem; padding: 0 1.25rem;
+  border-radius: 12px; border: 1.5px solid var(--main); background: var(--surface); color: var(--deep);
+  font-size: 1rem; font-weight: 700; white-space: nowrap; text-decoration: none; box-shadow: var(--shadow);
+}
+.town-spot.spot-main { min-width: 11.5rem; background: var(--deep); border-color: var(--deep); color: #fff; }
+.town-count { background: var(--surface); color: var(--wine); border-radius: 12px; padding: 0.1rem 0.6rem; font-size: 0.9375rem; font-weight: 700; white-space: nowrap; }
+.town-pipi { width: 4rem; height: 4.25rem; pointer-events: none; }
+.town-pipi-figure { width: 100%; height: 100%; display: block; }
+.town-hint {
+  position: absolute; top: 0.5rem; left: 50%; transform: translateX(-50%); width: min(18.75rem, calc(100% - 2rem));
+  background: rgba(255, 255, 255, 0.95); color: var(--sub); border-radius: 15px; padding: 0.3rem 0.75rem;
+  font-size: 1.0625rem; text-align: center; pointer-events: none; box-shadow: var(--shadow);
+}
+.town-content { gap: 0.75rem; }
+.feature-card {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; padding: 0.5rem 0.75rem 0.5rem 0.5rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow);
+  color: var(--text); text-decoration: none;
+}
+.feature-card .goods { width: min(9.875rem, 42%); height: auto; aspect-ratio: 158 / 186; }
+.feature-copy { flex: 1 1 8rem; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.feature-kicker { color: var(--deep); font-size: 1.0625rem; font-weight: 700; }
+.feature-name { color: var(--wine); font-size: 1.125rem; line-height: 1.5; }
+.feature-desc { color: var(--sub); font-size: 1.0625rem; line-height: 1.6; }
+.feature-more { color: var(--deep); font-size: 1.0625rem; font-weight: 700; }
+.town-actions { display: flex; flex-direction: column; gap: 0.1rem; }
+.town-sub-link { display: flex; align-items: center; justify-content: center; color: var(--deep); font-size: 0.9375rem; font-weight: 700; text-underline-offset: 0.25em; }
+
+/* ===== 導入（T07 Opening） ===== */
+.opening-bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem;
+  padding: calc(1rem + env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px)) 1rem max(1rem, env(safe-area-inset-left, 0px));
+}
+.opening-brand { min-width: 0; color: var(--deep); font-weight: 800; letter-spacing: 0.08em; overflow-wrap: anywhere; }
+.opening-skip { margin-left: auto; padding: 0 1.5rem; white-space: nowrap; }
+.opening-main { display: flex; flex-direction: column; gap: 1rem; padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px)); }
+.opening-town { container-type: inline-size; position: relative; overflow: hidden; aspect-ratio: 390 / 402; max-height: 50dvh; background: var(--soft); }
+.opening-town .town-map { position: absolute; left: 50%; top: 50%; translate: -50% -44.55%; transform-origin: 50% 44.55%; animation: town-arrive 3s ease-out both; }
+@keyframes town-arrive { from { transform: scale(1.08); } }
+.opening-main > .btn { width: auto; }
+.opening-copy, .opening-main > .btn, .opening-notice { margin-inline: max(1.5rem, env(safe-area-inset-left, 0px)) max(1.5rem, env(safe-area-inset-right, 0px)); }
+.opening-copy { min-height: 9rem; }
+.opening-copy h1 { font-size: 1.5rem; font-weight: 800; line-height: 1.4; color: var(--wine); }
+.opening-lead { margin-top: 0.75rem; color: var(--sub); }
+.opening-fade { display: block; animation: opening-fade 0.5s ease-out both; }
+@keyframes opening-fade { from { transform: translateY(0.5rem); } }
+.opening-notice { font-size: 0.875rem; color: var(--sub); }

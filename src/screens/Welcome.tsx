@@ -16,7 +16,7 @@ export function Welcome() {
     const result = completeWelcome(state, name)
     if (!result.ok) { setError(result.message); return }
     update(() => result.state)
-    navigate(paths.home)
+    navigate(paths.town)
   }
   return (
     <div className="screen welcome-screen">

@@ -72,7 +72,7 @@ export function Collection() {
         {state.wins.length === 0 ? (
           <div className="empty">
             <p>まだ当てたものはありません。</p>
-            <a className="btn btn-main" href={paths.home}>ガチャを見る</a>
+            <a className="btn btn-main" href={paths.gachaList}>ガチャを見る</a>
           </div>
         ) : visible.length === 0 ? (
           <div className="empty"><p>この条件のものはありません。</p></div>
