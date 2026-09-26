@@ -13,17 +13,18 @@ export interface PhotoSource {
 }
 
 /**
- * 本人のセッション（ルームの transport が匿名ログインしたもの）で非公開バケットから読む。
- * セッションがなければ読まない（ここでは匿名ログインしない。ルームに入る前に写真を取りに行かない）。
+ * 本人のセッション（ルームの transport が匿名ログインしたもの）で非公開バケット `bucket` から読む。
+ * セッションがなければ読まない（ここでは匿名ログインしない。ルームに入る前に画像を取りに行かない）。
  * 公開 URL・署名付き URL は作らない（URL を共有されても読めないように、本人の認証つきで Blob を受け取る）。
+ * 写真（F15）とキャラクター（#144 案 D、src/realtime/characters.ts）で共通。
  */
-export function supabasePhotoSource(client: SupabaseClient): PhotoSource {
+export function privateImageSource(client: SupabaseClient, bucket: string): PhotoSource {
   return {
     async load(path) {
       try {
         const { data: auth, error: authError } = await client.auth.getSession()
         if (authError || !auth.session) return null
-        const { data, error } = await client.storage.from(PITCH_PHOTO_BUCKET).download(path)
+        const { data, error } = await client.storage.from(bucket).download(path)
         if (error || !data || data.size === 0) return null
         if (data.type && !data.type.startsWith('image/')) return null
         return data
@@ -32,4 +33,9 @@ export function supabasePhotoSource(client: SupabaseClient): PhotoSource {
       }
     },
   }
+}
+
+/** ピッチ用の実物グッズ写真（F15）の取得元。 */
+export function supabasePhotoSource(client: SupabaseClient): PhotoSource {
+  return privateImageSource(client, PITCH_PHOTO_BUCKET)
 }

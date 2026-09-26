@@ -1,0 +1,14 @@
+/* 限定公開アプリのキャラクターの絵（#144 案 D）。飾り: 配置に影響せず、タップを通す。読めたら 0.2 秒でふわっと出す */
+.char-art {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  object-fit: contain;
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+}
+.char-art.is-loaded { opacity: 1; }
+/* 動きを減らす設定では、読めたらすぐ出す */
+@media (prefers-reduced-motion: reduce) {
+  .char-art { transition: none; }
+}
