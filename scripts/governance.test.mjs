@@ -36,10 +36,22 @@ test('内部素材の ID・Figma のファイルと URL をアプリのコード
   }
 })
 
-test('「提案モック・公式サービスではありません」を表示する部品があり、各入口で使う', async () => {
-  expect(await read('src/components/Chrome.tsx')).toContain('提案モック・公式サービスではありません')
+// 担当者の決定（#69）: 各画面の上部の1行は「ラストピースは開発中のサービスです」、下の注記は「商品・価格・在庫は例です」。
+test('「ラストピースは開発中のサービスです」の1行の部品があり、上部と各入口で使う', async () => {
+  const chrome = await read('src/components/Chrome.tsx')
+  expect(chrome).toContain("SERVICE_NOTICE = 'ラストピースは開発中のサービスです'")
+  expect(chrome).toContain('商品・価格・在庫は例です。')
+  expect(chrome).toContain('<ServiceNotice className="page-header-notice" />')
+  expect((await read('src/screens/Town.tsx')).match(/<ServiceNotice /g)).toHaveLength(3)
   for (const screen of ['Town', 'GachaList', 'GachaDetail', 'GachaOdds', 'Welcome', 'Room', 'Spin', 'Collection', 'Me', 'Together', 'Shelf', 'Friend']) {
-    expect(await read(`src/screens/${screen}.tsx`), screen).toContain('<MockNotice />')
+    expect(await read(`src/screens/${screen}.tsx`), screen).toContain('<ExampleNotice />')
+  }
+})
+
+test('「提案モック」「公式サービスではありません」を画面・メタ情報・README に出さない', async () => {
+  for (const path of [...sources, 'index.html', 'public/manifest.json', 'README.md']) {
+    const text = await read(path)
+    for (const word of ['提案モック', '公式サービスではありません']) expect(text.includes(word), `${path} に「${word}」`).toBe(false)
   }
 })
 
