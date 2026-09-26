@@ -1,9 +1,9 @@
-# 計測の集計（GA4・Clarity → 毎日 1 コメント）
+# 計測の集計（GA4・Clarity → 手動実行で Issue に 1 コメント）
 
 LP（https://doc-gif.github.io/lastpiece-lp/ ）とデモ（https://doc-gif.github.io/jtcc-group-e/ ）は同じ GA4 プロパティ（測定 ID `G-3DDS1NJZXS`）なので、**LP に入った人がデモに進んだ割合**は GA4 で出せる。Clarity はスクロールの奥行き・デッドクリックなど「見え方」の補助。
 
 - スクリプト: `scripts/metrics-report.mjs`（依存なし。`node scripts/metrics-report.mjs --days 7`）
-- 実行: `.github/workflows/metrics-report.yml`（毎日 08:17 JST と手動）。結果は Actions の要約と、`[metrics]` の Issue へのコメント。
+- 実行: `.github/workflows/metrics-report.yml`（**手動だけ**。担当者の指示 2026-09-26。Actions → Metrics report → Run workflow、days を指定）。結果は Actions の要約と、`[metrics]` の Issue（#112）へのコメント。
 - 出るもの: LP のセッション・ユーザー・**しっかり見た**（GA4 の「エンゲージのあったセッション」= 10 秒以上か 2 ページ以上）・90% スクロール・平均滞在・ページ/セッション・**デモのページも見たセッションと割合**・デモ側のイベント（本番公開後）。Clarity は LP とデモそれぞれのセッション（ボット除外数）・ページ/セッション・スクロール・デッドクリック・イライラしたクリック（過去 3 日、API の上限）。
 
 ## 出せないもの（正直に）
@@ -28,15 +28,19 @@ LP（https://doc-gif.github.io/lastpiece-lp/ ）とデモ（https://doc-gif.gith
 
 1. Clarity → 該当プロジェクト → 設定 → **データ エクスポート**（Data Export）→ **API トークンを生成**（名前は `jtcc-metrics` など）。
 2. 秘密 `CLARITY_TOKEN` に入れる。変数 `CLARITY_ENABLED` = `true`（GA4 を設定しない場合でも workflow を動かすための印）。
-3. 上限: 1 日 10 回、過去 1〜3 日分だけ。集計は 1 日 1 回なので足りる。
+3. 上限: 1 日 10 回、過去 1〜3 日分だけ。手動実行は 1 日 10 回まで。
 
 ### 結果を受け取る Issue
 
-- `[metrics]` で始まる Issue を 1 つ作り（例: 「[metrics] LP → デモの数字（毎日）」）、その番号を変数 `METRICS_ISSUE` に入れる。無ければ Actions の要約にだけ出る。
+- `[metrics]` の Issue は #112。番号は変数 `METRICS_ISSUE` に入れる。無ければ Actions の要約にだけ出る。
 
 ### 初回の実行
 
 - Actions → **Metrics report** → Run workflow（days = 7）。要約に表が出れば成功。失敗したら「取得できなかったもの」に理由が出る（権限不足なら GA4 の閲覧者追加か API の有効化が漏れている）。
+
+## LP が 0 と出たとき
+
+表の下に「プロパティ全体のセッション」と「多い入口」が出る。全体も 0 なら `GA4_PROPERTY_ID` が測定 ID `G-3DDS1NJZXS` のプロパティか（GA4 → 管理 → データ ストリーム → 測定 ID で確認）、LP が GA4 に送っているか、反映の遅れ（最大 24〜48 時間）を疑う。全体に来ているのに LP が 0 なら、入口の URL が `/lastpiece-lp/` と違う（例: 独自ドメイン）。
 
 ## 読み方
 
