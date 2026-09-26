@@ -211,7 +211,7 @@ section { display: flex; flex-direction: column; gap: 0.5rem; }
 .sheet-layer { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
 .sheet-backdrop { position: absolute; inset: 0; background: rgba(74, 42, 54, 0.4); }
 .sheet {
-  position: relative; width: min(100%, 30rem); max-height: 90dvh; overflow-y: auto;
+  position: relative; width: min(100%, 30rem); max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain;
   background: var(--bg); border-radius: 22px 22px 0 0; display: flex; flex-direction: column; gap: 0.75rem;
   padding: 1rem 1rem calc(1.25rem + env(safe-area-inset-bottom, 0px)); animation: sheet-in 0.25s ease-out;
 }
@@ -323,7 +323,7 @@ details p { font-size: 0.9375rem; padding-bottom: 0.5rem; }
 
 
 /* 開封シーン */
-.open-scene { position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: calc(1.5rem + env(safe-area-inset-top, 0px)) 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px)); background: radial-gradient(circle at 50% 40%, #FFF6F9, #F7C3D3); overflow-y: auto; }
+.open-scene { position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: calc(1.5rem + env(safe-area-inset-top, 0px)) 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px)); background: radial-gradient(circle at 50% 40%, #FFF6F9, #F7C3D3); overflow-y: auto; overscroll-behavior: contain; }
 .open-scene.glow-featured { background: radial-gradient(circle at 50% 40%, #C77A96, #5E2540); }
 .open-scene.glow-featured .open-title, .open-scene.glow-featured .open-msg { color: #fff; }
 .open-title { font-family: var(--mincho); color: var(--deep); font-size: 1.5rem; }
@@ -341,7 +341,7 @@ details p { font-size: 0.9375rem; padding-bottom: 0.5rem; }
 @keyframes pop-in { from { transform: scale(0.8); opacity: 0; } }
 
 /* みんなの結果 */
-.board-layer { position: fixed; inset: 0; z-index: 70; display: flex; justify-content: center; align-items: flex-start; overflow-y: auto; background: rgba(74, 42, 54, 0.45); padding: calc(1rem + env(safe-area-inset-top, 0px)) 0.75rem calc(1rem + env(safe-area-inset-bottom, 0px)); }
+.board-layer { position: fixed; inset: 0; z-index: 70; display: flex; justify-content: center; align-items: flex-start; overflow-y: auto; background: rgba(74, 42, 54, 0.45); padding: calc(1rem + env(safe-area-inset-top, 0px)) 0.75rem calc(1rem + env(safe-area-inset-bottom, 0px)); overscroll-behavior: contain; }
 .board { width: min(100%, 28rem); background: var(--bg); border-radius: 22px; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
 .board h2 { font-family: var(--mincho); color: var(--deep); font-size: 1.375rem; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; }
 .board h2 small { font-family: inherit; font-size: 0.8125rem; color: var(--sub); }
