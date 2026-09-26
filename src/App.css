@@ -298,7 +298,7 @@ details p { font-size: 0.9375rem; padding-bottom: 0.5rem; }
 @keyframes hop { 40% { transform: translateY(-10px) rotate(-6deg); } }
 
 /* ===== 回す画面 ===== */
-.spin-screen { overflow: clip; background: #FFF6F8; }
+.spin-screen { overflow: clip; }
 .spin-screen .content { position: relative; z-index: 1; }
 .spin-content .lead { text-align: center; font-weight: 700; }
 .machine-wrap { position: relative; width: min(100%, 15.5rem); margin: 0 auto; }
@@ -463,3 +463,97 @@ details p { font-size: 0.9375rem; padding-bottom: 0.5rem; }
   .tab { flex-direction: row; gap: 0.35rem; min-height: 2.75rem; }
   .town-viewport { max-height: max(10rem, calc(100dvh - 9.5rem)); }
 }
+
+/* ===== F14 サンリオの世界観（マスター 267:8198 の全画面。色・リボン・丸い見出し・レイアウトだけ。キャラクターの絵は入れない） ===== */
+/*
+ * 画面の地は3色の水玉（マスターの「F14 / BG」の Polka dots）。T07 街・T09 棚はクリームにピンクの水玉、
+ * T08 ガチャはラベンダーに白の水玉、T08 結果・T09 フレンド・T10 ルームは空色に白の水玉。
+ * 色は src/index.css の --lp-v2-sanrio-*。水玉は飾りで、文字の背景の色は地の色で判定する。
+ */
+.screen {
+  --world-bg: var(--lp-v2-sanrio-cream); --world-dot: var(--lp-v2-sanrio-melody-pink);
+  background-color: var(--world-bg);
+  background-image: radial-gradient(circle, var(--world-dot) 0 1.6px, transparent 2.2px), radial-gradient(circle, var(--world-dot) 0 1.6px, transparent 2.2px);
+  background-size: 24px 24px; background-position: 4px 4px, 16px 16px;
+}
+.screen.world-lavender { --world-bg: var(--lp-v2-sanrio-lavender); --world-dot: var(--surface); }
+.screen.world-sky, .screen.room-screen { --world-bg: var(--lp-v2-sanrio-sky); --world-dot: var(--surface); }
+
+/* 白い雲（上部の右上）。文字の後ろに置き、押せない */
+.deco-cloud { position: absolute; right: 3.25rem; top: 0.5rem; width: 4rem; height: auto; fill: var(--surface); pointer-events: none; z-index: 0; }
+.topbar > .deco-cloud { right: 6.5rem; top: 0.3rem; }
+
+/* リボン（カードの留め・題）。赤はリボンの赤、ラベンダーは lavender-deep。中心の光は白 */
+.bow { display: block; width: 2.125rem; height: auto; }
+.bow-red .bow-loop, .bow-red .bow-tail, .bow-red .bow-knot { fill: var(--lp-v2-sanrio-ribbon-red); }
+.bow-lavender .bow-loop, .bow-lavender .bow-tail, .bow-lavender .bow-knot { fill: var(--lp-v2-sanrio-lavender-deep); }
+.bow .bow-tail { opacity: 0.85; }
+.bow .bow-shine { fill: var(--surface); opacity: 0.9; }
+.card-bow { position: absolute; left: -0.45rem; top: -0.55rem; }
+.card-bow.bow-top { left: 50%; top: -0.65rem; transform: translateX(-50%); }
+.has-bow { position: relative; }
+
+/* ハートと星（カードのまわり）。マスターの Heart・Star の色 */
+.sparkles { position: absolute; inset: 0; pointer-events: none; }
+.sparkle { position: absolute; width: 0.75rem; height: 0.75rem; }
+.sparkle-1 { left: -0.35rem; top: 22%; fill: var(--lp-v2-sanrio-ribbon-red); }
+.sparkle-2 { right: -0.5rem; top: 12%; fill: var(--lp-v2-sanrio-purin-yellow); }
+.sparkle-3 { left: -0.5rem; bottom: 18%; fill: var(--lp-v2-sanrio-cinnamon-blue); }
+.sparkle-4 { right: -0.35rem; bottom: 30%; fill: var(--lp-v2-sanrio-melody-pink); }
+
+/* 下のタブの上の白いレースのスカラップ（マスターの Lace scallop / nav） */
+.tabbar::before {
+  content: ''; position: absolute; left: 0; right: 0; top: -0.75rem; height: 0.8rem; pointer-events: none;
+  background: radial-gradient(circle at 50% 100%, var(--surface) 0.42rem, transparent calc(0.42rem + 1px)) 0 0 / 1rem 0.8rem repeat-x;
+}
+
+/* 上部（街・お店・マイページ）: F14 は地の上に直接、見出しは Zen Maru Gothic。ピンクの帯はやめた */
+.topbar { background: none; color: var(--text); border-radius: 0; }
+.topbar > :not(.deco-cloud) { position: relative; z-index: 1; }
+.topbar h1, .town-header h1, .opening-copy h1, .welcome-screen h1 { font-family: var(--font-heading); font-weight: 700; }
+.topbar h1 { font-size: 1.5rem; line-height: 1.35; }
+.topbar h1 small { color: var(--sub); letter-spacing: 0.2em; }
+.backbar { background: none; color: var(--text); }
+.backbar > :not(.deco-cloud) { position: relative; z-index: 1; }
+.backbar h1 { font-family: var(--font-heading); font-weight: 700; }
+.back-link { color: var(--deep); }
+/* デモコインの札（マスター 267:8207 Demo coin badge）: 白地に melody-pink の枠、ワインの文字 */
+.coin-pill { background: var(--surface); border: 1.5px solid var(--lp-v2-sanrio-melody-pink); font-size: 0.9375rem; }
+.town-header .icon-link { background: var(--surface); border: 1.5px solid var(--lp-v2-sanrio-melody-pink); }
+/* 街の上部（マスター 267:8204 と F14 / BG 360:989）: 空色の帯 360:990 に白の水玉、雲 360:992・360:993。文字は帯の上 */
+.town-header {
+  position: relative; background-color: var(--lp-v2-sanrio-sky);
+  background-image: radial-gradient(circle, var(--surface) 0 1.6px, transparent 2.2px), radial-gradient(circle, var(--surface) 0 1.6px, transparent 2.2px);
+  background-size: 24px 24px; background-position: 4px 4px, 16px 16px;
+}
+.town-header > :not(.deco-cloud) { position: relative; z-index: 1; }
+.town-header > .town-cloud-1 { right: 4.5rem; top: 2.1rem; width: 4.375rem; }
+.town-header > .town-cloud-2 { right: 11rem; top: 0.5rem; width: 2.875rem; }
+/* 街の題の横の小さなリボン（マスター 360:34 のロゴの飾り） */
+.town-header h1 { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.town-header h1 .bow { width: 1.75rem; flex: none; }
+
+/* 街の窓の上のお店の日よけ（マスター 360:994 Shop awning / scallop）: ピンクと白の縞に、下がスカラップ */
+.town-awning {
+  position: relative; z-index: 2; height: 1.25rem; margin-bottom: -0.5rem; pointer-events: none;
+  background: repeating-linear-gradient(90deg, var(--lp-v2-sanrio-melody-pink) 0 1.125rem, var(--surface) 1.125rem 2.25rem);
+  -webkit-mask: linear-gradient(#000 0 0.6rem, transparent 0.6rem) 0 0 / 100% 100% no-repeat, radial-gradient(circle at 0.5625rem 0.6rem, #000 0.5625rem, transparent calc(0.5625rem + 1px)) 0 0 / 1.125rem 100% repeat-x;
+  mask: linear-gradient(#000 0 0.6rem, transparent 0.6rem) 0 0 / 100% 100% no-repeat, radial-gradient(circle at 0.5625rem 0.6rem, #000 0.5625rem, transparent calc(0.5625rem + 1px)) 0 0 / 1.125rem 100% repeat-x;
+}
+/* 街の案内（マスター 267:8211 Explore hint）: 白地に melody-pink の枠、1行目は丸い見出しでワイン */
+.town-hint {
+  top: 0.75rem; text-align: left; display: flex; flex-direction: column; gap: 0.1rem; padding: 0.4rem 0.9rem;
+  background: var(--surface); border: 2px solid var(--lp-v2-sanrio-melody-pink); border-radius: 18px; box-shadow: none;
+}
+.town-hint-title { font-family: var(--font-heading); font-weight: 700; font-size: 0.875rem; color: var(--deep); }
+/* 注目のピース（マスター 267:8213）: 白地に melody-pink の点線、左上に赤いリボン */
+.feature-card { border: 2.5px solid var(--lp-v2-sanrio-melody-pink); border-style: dashed; border-radius: 20px; box-shadow: none; }
+
+/* 今回の結果（マスター 267:8438）: 空色の地、白地に melody-pink の点線のカード、上に赤いリボン、まわりにハートと星 */
+.result-card { border: 2.5px dashed var(--lp-v2-sanrio-melody-pink); padding-top: 1.25rem; }
+/* ガチャ一覧のカード（マスター 267:8266）: 白地に lavender-deep の点線 */
+.card { border: 2.5px dashed var(--lp-v2-sanrio-lavender-deep); border-radius: 20px; }
+/* 回す画面の地はラベンダーの水玉（.world-lavender） */
+.spin-screen { background-color: var(--world-bg); }
+/* 丸い見出し: 回す前・回転・開封・売り切れ・コイン不足の題（マスターの Zen Maru Gothic Bold） */
+.confirm-title, .turn-count, .open-step, .problem-title, .friend-empty-title { font-family: var(--font-heading); font-weight: 700; }

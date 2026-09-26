@@ -29,7 +29,7 @@ export function GachaList() {
   if (sort === 'new') list = [...list].sort((a, b) => b.addedOrder - a.addedOrder)
 
   return (
-    <div className="screen">
+    <div className="screen world-lavender">
       <TopBar title="ガチャのお店" sub="GACHA SHOP" />
       <main className="content">
         <p className="lead shop-lead">売り切れて買えなかった限定グッズを、JTCC が買い取って検品。中身と確率を確かめてから、友達といっしょに回せます。</p>
