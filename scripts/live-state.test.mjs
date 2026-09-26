@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { describe, expect, test } from 'vitest'
-import { activeRuns, formatReport, migrationsOutsideMain, migrationVersion, parseRefs, recentBranchesWithoutPr } from './live-state.mjs'
+import { activeRuns, collect, formatReport, hasUnchecked, migrationsOutsideMain, migrationVersion, parseRefs, recentBranchesWithoutPr } from './live-state.mjs'
 
 const NOW = new Date('2026-09-26T06:30:00Z')
 const hoursAgo = (hours) => new Date(NOW - hours * 3600_000)
@@ -63,7 +63,7 @@ describe('live-state: 変わる事実をその場で調べる', () => {
       releaseRuns: [{ id: 36223645689, status: 'queued', head_sha: 'bb688bb0000', created_at: '2026-09-26T06:24:00Z' }],
       pulls: [{ number: 48, draft: false, head: { ref: 'claude/handoff', sha: 'c67d7200' }, title: 'docs: handoff', updated_at: '2026-09-26T06:20:00Z' }],
       orphanBranches: [{ branch: 'claude/f15-pitch-photos', sha: '636add70', subject: 'wip', date: hoursAgo(1) }],
-      strayMigrations: [{ branch: 'claude/f15-pitch-photos', file: 'supabase/migrations/20260926052120_x.sql', version: '20260926052120' }],
+      strayMigrations: { items: [{ branch: 'claude/f15-pitch-photos', file: 'supabase/migrations/20260926052120_x.sql', version: '20260926052120' }], unchecked: [] },
       mainMigrations: ['20260926033821_lp_min_guests.sql'],
     })
     expect(report.split('\n')[0]).toBe('# 今の状態（2026-09-26 06:30 UTC に確認）')
@@ -83,7 +83,7 @@ describe('live-state: 変わる事実をその場で調べる', () => {
       checkedAt: NOW,
       main: { sha: 'f5ba9b50000', date: hoursAgo(1), subject: 'feat: F15' },
       production: { deployment: { version: 'v0.3.1', sha: 'f5ba9b50000', createdAt: '2026-09-26T05:51:56Z' }, latestRelease: 'v0.3.2' },
-      releaseRuns: [], pulls: [], orphanBranches: [], strayMigrations: [],
+      releaseRuns: [], pulls: [], orphanBranches: [], strayMigrations: { items: [], unchecked: [] },
       mainMigrations: new Error('git ls-tree failed'),
     })
     expect(report).toContain('- main と本番は同じ SHA')
@@ -92,12 +92,104 @@ describe('live-state: 変わる事実をその場で調べる', () => {
     expect(report).not.toContain('main の最新の migration')
     const failed = formatReport({
       checkedAt: NOW, main: new Error('offline'), production: new Error('404 deployment.json'), releaseRuns: new Error('403 rate limit'),
-      pulls: [], orphanBranches: [], strayMigrations: [], mainMigrations: [],
+      pulls: [], orphanBranches: [], strayMigrations: { items: [], unchecked: [{ branch: 'orphan', reason: 'no merge base' }] }, mainMigrations: [],
     })
     expect(failed).toContain('## main\n- 未確認: offline')
     expect(failed).toContain('## 本番\n- 未確認: 404 deployment.json')
     expect(failed).toContain('- 未確認: 403 rate limit')
     expect(failed).toContain('main の最新の migration: なし')
+    expect(failed).toContain('## main にない migration\n- 未確認: ブランチ `orphan`（no merge base）\n')
+    // main が取れないときは本番と比べない（PR #49 の Copilot の指摘: 未定義の SHA と比べて「新しいコミットがある」と誤報しない）
+    const mainUnknown = formatReport({
+      checkedAt: NOW, main: new Error('git log failed'),
+      production: { deployment: { version: 'v0.3.1', sha: 'f5ba9b50000', createdAt: '2026-09-26T05:51:56Z' }, latestRelease: 'v0.3.1' },
+      releaseRuns: [], pulls: [], orphanBranches: [], strayMigrations: { items: [], unchecked: [] }, mainMigrations: [],
+    })
+    expect(mainUnknown).toContain('- main が未確認のため、main と本番の差は未確認')
+    expect(mainUnknown).not.toMatch(/main には本番より新しいコミットがある|main と本番は同じ SHA/)
+  })
+
+  const deployment = { version: 'v0.3.1', sha: 'f5ba9b5aaaa', createdAt: '2026-09-26T05:51:56Z' }
+  const api = (overrides = {}) => async (url) => {
+    for (const [part, value] of Object.entries(overrides)) {
+      if (!url.includes(part)) continue
+      if (value instanceof Error) throw value
+      return value
+    }
+    if (url.endsWith('deployment.json')) return deployment
+    if (url.includes('/releases/latest')) return { tag_name: 'v0.3.1' }
+    if (url.includes('/actions/workflows/')) return { workflow_runs: [{ id: 1, status: 'completed' }, { id: 2, status: 'queued', head_sha: 'bb688bb', created_at: '2026-09-26T06:24:00Z' }] }
+    if (url.includes('state=open')) return [{ number: 48, title: 'docs: handoff', head: { ref: 'claude/handoff', sha: 'c67d720' } }]
+    if (url.includes('state=closed')) return [{ head: { ref: 'claude/done', sha: 'd0' } }]
+    throw new Error(`unexpected ${url}`)
+  }
+  const REFS = [
+    ['origin/main', 'bb688bbffff', '2026-09-26T06:23:00Z', 'feat: analytics'],
+    ['origin/claude/handoff', 'c67d720', '2026-09-26T06:20:00Z', 'docs: handoff'],
+    ['origin/claude/done', 'd0', '2026-09-26T05:00:00Z', 'feat: done'],
+    ['origin/claude/f15-pitch-photos', '636add7', '2026-09-26T05:26:07Z', 'wip: photos'],
+    ['origin/claude/orphan', '0rphan', '2026-09-26T04:00:00Z', 'no merge base'],
+  ].map((fields) => fields.join('\t')).join('\n')
+  const fakeGit = ({ fetchFails = false } = {}) => {
+    const calls = []
+    const git = async (args) => {
+      calls.push(args.join(' '))
+      if (args[0] === 'fetch') {
+        if (fetchFails) throw new Error('Could not resolve host: github.com')
+        return ''
+      }
+      if (args[0] === 'for-each-ref') return REFS
+      if (args[0] === 'log') return ['bb688bbffff', '2026-09-26T06:23:00Z', 'feat: analytics'].join('\t') + '\n'
+      if (args[0] === 'ls-tree') return 'supabase/migrations/20260926033821_lp_min_guests.sql\n'
+      if (args[0] === 'diff') {
+        if (args.includes('origin/main...origin/claude/orphan')) throw new Error('fatal: no merge base\nmore detail')
+        return args.includes('origin/main...origin/claude/f15-pitch-photos') ? 'supabase/migrations/20260926052120_lp_pitch_goods_photos.sql\n' : ''
+      }
+      throw new Error(`unexpected git ${args.join(' ')}`)
+    }
+    return { git, calls }
+  }
+
+  test('collect: 実態を集め、ブランチ1本の差分が取れなくてもほかは調べて、そのブランチだけ未確認にする', async () => {
+    const { git } = fakeGit()
+    const state = await collect({ git, fetchJson: api(), now: NOW })
+    expect(state.main).toEqual({ sha: 'bb688bbffff', date: new Date('2026-09-26T06:23:00Z'), subject: 'feat: analytics' })
+    expect(state.production).toEqual({ deployment, latestRelease: 'v0.3.1' })
+    expect(state.releaseRuns.map((run) => run.id)).toEqual([2])
+    expect(state.orphanBranches.map((ref) => ref.branch)).toEqual(['claude/f15-pitch-photos', 'claude/orphan'])
+    expect(state.strayMigrations).toEqual({
+      items: [{ branch: 'claude/f15-pitch-photos', file: 'supabase/migrations/20260926052120_lp_pitch_goods_photos.sql', version: '20260926052120' }],
+      unchecked: [{ branch: 'claude/orphan', reason: 'fatal: no merge base' }],
+    })
+    expect(hasUnchecked(state)).toBe(true)
+    const report = formatReport(state)
+    expect(report).toContain('- main には本番より新しいコミットがある')
+    // API の項目が欠けても（ここでは PR の updated_at）報告全体を落とさない
+    expect(report).toContain('- #48 `claude/handoff` `c67d720` docs: handoff（更新 時刻不明）')
+  })
+
+  test('collect: git fetch に失敗したら、手元の古い記録を出さず git から読む項目をすべて未確認にする（PR #49 の Copilot の指摘）', async () => {
+    const { git, calls } = fakeGit({ fetchFails: true })
+    const state = await collect({ git, fetchJson: api(), now: NOW })
+    expect(calls).toEqual(['fetch --quiet --prune origin'])
+    for (const key of ['main', 'orphanBranches', 'strayMigrations', 'mainMigrations']) {
+      expect(state[key], key).toBeInstanceOf(Error)
+      expect(state[key].message, key).toContain('git fetch に失敗')
+    }
+    expect(state.production).toEqual({ deployment, latestRelease: 'v0.3.1' })
+    expect(hasUnchecked(state)).toBe(true)
+    const report = formatReport(state)
+    expect(report).toContain('## main\n- 未確認: git fetch に失敗')
+    expect(report).toContain('- main が未確認のため、main と本番の差は未確認')
+  })
+
+  test('collect: GitHub の API が失敗・想定外の形でも落ちず、その項目だけ未確認', async () => {
+    const { git } = fakeGit()
+    const state = await collect({ git, fetchJson: api({ '/actions/workflows/': {}, 'state=closed': new Error('403 rate limit') }), now: NOW })
+    expect(state.releaseRuns).toBeInstanceOf(Error)
+    expect(state.orphanBranches).toEqual(new Error('403 rate limit'))
+    expect(state.main.sha).toBe('bb688bbffff')
+    expect(hasUnchecked({ main: state.main, strayMigrations: { items: [], unchecked: [] } })).toBe(false)
   })
 })
 
