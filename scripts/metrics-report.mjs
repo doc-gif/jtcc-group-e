@@ -77,7 +77,8 @@ export function summarizeGa4({ landing, funnel, events, overview, total }, { dem
   const f = rowsOf(funnel)
   const demoRows = f.filter((r) => (r.d[1] ?? '').includes(demoPath))
   const toDemoSessions = demoRows.reduce((a, r) => Math.max(a, r.m[0]), 0) // 同じセッションが複数のデモページを見るので最大値を使う（下限の見積もり）
-  const toDemoSessionsUpper = demoRows.reduce((a, r) => a + r.m[0], 0)
+  // 上限 = ページ別セッション数の合計。同じセッションが複数ページを見ると重複するので、LP のセッション総数を超えない値に切る
+  const toDemoSessionsUpper = Math.min(demoRows.reduce((a, r) => a + r.m[0], 0), sessions || Infinity)
   const pages = f.map((r) => ({ path: r.d[1], sessions: r.m[0], views: r.m[1] })).sort((a, b) => b.sessions - a.sessions).slice(0, 10)
 
   const ev = Object.fromEntries(rowsOf(events).map((r) => [r.d[0], { count: r.m[0], sessions: r.m[1], users: r.m[2] }]))
@@ -191,7 +192,7 @@ export function renderMarkdown({ days, ga4, clarity, errors = [] }, now = new Da
     L.push('| 値 | 件数 | 割合 | 求め方 |')
     L.push('| --- | --- | --- | --- |')
     L.push(`| 下限 | ${ga4.toDemoSessions} 件 | ${fmtPct(ga4.toDemoRate)} | デモのページ別セッション数の最大値。1 つのセッションは同じページを 1 回だけ数える |`)
-    L.push(`| 上限 | ${ga4.toDemoSessionsUpper} 件 | ${fmtPct(ga4.sessions ? Math.round((ga4.toDemoSessionsUpper / ga4.sessions) * 1000) / 10 : null)} | デモのページ別セッション数の合計。同じセッションが複数のページを見ると重複する |`)
+    L.push(`| 上限 | ${ga4.toDemoSessionsUpper} 件 | ${fmtPct(ga4.sessions ? Math.round((ga4.toDemoSessionsUpper / ga4.sessions) * 1000) / 10 : null)} | デモのページ別セッション数の合計。同じセッションが複数のページを見ると重複するため、LP のセッション総数を上限として切る |`)
     L.push('')
     L.push('割合の分母は「LP に入ったセッション」です。下限と上限が同じなら、その値が正確な件数です。')
     L.push('')

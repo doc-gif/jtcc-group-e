@@ -117,6 +117,12 @@ test('GA4 の要約: 検算（割合・重み付け平均・到達の下限と�
   expect(s.toDemoSessions).toBe(8) // max(8, 5)
   expect(s.toDemoSessionsUpper).toBe(13) // 8 + 5
   expect(s.toDemoRate).toBe(32) // 8 / 25
+  // 上限は LP のセッション総数を超えない（ページ別の合計 8 + 5 + 20 = 33 > 25 → 25。割合は 100% を超えない）
+  const many = { rows: [row([LP_PATH, `${DEMO_PATH}`], [8, 9]), row([LP_PATH, `${DEMO_PATH}#/a`], [5, 7]), row([LP_PATH, `${DEMO_PATH}#/b`], [20, 21])] }
+  const capped = summarizeGa4({ landing: landing2, funnel: many, events: {} })
+  expect(capped.toDemoSessions).toBe(20)
+  expect(capped.toDemoSessionsUpper).toBe(25)
+  expect(renderMarkdown({ days: 7, ga4: capped, clarity: null })).toContain('| 上限 | 25 件 | 100% |')
 })
 
 test('Markdown: 要約・定義の列・下限と上限・未設定の表示。秘密は出さない', () => {
