@@ -66,4 +66,8 @@ export interface AppState {
   /** ピピの読み上げ・チャイム。自動で鳴らさないため最初は OFF。 */
   voiceOn: boolean
   soundOn: boolean
+  /** 棚の前に並べる「お気に入り」（Prize の id）。いつでも外せる。 */
+  favorites: string[]
+  /** 友だち（デモ）の品に送った「いいな〜」（`<友だちの id>:<Prize の id>`）。同じ品には1回だけ。 */
+  reactions: string[]
 }
