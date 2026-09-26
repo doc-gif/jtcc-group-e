@@ -10,8 +10,10 @@ const bot = 'github-actions[bot]'
 const sameRepo = (pr, owner, repo) => pr.head.repo?.full_name === `${owner}/${repo}`
 const queueable = (pr, owner, repo) => !pr.draft && pr.base.ref === 'main' && sameRepo(pr, owner, repo) && pr.user?.login !== bot
 // A push by GITHUB_TOKEN counts as a first-time contributor, so its pull_request runs wait for approval (#147). Approve only
-// the runs of the queue's own push: started by the bot, for the current head of a queueable PR in this repository.
-const approvable = (run, pr, owner, repo) => run.event === 'pull_request' && run.conclusion === 'action_required' && run.actor?.login === bot
+// the runs of the queue's own push: started by the bot, for the current head of a queueable PR in this repository, and only
+// the known PR workflows (a workflow a PR adds is not approved by the bot). Add a new pull_request workflow here.
+const queueWorkflows = new Set(['.github/workflows/ci.yml', '.github/workflows/preview-build.yml', '.github/workflows/pr-issue-link.yml'])
+const approvable = (run, pr, owner, repo) => run.event === 'pull_request' && run.conclusion === 'action_required' && run.actor?.login === bot && queueWorkflows.has(run.path)
   && run.head_sha === pr.head.sha && run.head_branch === pr.head.ref && run.head_repository?.full_name === `${owner}/${repo}` && queueable(pr, owner, repo)
 
 async function latestCiRun({ github, owner, repo, sha }) {

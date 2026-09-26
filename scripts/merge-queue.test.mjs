@@ -90,8 +90,8 @@ describe('マージのキュー: 1本ずつ・古い順に、Bot が main を取
   test('同じリポジトリの Ready の PR の、今の head への Bot の push の run 以外は承認しない', async () => {
     const draft = pull(1, { draft: true })
     const fork = pull(2, { head: { ref: 'x', sha: '2'.repeat(40), repo: { full_name: 'other/fork' } } })
-    const human = pull(3), stale = pull(4), otherBranch = pull(5), forkRun = pull(6), pushEvent = pull(7)
-    prs = [draft, fork, human, stale, otherBranch, forkRun, pushEvent]
+    const human = pull(3), stale = pull(4), otherBranch = pull(5), forkRun = pull(6), pushEvent = pull(7), added = pull(8)
+    prs = [draft, fork, human, stale, otherBranch, forkRun, pushEvent, added]
     waiting = [
       held(1, draft), held(2, fork),
       held(3, human, human.head.sha, { actor: { login: 'first-timer' } }),
@@ -99,6 +99,8 @@ describe('マージのキュー: 1本ずつ・古い順に、Bot が main を取
       held(5, otherBranch, otherBranch.head.sha, { head_branch: 'claude/other' }),
       held(6, forkRun, forkRun.head.sha, { head_repository: { full_name: 'other/fork' } }),
       held(7, pushEvent, pushEvent.head.sha, { event: 'push' }),
+      // A workflow the PR itself adds is not one the queue knows.
+      held(8, added, added.head.sha, { path: '.github/workflows/added-by-pr.yml' }),
     ]
     github.rest.actions.listWorkflowRunsForRepo.mockImplementation(async ({ head_sha }) => ({ data: { workflow_runs: waiting.filter((run) => run.head_sha === head_sha) } }))
     expect(await queue()).toBe('queue: nothing ready')

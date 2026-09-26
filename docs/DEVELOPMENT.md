@@ -34,7 +34,7 @@ main は「最新の main を含むこと」を必須にしている（strict）
 
 - 対象は、Ready で、head の最新の CI が成功した、同じリポジトリの PR。**番号の小さい順に1本ずつ**処理する。
 - main より遅れていれば、Bot が main を PR のブランチへマージする。その push でも PR のいつもの `pull_request` の run（CI・Preview build・PR links an Issue）は作られるが、**承認待ち（`action_required`）で止まる**。Actions の承認方針が「first-time contributors」で、Bot（GITHUB_TOKEN）の push がそれに当たるため（#147）。保護ルールはこの承認待ちの suite を「必須チェックが未報告」と見るので、別に `workflow_dispatch` で CI を回してもマージできない。
-  - そこでキューが、その push の承認待ちの run を API（`POST /actions/runs/{id}/approve`、`actions: write`）で承認する。承認するのは、Bot が actor で、キューに並ぶ PR（同じリポジトリ・Ready・Bot 以外が作者）の今の head の SHA とブランチの run だけ。run はマージの数秒後に作られるので、取り込んだ回に最大1分待ち、間に合わなければ次の見回りで承認する。
+  - そこでキューが、その push の承認待ちの run を API（`POST /actions/runs/{id}/approve`、`actions: write`）で承認する。承認するのは、Bot が actor で、キューに並ぶ PR（同じリポジトリ・Ready・Bot 以外が作者）の今の head の SHA とブランチの、決まった3つの workflow（`ci.yml`・`preview-build.yml`・`pr-issue-link.yml`）の run だけ。PR が足した workflow は Bot は承認しない（`pull_request` の workflow を増やしたら `scripts/auto-merge.mjs` の `queueWorkflows` にも足す）。run はマージの数秒後に作られるので、取り込んだ回に最大1分待ち、間に合わなければ次の見回りで承認する。
   - 承認された CI は通常の PR の CI なので、結果は PR の head の SHA に付き、必須チェックになる。`workflow_dispatch` の CI はもう起動しない（二重に回さない）。
   - キューの CI（Bot の push の run）が動いている間は、次の PR に手を付けない。
 - 成功したら、いつもどおり Bot が承認してマージし、次の PR へ進む。キューを動かす時機は3つ: CI の完了、Ready、10分ごとの見回り（`schedule`）。どれも毎回すべての PR を見直すので、イベントが落ちても次の見回りで進む。
