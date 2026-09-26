@@ -62,7 +62,7 @@ describe('街（ホーム）と下のタブ', () => {
   test('街から、ガチャのお店・コレクション・フレンドと注目のピースへ行ける', () => {
     start()
     expect(heading()).toHaveTextContent('ラストピース')
-    expect(screen.getByText('提案モック・公式サービスではありません。', { exact: false })).toBeVisible()
+    expect(screen.getByText('ラストピースは開発中のサービスです。商品・価格・在庫は例です。', { exact: false })).toBeVisible()
     expect(screen.getByRole('link', { name: /デモのコイン残高 3,000/ })).toHaveAttribute('href', '#/me')
     const map = screen.getByRole('region', { name: /街の地図/ })
     expect(within(map).getByRole('link', { name: 'ガチャのお店' })).toHaveAttribute('href', '#/gacha')
@@ -116,7 +116,7 @@ describe('街（ホーム）と下のタブ', () => {
   test('アプリを開いた直後は導入が出て、3秒で街に着く。再読み込みでくり返さない', () => {
     start('')
     expect(heading()).toHaveTextContent('好きが集まる、あなたの街へ。')
-    expect(screen.getByText('提案モック・公式サービスではありません')).toBeVisible()
+    expect(screen.getByText('ラストピースは開発中のサービスです')).toBeVisible()
     expect(screen.queryByRole('navigation', { name: 'メイン' })).toBeNull()
     // 導入の地図は飾りなので、読み上げと焦点の対象から外す
     const preview = document.querySelector('.opening-town')
@@ -200,7 +200,7 @@ describe('街の読み込み中（T07 Loading 267:8244）', () => {
     const status = screen.getByRole('status')
     expect(status).toHaveAttribute('aria-busy', 'true')
     expect(status).toHaveTextContent('先に街を見て回れます。')
-    expect(screen.getByText('提案モック・公式サービスではありません')).toBeVisible()
+    expect(screen.getByText('ラストピースは開発中のサービスです')).toBeVisible()
     // 地図は飾り。進み具合の数字は出さない
     const preview = document.querySelector('.loading-town')
     expect(preview).toHaveAttribute('aria-hidden', 'true')
@@ -298,7 +298,7 @@ describe('ガチャのお店（一覧）', () => {
   test('作品・種類・並び替えでガチャを選べる', () => {
     start('#/gacha')
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('ガチャのお店')
-    expect(screen.getByText('提案モック・公式サービスではありません。', { exact: false })).toBeVisible()
+    expect(screen.getByText('ラストピースは開発中のサービスです。商品・価格・在庫は例です。', { exact: false })).toBeVisible()
     expect(screen.getAllByRole('article')).toHaveLength(3)
     fireEvent.click(button(/ちいかわ/))
     expect(screen.getByRole('heading', { name: 'ちいかわ バースデーガチャ' })).toBeVisible()
@@ -348,7 +348,7 @@ describe('ガチャ詳細', () => {
     for (const text of ['中身の全リスト', '大事なお知らせ', '注意事項']) expect(screen.queryByText(new RegExp(text))).toBeNull()
     expect(document.querySelector('.remain')).toBeNull()
     expect(document.body.textContent).not.toMatch(/残り\s*\d+\s*\/\s*\d+/)
-    expect(screen.getByText(/提案モック・公式サービスではありません/, { selector: '.page-header-notice' })).toBeVisible()
+    expect(screen.getByText(/ラストピースは開発中のサービスです/, { selector: '.page-header-notice' })).toBeVisible()
   })
 
   test('存在しないガチャは見つからない画面になる', () => {
@@ -445,7 +445,7 @@ describe('ガチャの流れ（T08）', () => {
     // マスターどおり、回転の途中は戻る・下のタブを出さない
     expect(screen.queryByRole('link', { name: '戻る' })).toBeNull()
     expect(nav()).toBeNull()
-    expect(screen.getByText(/提案モック・公式サービスではありません/, { selector: '.page-header-notice' })).toBeVisible()
+    expect(screen.getByText(/ラストピースは開発中のサービスです/, { selector: '.page-header-notice' })).toBeVisible()
     expect(screen.getByText('回転 0 / 3')).toBeInTheDocument()
     expect(screen.getByText('右のハンドルをタップして進めます')).toBeVisible()
     expect(screen.getByText('500コイン使用済み・残高2,500')).toBeVisible()
@@ -492,7 +492,7 @@ describe('ガチャの流れ（T08）', () => {
     for (let i = 0; i < 3; i += 1) fireEvent.click(button('1タップで1回転'))
     tick(TIMING.drop)
     expect(screen.getByText('開封 1 / 3')).toBeVisible()
-    expect(screen.getByText(/提案モック・公式サービスではありません/, { selector: '.page-header-notice' })).toBeVisible()
+    expect(screen.getByText(/ラストピースは開発中のサービスです/, { selector: '.page-header-notice' })).toBeVisible()
     fireEvent.click(button(/あと3回/))
     expect(screen.getByText('開封 2 / 3')).toBeVisible()
     fireEvent.click(button(/あと2回/))
