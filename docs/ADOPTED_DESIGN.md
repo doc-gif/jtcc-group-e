@@ -53,7 +53,7 @@ Figma の複製は**視覚と状態の参照**であり、現行 Web の実装�
 | T08 | コイン不足 / 支払い不可を説明 | `204:2729` | [`267:8461`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-8461) |
 | T08 | 友達と回す（デモ）・回転 1 / メンバー（あなた・ゆい・さき、進み具合の輪と吹き出し）・スタンプ・ピピ・背景の豪華化（段階1）。T10 の画面を作るまでの演出（F12 で追加）。**廃止**: F05（PR #37）で T10 に置き換え、マスターからアーカイブ `331:8041` へ移した | （新規） | [`316:7005`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=316-7005) |
 | T08 | 友達と回す（デモ）・回転 2・目玉 / 背景の豪華化（段階2と確定の暗転）と「目玉 確定」の札。札は本当に目玉のときだけ出す（ガセ演出なし）（F12 で追加）。**廃止**: F05（PR #37）で T10 に置き換え、マスターからアーカイブ `331:8041` へ移した | （新規） | [`316:7435`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=316-7435) |
-| T08 | ガチャ筐体（部品）/ 視覚のみ | `203:2338` | [`267:10520`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-10520) |
+| T08 | ガチャ筐体（部品）/ 視覚のみ。**#88 で上側を角ばった箱に**（案 [`408:15720`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=408-15720)、アプリは反映済み・マスター反映待ち） | `203:2338` | [`267:10520`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-10520) |
 | T08 | カプセル（部品 `T08 / Capsule`）/ 光り方3（normal・sparkle・featured）× 段階3（closed・crack・apart）。静止の絵、中央の○なし。アプリは `src/components/Capsule.tsx`（#86 で追加） | （新規） | [`376:11670`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=376-11670) |
 | T09 | 自分の棚・空 / 未入手の枠と次の操作。F12 で「サンリオ カプセルミックスの中身9種の棚」の1行を追加 | `215:2532` | [`267:8476`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-8476) |
 | T09 | 自分の棚・2/9 所有 / 数字はデモ例。F12 で同じ1行を追加 | `215:2624` | [`267:8550`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-8550) |
@@ -75,9 +75,14 @@ Figma の複製は**視覚と状態の参照**であり、現行 Web の実装�
 | T10 | ロビー / 集まっている人数・オンライン・準備の区別（上限は画面に出さない） | `227:2770` | [`267:8993`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-8993) |
 | T10 | 自分が準備完了 / 取消可能 | `227:2835` | [`267:9069`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-9069) |
 | T10 | 満席 / 新規参加を拒否、既存 ID の復帰は許す | `227:2900` | [`267:9144`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-9144) |
-| T10 | カウントダウン / `serverTime` と `startsAt` に同期 | `228:2706` | [`267:9220`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-9220) |
-| T10 | 同時開封 / `startsAt` まで結果・賞品別在庫を隠す | `228:2771` | [`267:9299`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-9299) |
-| T10 | 自分の結果 / 保存済み自己結果が公開された後 | `228:2833` | [`267:9379`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-9379) |
+| T10 | カウントダウン / `serverTime` と `startsAt` に同期。**#88 で開始の秒読みはなくなった**（時刻のずれでだけ一瞬出る） | `228:2706` | [`267:9220`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-9220) |
+| T10 | 同時開封 / `startsAt` まで結果・賞品別在庫を隠す。**#88 で 29〜33 に置き換え**（アプリは使わない。マスターの整理は反映のとき） | `228:2771` | [`267:9299`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-9299) |
+| T10 | 自分の結果 / 保存済み自己結果が公開された後。**#88 で 31（当たりを中央に大きく）に置き換え** | `228:2833` | [`267:9379`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-9379) |
+| T10 | 29 ガチャを回す（#88）/ 開始したらすぐ。筐体を中央に大きく、回し方はひとりで回すと同じ。時間の表示なし | （新規）案 [`398:10858`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=398-10858) | マスター反映待ち（ロック #121 の後） |
+| T10 | 30 カプセルが出る（#88）/ 1回タップで開く。中身が届いていないので普通の見た目 | （新規）案 [`398:10906`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=398-10906) | マスター反映待ち |
+| T10 | 31 自分の当たり（#88）/ 商品を中央に大きく。みんなの結果の前は「みんなの様子を見る」 | （新規）案 [`398:10961`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=398-10961) | マスター反映待ち |
+| T10 | 32 みんなを待つ（#88）/ ロビーと同じ形。開けた人 N / M人（時間の数字なし）、みんなの結果が出たら「みんなの結果を見る」 | （新規）案 [`398:10996`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=398-10996) | マスター反映待ち |
+| T10 | 33 見守り・みんなを待つ（#88）/ ガチャもカプセルもなし | （新規）案 [`385:10381`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=385-10381) | マスター反映待ち |
 | T10 | 再接続中 / まず最新ロビーへ復帰 | `228:2895` | [`267:9455`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-9455) |
 | T10 | 復帰後の結果回収 / 開封済み `myResults` がある場合のみ | `228:2960` | [`267:9530`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-9530) |
 | T10 | ホスト不在 / 45秒はサーバーで判定。参加者はホストを代われない。予約の時刻になれば自動で開始 | `228:3022` | [`267:9603`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-9603) |
