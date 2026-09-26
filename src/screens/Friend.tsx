@@ -16,7 +16,7 @@ function Unavailable({ friend, met }: { friend: DemoFriend; met: boolean }) {
       <main className="content">
         <span className="friend-art" aria-hidden="true">
           <svg viewBox="0 0 120 120" width="120" height="120" focusable="false">
-            <rect x="22" y="20" width="76" height="80" rx="10" fill="#fff" stroke="currentColor" strokeWidth="4" />
+            <rect x="22" y="20" width="76" height="80" rx="10" className="art-fill" stroke="currentColor" strokeWidth="4" />
             <path d="M60 22v76M34 40h52" stroke="currentColor" strokeWidth="2.5" opacity="0.5" />
             <circle cx="53" cy="64" r="3.5" fill="currentColor" /><circle cx="67" cy="64" r="3.5" fill="currentColor" />
           </svg>

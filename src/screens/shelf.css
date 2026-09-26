@@ -14,7 +14,7 @@
   list-style: none; margin: 0;
   display: grid; grid-template-columns: repeat(auto-fill, minmax(min(7.5rem, 100%), 1fr)); gap: 0.6rem;
   background: var(--head); border-radius: 18px; padding: 0.6rem;
-  box-shadow: inset 0 -6px 0 rgba(169, 74, 104, 0.25);
+  box-shadow: inset 0 -6px 0 var(--main);
 }
 .shelf-slot { display: flex; min-width: 0; }
 .shelf-slot.is-empty, .slot-link {
@@ -76,3 +76,6 @@ a.slot-link:hover { box-shadow: 0 0 0 3px var(--line); }
 
 /* 当てたもの一覧から棚の1点へ */
 .win-link { display: inline-flex; align-items: center; color: var(--deep); font-size: 0.875rem; font-weight: 700; }
+/* 絵の塗りもトークンで指定する（配色の切り替えを1か所で済ませる） */
+.friend-art .art-fill { fill: var(--surface); }
+.friend-art .art-fill-soft { fill: var(--head); }

@@ -9,10 +9,10 @@ function FriendsArt() {
   return (
     <span className="friend-art is-round" aria-hidden="true">
       <svg viewBox="0 0 160 120" width="160" height="120" focusable="false">
-        <circle cx="62" cy="44" r="20" fill="#F9D4E0" stroke="currentColor" strokeWidth="3" opacity="0.8" />
-        <circle cx="100" cy="44" r="20" fill="#fff" stroke="currentColor" strokeWidth="3" />
-        <path d="M30 112c0-26 14-42 32-42s32 16 32 42" fill="#fff" stroke="currentColor" strokeWidth="3" opacity="0.8" />
-        <path d="M68 112c0-26 14-42 32-42s32 16 32 42" fill="#fff" stroke="currentColor" strokeWidth="3" />
+        <circle cx="62" cy="44" r="20" className="art-fill-soft" stroke="currentColor" strokeWidth="3" opacity="0.8" />
+        <circle cx="100" cy="44" r="20" className="art-fill" stroke="currentColor" strokeWidth="3" />
+        <path d="M30 112c0-26 14-42 32-42s32 16 32 42" className="art-fill" stroke="currentColor" strokeWidth="3" opacity="0.8" />
+        <path d="M68 112c0-26 14-42 32-42s32 16 32 42" className="art-fill" stroke="currentColor" strokeWidth="3" />
       </svg>
     </span>
   )
