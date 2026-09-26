@@ -63,7 +63,7 @@ describe('街（ホーム）と下のタブ', () => {
     start()
     expect(heading()).toHaveTextContent('ラストピース')
     expect(screen.getByText('ラストピースは開発中のサービスです。商品・価格・在庫は例です。', { exact: false })).toBeVisible()
-    expect(screen.getByRole('link', { name: /デモのコイン残高 3,000/ })).toHaveAttribute('href', '#/me')
+    expect(screen.getByRole('link', { name: /デモのコイン残高 30,000/ })).toHaveAttribute('href', '#/me')
     const map = screen.getByRole('region', { name: /街の地図/ })
     expect(within(map).getByRole('link', { name: 'ガチャのお店' })).toHaveAttribute('href', '#/gacha')
     expect(within(map).getByRole('link', { name: 'コレクション' })).toHaveAttribute('href', '#/shelf')
@@ -361,6 +361,8 @@ describe('ガチャ詳細', () => {
 
 describe('ひとりで回す', () => {
   test('3回転してカプセルを開けると、当てたものに記録され、コインが減る', () => {
+    // 2 回で使い切ってコイン不足に届くよう、この試験だけ残高を 3,000 にして始める
+    store.setItem(STORAGE_KEY, JSON.stringify({ ...createInitialState(), coins: 3000 }))
     start('#/gacha/melody-anniv/spin')
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('回す前に')
     expect(screen.getByText(/所持 3,000/)).toHaveTextContent('確定後 1,500')
@@ -413,7 +415,7 @@ describe('ガチャの流れ（T08）', () => {
     expect(screen.getByRole('link', { name: /サンリオ カプセルミックスの中身を見る/ })).toHaveAttribute('href', '#/gacha/sanrio-capsule')
     go('#/gacha/sanrio-capsule')
     expect(screen.getByText('目玉の候補')).toBeVisible()
-    expect(screen.getByText(/所持 3,000/)).toHaveTextContent('引いた後 2,500')
+    expect(screen.getByText(/所持 30,000/)).toHaveTextContent('引いた後 29,500')
     expect(screen.getByRole('link', { name: '中身9種と確率を見る' })).toHaveAttribute('href', '#/gacha/sanrio-capsule/odds')
     expect(screen.getByRole('link', { name: /1回引く準備へ/ })).toHaveAttribute('href', '#/gacha/sanrio-capsule/spin')
     go('#/gacha/sanrio-capsule/odds')
@@ -436,9 +438,9 @@ describe('ガチャの流れ（T08）', () => {
     expect(screen.getByRole('link', { name: '戻る' })).toHaveAttribute('href', '#/gacha/sanrio-capsule')
     expect(nav()).not.toBeNull()
     expect(screen.getByText(/必要/)).toHaveTextContent('必要 500 デモコイン')
-    expect(saved().coins).toBe(3000)
+    expect(saved().coins).toBe(30000)
     fireEvent.click(button('500使って1回引く'))
-    expect(saved().coins).toBe(2500)
+    expect(saved().coins).toBe(29500)
     expect(saved().wins).toHaveLength(1)
     expect(button('1タップで1回転')).toHaveFocus()
     expect(heading()).toHaveTextContent('ハンドルを回す')
@@ -448,7 +450,7 @@ describe('ガチャの流れ（T08）', () => {
     expect(screen.getByText(/ラストピースは開発中のサービスです/, { selector: '.page-header-notice' })).toBeVisible()
     expect(screen.getByText('回転 0 / 3')).toBeInTheDocument()
     expect(screen.getByText('右のハンドルをタップして進めます')).toBeVisible()
-    expect(screen.getByText('500コイン使用済み・残高2,500')).toBeVisible()
+    expect(screen.getByText('500コイン使用済み・残高29,500')).toBeVisible()
     fireEvent.click(button('1タップで1回転'))
     expect(screen.getByText('回転 1 / 3')).toBeInTheDocument()
     // 右のハンドルを押しても1回転進む
@@ -502,7 +504,7 @@ describe('ガチャの流れ（T08）', () => {
     expect(heading()).toHaveTextContent('今回の結果')
     expect(heading()).toHaveFocus()
     const result = screen.getByRole('article', { name: 'ぬいぐるみマスコット' })
-    expect(within(result).getByText('500使用・残高2,500・1点を獲得')).toBeVisible()
+    expect(within(result).getByText('500使用・残高29,500・1点を獲得')).toBeVisible()
     expect(screen.getByText('デモ・結果は抽選ごとに変わります')).toBeVisible()
     expect(screen.getByText('この1点はコレクションに保存されます。')).toBeVisible()
     expect(screen.getByRole('link', { name: '街へ戻る' })).toHaveAttribute('href', '#/')
@@ -527,7 +529,7 @@ describe('ガチャの流れ（T08）', () => {
     const gacha = { 'sanrio-capsule': Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`sanrio-capsule-${i + 1}`, 0])) }
     seed({ stock: { ...createInitialState().stock, ...gacha } })
     start('#/gacha/sanrio-capsule')
-    expect(screen.getByText(/所持 3,000/)).toHaveTextContent('売り切れのため引けません')
+    expect(screen.getByText(/所持 30,000/)).toHaveTextContent('売り切れのため引けません')
     // マスターどおり「1回引く準備へ」から売り切れの画面（267:8450）へ進み、そこで回す操作を止める
     expect(screen.getByRole('link', { name: '1回引く準備へ' })).toHaveAttribute('href', '#/gacha/sanrio-capsule/spin')
     expect(screen.getByRole('link', { name: /友達と回す/ })).toHaveAttribute('aria-disabled', 'true')
@@ -541,7 +543,7 @@ describe('ガチャの流れ（T08）', () => {
     expect(screen.queryByRole('button', { name: /引く|1回転/ })).toBeNull()
     expect(screen.getByRole('link', { name: 'ガチャ一覧に戻る' })).toHaveAttribute('href', '#/gacha')
     expect(screen.getByRole('link', { name: '戻る' })).toHaveAttribute('href', '#/gacha/sanrio-capsule')
-    expect(saved().coins).toBe(3000)
+    expect(saved().coins).toBe(30000)
   })
 
   test('コイン不足は、足りない分と残高を出して支払わない。操作は「ガチャ一覧に戻る」だけ', () => {
@@ -610,7 +612,7 @@ describe('マイページ・はじめて・いっしょに', () => {
   test('コインの追加（デモ）、名前の変更、声と音、データのリセット', () => {
     start('#/me')
     fireEvent.click(button(/\+5,000/))
-    expect(saved().coins).toBe(8000)
+    expect(saved().coins).toBe(35000)
     const input = screen.getByLabelText(/ルームで友達に見える名前/)
     fireEvent.change(input, { target: { value: ' ' } })
     fireEvent.click(button('保存'))
@@ -625,7 +627,7 @@ describe('マイページ・はじめて・いっしょに', () => {
     fireEvent.click(button('やめる'))
     fireEvent.click(button('データを最初に戻す'))
     fireEvent.click(button('最初に戻す'))
-    expect(saved()).toMatchObject({ coins: 3000, nickname: 'あなた', voiceOn: false })
+    expect(saved()).toMatchObject({ coins: 30000, nickname: 'あなた', voiceOn: false })
   })
 
   test('はじめての画面でニックネームを決めると、ホームの案内が消える', () => {
