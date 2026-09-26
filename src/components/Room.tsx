@@ -93,13 +93,14 @@ export function RoomStats({ items }: { items: [RoomStat, RoomStat] }) {
 }
 
 /** 見出しの小札（CHOOSE・READY など）と説明、下の淡いミントの一言。 */
-export function RoomCard({ kicker, title, children, note, labelledBy }: {
-  kicker: string; title: string; children?: ReactNode; note?: ReactNode; labelledBy: string
+/** privateTitle: 見出しにニックネームを含むとき、録画（Clarity）で隠す。 */
+export function RoomCard({ kicker, title, children, note, labelledBy, privateTitle = false }: {
+  kicker: string; title: string; children?: ReactNode; note?: ReactNode; labelledBy: string; privateTitle?: boolean
 }) {
   return (
     <section className="room-card" aria-labelledby={labelledBy}>
       <p className="room-kicker" lang={/^[A-Z ]+$/.test(kicker) ? 'en' : undefined}>{kicker}</p>
-      <h2 id={labelledBy} className="room-card-title">{title}</h2>
+      <h2 id={labelledBy} className="room-card-title" data-clarity-mask={privateTitle ? 'true' : undefined}>{title}</h2>
       {children}
       {note && <p className="room-note">{note}</p>}
     </section>

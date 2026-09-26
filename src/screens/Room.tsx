@@ -39,10 +39,11 @@ interface Layout {
 }
 
 /** 上部（マスターの提案モックの一行・戻る・題・補足）。共通の PageHeader を使う。 */
-function RoomHeader({ title, sub, back }: { title: string; sub: string; back: Back }) {
+/** privateSub: 補足にホストのニックネーム（「〇〇さんのルーム」）を含むとき、録画（Clarity）で隠す。 */
+function RoomHeader({ title, sub, back, privateSub = false }: { title: string; sub: string; back: Back; privateSub?: boolean }) {
   return (
     <PageHeader title={title} {...('href' in back ? { back: back.href } : { onBack: back.onClick })}>
-      <p className="page-header-sub room-sub">{sub}</p>
+      <p className="page-header-sub room-sub" data-clarity-mask={privateSub ? 'true' : undefined}>{sub}</p>
     </PageHeader>
   )
 }
@@ -55,7 +56,7 @@ function DemoLine({ demo }: { demo: boolean }) {
 function RoomFrame({ layout, demo, faces, children }: { layout: Layout; demo: boolean; faces: string[]; children?: ReactNode }) {
   return (
     <div className="screen room-screen">
-      <RoomHeader title={layout.title} sub={layout.sub} back={layout.back} />
+      <RoomHeader title={layout.title} sub={layout.sub} back={layout.back} privateSub />
       <main className="content room-content">
         <DemoLine demo={demo} />
         {layout.pitchTop && <PitchLabel>{layout.pitchTop}</PitchLabel>}
@@ -342,7 +343,7 @@ export function Room({ invite }: { invite: string }) {
           </RoomCard>
         ),
         primary: isTaken
-          ? <Primary onClick={() => void joinWith(isTaken.suggestion)} disabled={busy}>「{isTaken.suggestion}」{renaming ? 'にする' : 'で入る'}</Primary>
+          ? <Primary onClick={() => void joinWith(isTaken.suggestion)} disabled={busy}><span data-clarity-mask="true">「{isTaken.suggestion}」</span>{renaming ? 'にする' : 'で入る'}</Primary>
           : <Primary form="room-name" disabled={busy}>{busy ? '接続しています…' : renaming ? 'この名前にする' : 'この名前で入る'}</Primary>,
         secondary: isTaken
           ? <Secondary onClick={() => { setTaken(null); setNameStep('choose'); setName(''); window.setTimeout(() => document.getElementById('room-name-input')?.focus(), 0) }}>別の名前にする</Secondary>
@@ -358,7 +359,7 @@ export function Room({ invite }: { invite: string }) {
         stage: { caption: 'いっしょに開けよう', compact: true },
         stats, note: '名前は自動で付けました',
         card: (
-          <RoomCard kicker="INVITE" title={`「${self?.nickname ?? ''}」で入ります`} labelledBy="room-card-title" note="ロビーからいつでも変えられます">
+          <RoomCard kicker="INVITE" title={`「${self?.nickname ?? ''}」で入ります`} labelledBy="room-card-title" privateTitle note="ロビーからいつでも変えられます">
             <p className="room-body">ルームの中ではこの名前で表示されます。ほかの人と重ならない名前を自動で付けました。</p>
           </RoomCard>
         ),

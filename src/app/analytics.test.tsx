@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import '@testing-library/jest-dom/vitest'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { AnalyticsWindow, TrackEnv } from './analytics'
 import { analyticsHash, CLARITY_PROJECT_ID, clarityBlocked, INTERNAL_KEY, MEASUREMENT_ID, pageFields, shouldTrack } from './analytics'
@@ -102,7 +103,7 @@ describe('送る画面の場所', () => {
 
 type Loaded = typeof import('./analytics')
 
-function fakeWindow(url: string, overrides: { webdriver?: boolean; sessionStorage?: () => Storage } = {}) {
+function fakeWindow(url: string, overrides: { webdriver?: boolean; sessionStorage?: () => Storage; navigation?: boolean } = {}) {
   const location = new URL(url)
   const listeners: Record<string, ((event?: unknown) => void)[]> = {}
   const local = memoryStorage()
@@ -114,6 +115,7 @@ function fakeWindow(url: string, overrides: { webdriver?: boolean; sessionStorag
     get localStorage() { return local as unknown as Storage },
     get sessionStorage() { return overrides.sessionStorage ? overrides.sessionStorage() : session as unknown as Storage },
     addEventListener: (type: string, listener: (event?: unknown) => void) => { (listeners[type] ??= []).push(listener) },
+    ...(overrides.navigation === false ? {} : { navigation: new EventTarget() }),
   }
   const goTo = (hash: string) => { location.hash = hash; for (const listener of listeners.hashchange ?? []) listener() }
   const click = (target: Element) => { for (const listener of listeners.click ?? []) listener({ target }) }
@@ -301,8 +303,7 @@ describe('Clarity', () => {
 
   test('Navigation API があれば、戻る・進む・アドレス欄でも URL が変わる前に止める', () => {
     const { win } = fakeWindow(`${PRODUCTION}#/gacha`)
-    const navigation = new EventTarget()
-    Object.assign(win, { navigation })
+    const navigation = (win as unknown as { navigation: EventTarget }).navigation
     analytics.initAnalytics(win)
     runLoaderTag(win)
     const real = vi.fn()
@@ -325,6 +326,25 @@ describe('Clarity', () => {
     router.navigate(paths.town)
     expect(seen).toEqual([`#/me from ${before}`])
     expect(window.location.hash).toBe('#/')
+  })
+
+  test('Navigation API のないブラウザでは Clarity を読み込まない（GA4 はそのまま）', () => {
+    const { win, goTo } = fakeWindow(`${PRODUCTION}#/gacha`, { navigation: false })
+    analytics.initAnalytics(win)
+    expect(clarityScripts()).toHaveLength(0)
+    expect(win.clarity).toBeUndefined()
+    expect(gtagScripts()).toHaveLength(1)
+    expect(() => goTo(paths.room('0f8e-a1b2'))).not.toThrow()
+  })
+
+  test('ルームの見出しにニックネームを含むときは録画で隠す', async () => {
+    const { render, cleanup } = await import('@testing-library/react')
+    const { RoomCard } = await import('../components/Room')
+    const view = render(<RoomCard kicker="INVITE" title="「ゲスト もも12」で入ります" labelledBy="t1" privateTitle />)
+    expect(view.getByRole('heading', { name: '「ゲスト もも12」で入ります' })).toHaveAttribute('data-clarity-mask', 'true')
+    view.rerender(<RoomCard kicker="HOST" title="どんな名前で始める？" labelledBy="t1" />)
+    expect(view.getByRole('heading', { name: 'どんな名前で始める？' })).not.toHaveAttribute('data-clarity-mask')
+    cleanup()
   })
 
   test('ほかの方法をすり抜けて招待の画面になったら、ハッシュの変化で止める', () => {

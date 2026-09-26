@@ -115,7 +115,9 @@ function addScript(win: AnalyticsWindow, src: string) {
  *   後から stop を積む方法では開始を防げない）。
  * - その画面へ移る前に止める: リンクを押したとき（window の捕捉段階で Clarity より先）、アプリの navigate()、
  *   対応ブラウザでは Navigation API の navigate（戻る・進む・アドレス欄を含み、URL が変わる前に届く）。
- * - いったん止めたら、このページを開いている間は再開しない（古いブラウザで「戻る」から招待の画面に入っても記録しないため）。
+ * - いったん止めたら、このページを開いている間は再開しない。
+ * - Navigation API のないブラウザでは読み込まない。アドレス欄や、同じタブで開いた招待リンクによる移動は、URL が変わった後にしか
+ *   分からず、止めたときの送信に招待の URL が入るため（initAnalytics で判断）。
  * 戻り値は、ハッシュが変わったときに呼ぶ関数（上の方法をすり抜けたときの最後の止め）。
  */
 function setupClarity(win: AnalyticsWindow): () => void {
@@ -198,8 +200,9 @@ export function initAnalytics(win: AnalyticsWindow | undefined = typeof window =
     // 自動の page_view と以後のイベントが、招待コード・キーを伏せた場所を使うよう config より前に set する
     gtag('set', pageFields(win.location))
     gtag('config', MEASUREMENT_ID, { send_page_view: true, allow_google_signals: false, allow_ad_personalization_signals: false })
-    // 画面の React より先に登録されるので、招待・ホストの画面を描く前に Clarity を止められる
-    const syncClarity = setupClarity(win)
+    // 画面の React より先に登録されるので、招待・ホストの画面を描く前に Clarity を止められる。
+    // URL が変わる前に止める手段（Navigation API）がないブラウザでは Clarity を読み込まない。
+    const syncClarity = 'navigation' in win ? setupClarity(win) : () => {}
     win.addEventListener('hashchange', () => {
       try {
         syncClarity()
