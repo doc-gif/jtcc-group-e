@@ -1,8 +1,8 @@
 {
-  "uiDigest": "e5de8ca63752085f4ef015b0751649e1c0dfd2f4a173beb69b53064020d20134",
+  "uiDigest": "62845eebbfea3255eab6644d3873e701256a5decdf31e255c8ae5a931b177e86",
   "reviewer": "Claude (AN-4 / #45: collection events, cloud #45)",
   "reviewedAt": "2026-09-26",
-  "summary": "#45 の計測の配線。当てたもの（src/screens/Collection.tsx）で、コインに交換の確定（update((current) => exchange(current, selected)) の直後）に track('exchange', { count, coins })、届けてもらうの確定に track('deliver', { count }) を呼ぶ。coins は交換で得た合計コイン（架空データ）、count は点数。賞品名・ニックネーム・自由入力・招待コード・ホストキーは送らない。画面・CSS・文言・遷移・src/domain/** は変更していない（320px で当てたものを開き、選ぶ → コインに交換のシート → 確定、届けてもらうのシート → 確定の表示と文言が以前と同じで、JS エラーがないことを確認）。テストは src/analytics.collection.test.tsx（track を vi.mock で差し替え）。",
+  "summary": "#45 の計測の配線。当てたもの（src/screens/Collection.tsx）で、コインに交換の確定（update((current) => exchange(current, selected)) の直後）に track('exchange', { count, coins })、届けてもらうの確定に track('deliver', { count }) を呼ぶ。coins は交換で得た合計コイン（架空データ）、count は点数。賞品名・ニックネーム・自由入力・招待コード・ホストキーは送らない。画面・CSS・文言・遷移・src/domain/** は変更していない（320px で当てたものを開き、選ぶ → コインに交換のシート → 確定、届けてもらうのシート → 確定の表示と文言が以前と同じで、JS エラーがないことを確認）。テストは src/analytics.collection.test.tsx（track を vi.mock で差し替え）。 main（#43 の入口〜ひとりで回すの計測、PR #99）を取り込んだ後の digest で記録（取り込んだ変更の画面はその PR のレビュー記録にある）。",
   "criteria": [
     {
       "id": "HIG-01",
