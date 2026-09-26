@@ -55,7 +55,7 @@ function DemoLine({ demo }: { demo: boolean }) {
 
 function RoomFrame({ layout, demo, faces, children }: { layout: Layout; demo: boolean; faces: string[]; children?: ReactNode }) {
   return (
-    <div className="screen room-screen">
+    <div className="screen room-screen world-sky">
       <RoomHeader title={layout.title} sub={layout.sub} back={layout.back} />
       <main className="content room-content">
         <DemoLine demo={demo} />
@@ -803,7 +803,7 @@ export function RoomCreate({ hostKey = null }: { hostKey?: string | null }) {
   }
   const current = state.snapshot && state.phase !== 'unavailable' ? state.snapshot : null
   return (
-    <div className="screen room-screen">
+    <div className="screen room-screen world-sky">
       <RoomHeader title="ルームを作る" sub={canCreate ? 'あなたが進行役（ホスト）になります' : 'ホスト用リンクを持つ人が作ります'} back={{ href: paths.gachaList }} />
       <main className="content room-content">
         <DemoLine demo={demo} />

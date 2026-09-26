@@ -477,7 +477,7 @@ details p { font-size: 0.9375rem; padding-bottom: 0.5rem; }
   background-size: 24px 24px; background-position: 4px 4px, 16px 16px;
 }
 .screen.world-lavender { --world-bg: var(--lp-v2-sanrio-lavender); --world-dot: var(--surface); }
-.screen.world-sky { --world-bg: var(--lp-v2-sanrio-sky); --world-dot: var(--surface); }
+.screen.world-sky, .screen.room-screen { --world-bg: var(--lp-v2-sanrio-sky); --world-dot: var(--surface); }
 
 /* 白い雲（上部の右上）。文字の後ろに置き、押せない */
 .deco-cloud { position: absolute; right: 3.25rem; top: 0.5rem; width: 4rem; height: auto; fill: var(--surface); pointer-events: none; z-index: 0; }
