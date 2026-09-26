@@ -1,5 +1,5 @@
 {
-  "uiDigest": "7aafc00a32be63bf7e565e7ec44f5a886dcec926b92176990a83a951f0a198d3",
+  "uiDigest": "5b7204227a3d8984a63a88a8134a9b70c461ce2d3f25a70d9db8f8184db7adb1",
   "reviewer": "Claude (implementation agent, #149 character loader)",
   "reviewedAt": "2026-09-27",
   "summary": "#149（#144 案 D の土台）。限定公開アプリのキャラクターの絵を非公開バケット pitch-characters から本人のログインで読む CharacterProvider・useCharacter と、絵が無いときは何も描かない CharacterArt を加え、App.tsx に Provider を置いた。CharacterArt はまだどの画面にも置いていない（配置は #146）ので、画面の見た目・操作・文言は変わらない。本番と同じ Supabase の設定のビルド（vite preview、375×812）で街・回す画面・ルームを作る画面を開き、見た目が前と同じこと、キャラクターの img が 0 個、ルームの記録もホスト用キーも無い端末では Supabase への通信が 0 件、コンソールのエラーが 0 件を確認した。",
@@ -47,7 +47,7 @@
     {
       "id": "GAME-04",
       "result": "pass",
-      "evidence": "絵は開いているルームのホストと参加者だけが本人のログインで読む（公開 URL・署名付き URL を作らない）。ルームの記録もホスト用キーも無い端末は取得しない（単体テストと実画面の通信 0 件で確認）。メモリの object URL だけで端末に保存しない。"
+      "evidence": "絵は開いているルームのホストと参加者だけが本人のログインで読む（公開 URL・署名付き URL を作らない）。ルームの記録もホスト用キーも無い端末は取得しない（単体テストと実画面の通信 0 件で確認）。メモリの object URL だけで端末に保存せず、退室・期限切れでルームの記録もホスト用キーも無くなったら捨てる（単体テストで確認）。"
     },
     {
       "id": "GAME-05",

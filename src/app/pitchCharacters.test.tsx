@@ -124,6 +124,34 @@ describe('CharacterProvider / useCharacter（#144 案 D）', () => {
     expect(load).toHaveBeenCalledTimes(SLOTS.length * 2)
   })
 
+  test('参加者がルームを出て記録が消えたら絵を捨て、また入れば読み直す', async () => {
+    const records = new MemoryStorage()
+    const load = vi.fn(async () => png())
+    const room = session({ source: { load }, records })
+    const view = mount(room)
+    await flush()
+    expect(load).not.toHaveBeenCalled()
+    // 別の人がホストのルームに、招待で入る
+    const host = server.asUser('host')
+    const { invite } = await host.create('request-1', HOST_KEY, 'ミオ')
+    await act(async () => { await room.controller.join(invite, 'ゆい') })
+    writeRecord(records, invite, { roomId: room.controller.getState().roomId! })
+    await flush()
+    expect(load).toHaveBeenCalledTimes(SLOTS.length)
+    expect(view.container.querySelector('img')).not.toBeNull()
+    // 退室して、画面が記録を消す
+    await act(async () => { await room.controller.leave() })
+    records.data.clear()
+    await act(async () => { window.dispatchEvent(new HashChangeEvent('hashchange')) })
+    expect(view.container.querySelector('img')).toBeNull()
+    expect(revoked.sort()).toEqual(created.sort())
+    // もう一度入れば読み直す
+    await act(async () => { await room.controller.join(invite, 'ゆい') })
+    await flush()
+    expect(load).toHaveBeenCalledTimes(SLOTS.length * 2)
+    expect(view.container.querySelector('img')).not.toBeNull()
+  })
+
   test('端末内の模擬ルームでは取得元を渡されても読まない', async () => {
     const load = vi.fn(async () => png())
     const room = session({ source: { load }, key: HOST_KEY, demo: true })
