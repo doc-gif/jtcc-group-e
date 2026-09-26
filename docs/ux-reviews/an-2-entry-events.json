@@ -1,0 +1,58 @@
+{
+  "uiDigest": "cc152332da8db6cd4230a097ddbabc1081301d5397a47814181ada0f6d92425b",
+  "reviewer": "Claude (cloud #43 / AN-2: entry events)",
+  "reviewedAt": "2026-09-26",
+  "summary": "#43（親 #40）の入口〜ひとりで回すの計測。src/screens/Welcome.tsx で completeWelcome が成功して街へ移った直後に track('demo_start')、src/screens/Spin.tsx で 3 回転目にカプセルが落ちた時点（phase が dropping になる所）で track('spin', { mode: 'solo', featured }) と trackOnce('spin_first', 'spin_first', { mode: 'solo' }) を呼ぶだけの変更。featured は目玉かどうかの真偽値で、ニックネーム・賞品名・金額は送らない。画面・CSS・文言・演出・音・遷移は変更していない。ローカルのビルド（vite preview、127.0.0.1 なので計測は動かない）を 320px の Chromium で、はじめて（空欄のエラー → 名前を入れて街へ）→ ひとりで回す（確認 → 3 回転 → カプセルが落ちる → 開封 3 段階 → 結果）まで操作し、表示が以前と同じで横はみ出し（scrollWidth > innerWidth）なし・JS エラーなし・googletagmanager への要求 0 件・gtag/dataLayer が未定義であることを確かめた。",
+  "criteria": [
+    {
+      "id": "HIG-01",
+      "result": "not-applicable",
+      "evidence": "文字・色・大きさを変更していない。320px の実画面（はじめて・回す前・回転中・開封・結果）で以前と同じ表示で、横はみ出しがないことを確認した。ux.spec.ts のコントラスト検査は CI で全構成を実行する。"
+    },
+    {
+      "id": "HIG-02",
+      "result": "not-applicable",
+      "evidence": "操作できる部品・タップ領域・フォーカス順を追加・変更していない。track は既存のボタン（はじめる・1タップで1回転・右のハンドル）の処理の最後に置いただけで、DOM に要素を増やさない。"
+    },
+    {
+      "id": "HIG-03",
+      "result": "not-applicable",
+      "evidence": "レイアウトを変更していない。320px 幅で、はじめて → 街 → 回す前 → 回転 → 開封 → 結果の全画面で scrollWidth <= innerWidth を確認した。文字200%・横向きは CI の ux.spec.ts で検査する。"
+    },
+    {
+      "id": "HIG-04",
+      "result": "pass",
+      "evidence": "はじめての空欄のエラー（「ニックネームを入れてください」）は以前どおり出て、その時は demo_start を送らない（analytics.entry.test.tsx）。track は update → navigate の後、Spin では setPhase('dropping') の後に置き、既存の流れを前に進めるのを妨げない。analytics.ts は例外をすべて握りつぶすので、計測が壊れても画面の処理に例外を返さない（analytics.test.ts）。"
+    },
+    {
+      "id": "HIG-05",
+      "result": "not-applicable",
+      "evidence": "演出・音・振動は変更していない。ring（チャイム・振動）は既存のまま track より前に呼ばれ、動きを減らす設定の扱いも同じ。E2E の「ガチャの流れ（動き reduce）」は既存のまま。"
+    },
+    {
+      "id": "GAME-01",
+      "result": "not-applicable",
+      "evidence": "見た目・画面構成・状態を変えていないため、Figma マスター 267:8198 の変更・照合は不要。T08 の回す前 267:8335・回転 267:8348〜8374・開封 267:8387〜8421・結果 267:8438 の画面は以前の記録（F11）どおり。"
+    },
+    {
+      "id": "GAME-02",
+      "result": "pass",
+      "evidence": "コイン・在庫・抽選・保存の結果を変えない（App.test.tsx「3回転してカプセルを開けると、当てたものに記録され、コインが減る」が成功）。送るのはイベント名と mode: 'solo'・featured の真偽値だけで、賞品名・金額・ニックネームを含まないことを analytics.entry.test.tsx で検査する（呼び出しの引数を文字列化して「会場限定」「12000」「1500」「あや」を含まない）。"
+    },
+    {
+      "id": "GAME-03",
+      "result": "pass",
+      "evidence": "通知・バッジ・催促を追加していない。spin_first は trackOnce で 1 セッション 1 回だけ（2 回目は spin のみ）。?internal=1 で計測から外れる仕組みは analytics.ts のまま。"
+    },
+    {
+      "id": "GAME-04",
+      "result": "not-applicable",
+      "evidence": "着せ替え・選択肢・公開範囲は変更していない。計測に使う値を画面から集めることもしていない。"
+    },
+    {
+      "id": "GAME-05",
+      "result": "not-applicable",
+      "evidence": "画面の文言を追加・変更していない。外部送信の説明（公表文）は #46 と docs/PRODUCT.md で扱う。"
+    }
+  ]
+}

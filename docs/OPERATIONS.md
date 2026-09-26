@@ -88,5 +88,5 @@
 ## マネージャーの起動（Claude Code）
 
 - **クラウド**: このリポジトリの環境で Routine（1時間ごと）を作り、固定の1セッションへ次の指示を送る（`docs/OPERATIONS.md` のマネージャーの手順を実行して）。エージェント定義は `.claude/agents/manager.md`。
-- **ローカル**: 1つのチャットで `/loop 1h docs/OPERATIONS.md のマネージャーの1回の手順を実行して` と打つ。PC を閉じると止まるので、クラウドの Routine が主。
-- 同時に2つ動かさない（同じ Issue に二重にコメントする）。どちらか1つにする。
+- **ローカル起動係**: `env:local-only` の Issue（Figma マスター・Supabase 本番・実機）を自動で起動するには、PC の Claude Code で **ローカル起動係** を 1 つ動かす（貼るだけのプロンプトと役割分担は [docs/LOCAL_MANAGER_PROMPT.md](LOCAL_MANAGER_PROMPT.md)）。起動だけを担当し、催促・整理・#53 への報告はクラウドに任せる。PC を閉じると止まる。
+- 催促・整理・#53 への報告をするマネージャーは同時に 1 つ（クラウド）。ローカル起動係は起動だけなので同時に動かしてよい。

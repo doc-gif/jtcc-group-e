@@ -42,7 +42,7 @@ test('文字200%でもコイン札の数字が札からはみ出さない', asyn
   await page.goto('./#/')
   await page.addStyleTag({ content: 'html { font-size: 200% !important; }' })
   const pill = page.locator('.town-header .coin-pill')
-  await expect(pill).toContainText('3,000')
+  await expect(pill).toContainText('30,000')
   expect(await pill.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
   const width = page.viewportSize()!.width
   for (const box of [await pill.boundingBox(), await page.locator('.town-header .icon-link').boundingBox()]) expect(box!.x + box!.width).toBeLessThanOrEqual(width)
