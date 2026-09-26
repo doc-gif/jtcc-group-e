@@ -24,7 +24,7 @@
 
 ## Milestone と Project（進捗の見える化）
 
-- **Milestone は 4 つ**（https://github.com/doc-gif/jtcc-group-e/milestones）。すべてピッチのためのもので、「ピッチ後」の区分は無い: `ピッチ 1: 必須（デモが成立する）` / `ピッチ 2: 体験の磨き`（無くてもデモは成立するが印象が上がる）/ `計測（デモの数字）` / `運用・自動化`。**Issue を作るときに必ず 1 つ付ける**。ロックの Issue は親の Issue と同じ Milestone。期日は担当者が入れる（ピッチの日付）。
+- **Milestone は 4 つ**（https://github.com/doc-gif/jtcc-group-e/milestones）。すべてピッチのためのもので、「ピッチ後」の区分は無い: `ピッチ 1: 必須（デモが成立する）`（限定公開アプリがピッチの場で成立する）/ `ピッチ 2: 体験の磨き`（無くても限定公開アプリは成立するが印象が上がる）/ `計測（デモの数字）`（LP → 一般公開アプリの数字）/ `運用・自動化`。Milestone の名前は GitHub 上の固有名詞なのでそのまま引用する（名前の変更は担当者。#135 で提案）。**Issue を作るときに必ず 1 つ付ける**。ロックの Issue は親の Issue と同じ Milestone。期日は担当者が入れる（ピッチの日付）。
 - **Project**「ラストピース タスクボード」（URL はリポジトリの変数 `PROJECT_URL`）に、開いている Issue が自動で並ぶ。Status は `Todo` / `In progress` / `In review` / `Blocked` / `Done`。
 - **Status は手で動かさない**。ラベルから `.github/workflows/project-status.yml` が映す: `in-progress`→In progress、`review`→In review、`blocked`・`needs-owner`→Blocked、閉じた→Done、それ以外→Todo。Project 側の作り方と PAT の設定は #80。
 - 進捗を見るときは Milestone の一覧（残り件数と割合）と Project のボード。文書には書き写さない。
@@ -33,6 +33,7 @@
 
 - ラベル: `todo` と、**`env:cloud-ok` か `env:local-only` のどちらか必ず 1 つ**。判断の基準は「本番 DB（`lock:supabase`）・Figma の共有リソースの変更・実機確認のどれかが要るなら `env:local-only`、どれも要らなければ `env:cloud-ok`」。迷ったら `env:local-only`。
 - 本文に **「作業者への指示（プロンプト）」の節を必ず書く**。マネージャーはこの節を（下の前置きを付けて）そのままセッションの指示に使う。仕様は他の節に書き、この節には手順と注意だけを書く。
+- 用語と書き方は [`.claude/skills/tech-writing/SKILL.md`](../.claude/skills/tech-writing/SKILL.md) に従う。アプリの版は「限定公開アプリ」「一般公開アプリ」と書き、「デモ」「デモ用」「ピッチ用」を単独で使わない。「本番」は本番環境（公開先）の意味だけ。どちらの版の話かを本文の「用語」の節に書く。
 - Milestone を 1 つ付ける。依存があれば「依存」に Issue 番号を書く。
 
 ## Issue と PR の結びつき
