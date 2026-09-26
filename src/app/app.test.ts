@@ -15,6 +15,7 @@ describe('画面のハッシュ', () => {
     expect(parseHash(paths.welcome)).toEqual({ name: 'welcome' })
     expect(parseHash(paths.gacha('a-1'))).toEqual({ name: 'gacha', id: 'a-1', room: false })
     expect(parseHash(paths.createRoom('a-1'))).toEqual({ name: 'gacha', id: 'a-1', room: true })
+    expect(parseHash(paths.odds('a-1'))).toEqual({ name: 'odds', id: 'a-1' })
     expect(parseHash(paths.soloSpin('a-1'))).toEqual({ name: 'spin', id: 'a-1' })
     expect(parseHash(paths.room('a-1'))).toEqual({ name: 'room', code: 'a-1', spin: false })
     expect(parseHash(paths.roomSpin('a-1'))).toEqual({ name: 'room', code: 'a-1', spin: true })

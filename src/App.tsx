@@ -6,6 +6,7 @@ import { Collection } from './screens/Collection'
 import { FriendItem, FriendShelf } from './screens/Friend'
 import { GachaDetail } from './screens/GachaDetail'
 import { GachaList } from './screens/GachaList'
+import { GachaOdds } from './screens/GachaOdds'
 import { Me } from './screens/Me'
 import { NotFound } from './screens/NotFound'
 import { Room } from './screens/Room'
@@ -21,6 +22,7 @@ function Screen({ route }: { route: Route }) {
     case 'gachaList': return <GachaList />
     case 'gacha': return <GachaDetail id={route.id} room={route.room} />
     case 'welcome': return <Welcome />
+    case 'odds': return <GachaOdds id={route.id} />
     case 'spin': return <Spin id={route.id} mode="solo" />
     case 'room': return route.spin ? <Spin id={route.code} mode="room" /> : <Room code={route.code} />
     case 'collection': return <Collection />
