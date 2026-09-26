@@ -1,4 +1,4 @@
--- T03 contract draft. Do not apply remotely before T13 schema/security review and T14 migration task.
+-- T14: shared opening room ledger (T03 contract, reviewed in T13). Applied to the dedicated pitch project only.
 -- Pitch-only room ledger: no payment, shipping, or access to the legacy local demo balance.
 create table public.lp_rooms (
   id uuid primary key default gen_random_uuid(), invite uuid not null unique default gen_random_uuid(),
