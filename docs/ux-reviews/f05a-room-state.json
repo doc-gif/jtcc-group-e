@@ -1,8 +1,8 @@
 {
-  "uiDigest": "0a3d5f68477b1c8afde3800645ce9560f03a48b2143b9fe913083e00ec03039e",
+  "uiDigest": "558f98a3f8a4bd89ee2bfb9148de68fc51698ebd25479795fe2c53d22a94f94d",
   "reviewer": "Claude (F05a room state review)",
   "reviewedAt": "2026-09-26",
-  "summary": "F05a は 40人ルームの状態層（src/realtime/roomController.ts・useSharedRoom.ts）とテストの追加だけで、画面・CSS・遷移は変更していない。どの画面からも import しておらず、pnpm build の JS/CSS は main と同じ index-Cv1M6jo3.js / index-BtalajBo.css。表示される UI は直前のレビューと同じなので、実画面の評価は F05 で画面に接続するときに行う。",
+  "summary": "F05a は 40人ルームの状態層（src/realtime/roomController.ts・useSharedRoom.ts）とテストの追加だけで、画面・CSS・遷移は変更していない。どの画面からも import しておらず、pnpm build の JS/CSS は main と同じ index-Cv1M6jo3.js / index-BtalajBo.css（Copilot 指摘で確認済みの結果を部屋ごとに分けた後も同じ）。表示される UI は直前のレビューと同じなので、実画面の評価は F05 で画面に接続するときに行う。",
   "criteria": [
     { "id": "HIG-01", "result": "not-applicable", "evidence": "画面を追加・変更していない。状態管理のみで、文字の大きさ・コントラスト・色に頼らない表示は F05 の画面実装時に評価する。" },
     { "id": "HIG-02", "result": "not-applicable", "evidence": "画面を追加・変更していない。操作領域・アイコンの名前・キーボード操作は F05 の画面実装時に評価する。" },

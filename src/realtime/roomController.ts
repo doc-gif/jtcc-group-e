@@ -54,8 +54,8 @@ export interface RoomControllerOptions {
   requestId?: () => string
   /** タブ復帰などの起床通知。既定は visibilitychange と online。 */
   onWake?: (wake: () => void) => () => void
-  /** 画面側で保存した「確認済みの自分の結果」の roundNo。 */
-  seenResultRounds?: readonly number[]
+  /** 画面側で保存した「確認済みの自分の結果」。roundNo は部屋ごとに 1 から始まるので room ID ごとに持つ。 */
+  seenResults?: Readonly<Record<string, readonly number[]>>
 }
 
 export type RoomPhase =
@@ -129,7 +129,8 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
   const onWake = options.onWake ?? browserWake
   const listeners = new Set<() => void>()
   const timers = new Set<unknown>()
-  const seen = new Set(options.seenResultRounds ?? [])
+  const seenKey = (room: string, roundNo: number) => `${room}\u0000${roundNo}`
+  const seen = new Set(Object.entries(options.seenResults ?? {}).flatMap(([room, rounds]) => rounds.map(roundNo => seenKey(room, roundNo))))
 
   let attached = false
   let stopWake: (() => void) | null = null
@@ -162,7 +163,7 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     const round = snap?.round ?? null
     const locked = round !== null && serverNow < Date.parse(round.nextReadyAt)
     const myResults = snap?.myResults ?? []
-    const unseenResults = myResults.filter(result => !seen.has(result.roundNo))
+    const unseenResults = snap ? myResults.filter(result => !seen.has(seenKey(snap.id, result.roundNo))) : []
     const isHost = snap !== null && snap.host === snap.self
     const readyOnline = members.filter(member => member.ready && member.online).length
     const readyOthers = members.filter(member => member.ready && member.online && member.id !== snap?.host).length
@@ -441,9 +442,10 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     },
     refresh: () => sync(),
     dismissResults() {
-      const round = snapshot?.round
-      if (round) dismissed.add(round.number)
-      for (const result of snapshot?.myResults ?? []) seen.add(result.roundNo)
+      const snap = snapshot
+      if (!snap) return
+      if (snap.round) dismissed.add(snap.round.number)
+      for (const result of snap.myResults) seen.add(seenKey(snap.id, result.roundNo))
       emit()
     },
   }

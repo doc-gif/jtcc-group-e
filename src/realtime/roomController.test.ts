@@ -210,9 +210,17 @@ test('通信断のあいだは最後の状態を保ち、復帰後に見逃し�
   expect(friend.getState()).toMatchObject({ phase: 'lobby', unseenResults: [], canReady: true })
 
   // 確認済みを画面側で保存していれば、別の端末状態からの復帰でも再表示しない。
-  const reopened = controller('friend', server.asUser('friend'), { seenResultRounds: [1] })
-  await reopened.open(host.getState().snapshot!.id)
+  const roomId = host.getState().snapshot!.id
+  const reopened = controller('friend', server.asUser('friend'), { seenResults: { [roomId]: [1] } })
+  await reopened.open(roomId)
   expect(reopened.getState()).toMatchObject({ phase: 'lobby', unseenResults: [] })
+
+  // roundNo は部屋ごとに 1 から始まる。別の部屋の round 1 は確認済みにしない。
+  await reopened.create('友だち')
+  await reopened.setReady(true)
+  await reopened.start()
+  await vi.advanceTimersByTimeAsync(9_000)
+  expect(reopened.getState()).toMatchObject({ phase: 'results', unseenResults: [{ roundNo: 1, prize: 'plush' }] })
 })
 
 test('購読に失敗してもポーリングで更新し、期限切れで止まる', async () => {
