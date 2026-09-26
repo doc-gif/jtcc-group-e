@@ -1,0 +1,58 @@
+{
+  "uiDigest": "d12c0414f3e9bf4dcfe2ce33eea378a012e2d58c73ebc043c22a9eba1cbfc448",
+  "reviewer": "Claude (F16: standalone and gesture guards)",
+  "reviewedAt": "2026-09-26",
+  "summary": "F16（引き継ぎの5・方法1だけ）。ホーム画面から開くとリンクバーのない全画面（既存の manifest の standalone・相対の start_url/scope を E2E で固定し、mobile-web-app-capable・apple-mobile-web-app-status-bar-style=default を追加）。画面全体のピンチ・ダブルタップの拡大、引っぱって再読み込み・端のバウンド・横スワイプの戻る/進むを止め（html の touch-action: pan-x pan-y と overscroll-behavior: none、シート・開封・ボードの中は contain、iOS の gesturestart/gesturechange/gestureend を src/app/gestures.ts で preventDefault）、ボタン・リンク・絵の長押しメニュー（Android はボタンと絵の contextmenu を止める。リンク・入力欄は出せる）・文字選択・タップの色を出さない。入力欄と本文は選べるまま。viewport の拡大禁止は使わない。画面の構成・色・文言は変えていない。「ホーム画面に追加」の案内は Figma のマスターが先なので未実装。",
+  "criteria": [
+    {
+      "id": "HIG-01",
+      "result": "not-applicable",
+      "evidence": "文字の大きさ・色・文言を変えていない。320px のマイページを実画面で見て以前と同じ表示であることを確認した（タップの色を透明にしただけで、フォーカスの枠 :focus-visible はそのまま）。"
+    },
+    {
+      "id": "HIG-02",
+      "result": "pass",
+      "evidence": "押せる範囲（44px 以上）とキーボード操作は変えていない。ボタンの user-select: none はタッチの長押しメニューを出さないためで、フォーカス・読み上げ・クリックに影響しない。既存の app.spec・ux.spec を5構成で実行した。"
+    },
+    {
+      "id": "HIG-03",
+      "result": "pass",
+      "evidence": "viewport に maximum-scale・user-scalable を入れていないことを E2E で検査。OS の文字サイズ（rem）を200%にすると入力欄の文字が1.9倍以上になることを standalone.spec で確認し、既存の文字200%の UX 検査も通した。画面全体のピンチ拡大だけは担当者の決定（F16）で止め、HIG-03 の文言に明記した。OS の拡大鏡は Web から止められない。セーフエリアは既存の env(safe-area-inset-*) のまま。実機（ノッチ・ホームバー）は未確認で、担当者の確認手順を MULTI_DEVICE.md の0に書いた。"
+    },
+    {
+      "id": "HIG-04",
+      "result": "pass",
+      "evidence": "戻る・閉じるは画面のボタンで、ホーム画面のアプリ（リンクバーなし）でもこれまでどおり使える。端スワイプの戻るを止めても、画面の「戻る」ボタンで戻れる。入力欄は文字を選べ、コピー・貼り付けができる（input の user-select が none でなく、長押しメニューも出せることを E2E で検査。リンクは長押しで新しいタブで開ける）。"
+    },
+    {
+      "id": "HIG-05",
+      "result": "not-applicable",
+      "evidence": "演出・音・動きを追加していない。動きを減らす設定の扱いも変更していない。"
+    },
+    {
+      "id": "GAME-01",
+      "result": "not-applicable",
+      "evidence": "見た目・画面構成・状態を変えていない（Figma マスター 267:8198 との照合は不要）。manifest・theme-color はマスターのピンクの帯 #F2A7BC と背景 #FFF9FA のまま。新しい画面（ホーム画面に追加の案内）はマスターに状態を足してから別に実装する。"
+    },
+    {
+      "id": "GAME-02",
+      "result": "pass",
+      "evidence": "引っぱって再読み込みを止めたので、回す・開封の途中に誤って再読み込みして進み具合を見失うことがない。保存・コイン・ルームの処理は変えていない。最新版・固定版・確認用プレビューの manifest がそれぞれの場所を指し、保存データの分離（既存の app.spec）も壊していない。"
+    },
+    {
+      "id": "GAME-03",
+      "result": "not-applicable",
+      "evidence": "通知・バッジ・催促を追加していない。Service Worker・プッシュ通知は入れていない。中断と再開はこれまでどおり端末の保存データで行う。"
+    },
+    {
+      "id": "GAME-04",
+      "result": "not-applicable",
+      "evidence": "着せ替え・選択肢・公開範囲は変更していない。ホーム画面への追加は利用者が OS の操作で選ぶもので、アプリから強制しない。"
+    },
+    {
+      "id": "GAME-05",
+      "result": "not-applicable",
+      "evidence": "画面の文言・説明を追加していない。「ホーム画面に追加」の案内の文言は Figma のマスターで決めてから実装する。はじめての画面の既存の一文（共有メニューの「ホーム画面に追加」）はそのまま。"
+    }
+  ]
+}
