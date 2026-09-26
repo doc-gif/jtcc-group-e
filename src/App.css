@@ -557,5 +557,3 @@ details p { font-size: 0.9375rem; padding-bottom: 0.5rem; }
 .spin-screen { background-color: var(--world-bg); }
 /* 丸い見出し: 回す前・回転・開封・売り切れ・コイン不足の題（マスターの Zen Maru Gothic Bold） */
 .confirm-title, .turn-count, .open-step, .problem-title, .friend-empty-title { font-family: var(--font-heading); font-weight: 700; }
-/* 筐体のドームの上のリボン（Machine.tsx）は SVG の中なので、幅は transform で決める */
-.machine .m-bow-top { width: auto; }
