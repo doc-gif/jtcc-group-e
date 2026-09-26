@@ -1,13 +1,13 @@
 import { HOST_KEY_PATTERN } from './hostKey'
 import {
-  cleanName, nameKey, RoomContractError, SHARED_CAPACITY, SHARED_NAME_MAX, SHARED_INITIAL_STOCK, SHARED_MIN_GUESTS, SHARED_ONLINE_WINDOW_MS, SHARED_PRICE,
+  cleanName, nameKey, RoomContractError, SHARED_CAPACITY, SHARED_NAME_MAX, SHARED_INITIAL_STOCK, SHARED_MIN_GUESTS, SHARED_ONLINE_WINDOW_MS, SHARED_OPEN_TIMEOUT_MS, SHARED_PRICE,
   SHARED_ROUND_LOCK_MS, SHARED_SCHEDULE_EXPIRY_MARGIN_MS, SHARED_SCHEDULE_MINUTES, SHARED_START_DELAY_MS, SHARED_TOP_PRIZE,
   type RoomErrorCode, type RoomTransport, type ScheduleOutcome, type SharedPrize, type Snapshot,
 } from './protocol'
 
-type MockMember = { id: string; nickname: string; balance: number; ready: boolean; active: boolean; seenAt: number }
+type MockMember = { id: string; nickname: string; balance: number; ready: boolean; active: boolean; seenAt: number; openedRound: number }
 type MockResult = { userId: string; nickname: string; prize: SharedPrize }
-type MockRound = { number: number; request: string; startsAt: number; nextReadyAt: number; results: MockResult[]; guaranteed: boolean }
+type MockRound = { number: number; request: string; startsAt: number; revealAt: number; nextReadyAt: number; results: MockResult[]; guaranteed: boolean }
 type MockRoom = {
   id: string; invite: string; host: string; hostKey: string; expiresAt: number; roundNo: number
   members: Map<string, MockMember>; stock: Record<SharedPrize, number>; round: MockRound | null; rounds: MockRound[]
@@ -26,19 +26,21 @@ const isPrize = (value: unknown): value is SharedPrize => typeof value === 'stri
 
 function savedMember(value: unknown): MockMember | null {
   if (!isObject(value)) return null
-  const { id, nickname, balance, ready, active, seenAt } = value
+  const { id, nickname, balance, ready, active, seenAt, openedRound } = value
   return typeof id === 'string' && typeof nickname === 'string' && isTime(balance) && typeof ready === 'boolean' && typeof active === 'boolean' && isTime(seenAt)
-    ? { id, nickname, balance, ready, active, seenAt } : null
+    // Saved before #88: nothing opened yet.
+    ? { id, nickname, balance, ready, active, seenAt, openedRound: isCount(openedRound) ? openedRound : 0 } : null
 }
 
 function savedRound(value: unknown): MockRound | null {
   if (!isObject(value)) return null
-  const { number, request, startsAt, nextReadyAt, results, guaranteed } = value
+  const { number, request, startsAt, revealAt, nextReadyAt, results, guaranteed } = value
   if (!isCount(number) || typeof request !== 'string' || !isTime(startsAt) || !isTime(nextReadyAt) || !Array.isArray(results)) return null
   const parsed = results.map(result => isObject(result) && typeof result.userId === 'string' && typeof result.nickname === 'string' && isPrize(result.prize)
     ? { userId: result.userId, nickname: result.nickname, prize: result.prize } : null)
   if (parsed.some(result => result === null)) return null
-  return { number, request, startsAt, nextReadyAt, results: parsed as MockResult[], guaranteed: guaranteed === true }
+  // Saved before #88: all results were shown at startsAt.
+  return { number, request, startsAt, revealAt: isTime(revealAt) ? revealAt : startsAt, nextReadyAt, results: parsed as MockResult[], guaranteed: guaranteed === true }
 }
 
 /** 端末内デモの保存データから部屋を1つ読む。契約の形に合わなければ null（その部屋は使わない）。 */
@@ -203,13 +205,25 @@ export class MockRoomServer {
       results.push({ userId: member.id, nickname: member.nickname, prize: selected })
     }
     const startsAt = now + SHARED_START_DELAY_MS
+    // #88: all results by startsAt + 10 s at the latest (earlier once every entrant opened), the next ready 15 s after that.
+    const revealAt = startsAt + SHARED_OPEN_TIMEOUT_MS
     room.stock = stock
     room.roundNo++
-    room.round = { number: room.roundNo, request, startsAt, nextReadyAt: startsAt + SHARED_ROUND_LOCK_MS, results, guaranteed: lucky !== null }
+    room.round = { number: room.roundNo, request, startsAt, revealAt, nextReadyAt: revealAt + SHARED_ROUND_LOCK_MS, results, guaranteed: lucky !== null }
     room.rounds.push(room.round)
     room.scheduledAt = null
     for (const member of room.members.values()) member.ready = false
     for (const member of entrants) member.balance -= SHARED_PRICE
+  }
+
+  /** Like lp_settle_open: reveal the latest round now when no active entrant is left unopened. */
+  private settleOpen(room: MockRoom) {
+    const round = room.round
+    const now = this.now()
+    if (!round || round.revealAt <= now) return
+    if (round.results.some(result => { const member = room.members.get(result.userId); return member?.active && member.openedRound < round.number })) return
+    round.revealAt = Math.max(now, round.startsAt)
+    round.nextReadyAt = round.revealAt + SHARED_ROUND_LOCK_MS
   }
 
   /**
@@ -262,13 +276,14 @@ export class MockRoomServer {
       const self = room.members.get(userId)!
       self.seenAt = now
       this.fireSchedule(room)
-      const pending = room.round !== null && now < room.round.startsAt
+      const pending = room.round !== null && now < room.round.revealAt
       return {
         id: room.id, invite: room.invite, host: room.host, expiresAt: new Date(room.expiresAt).toISOString(),
         serverTime: new Date(now).toISOString(), self: userId, balance: self.balance, roundNo: room.roundNo,
         scheduledAt: room.scheduledAt === null ? null : new Date(room.scheduledAt).toISOString(),
         pitchMode: room.pitchMode, lastSchedule: room.lastSchedule && { ...room.lastSchedule },
-        myResults: room.rounds.filter(round => round.startsAt <= now).flatMap(round => round.results.filter(result => result.userId === userId).map(result => ({ roundNo: round.number, prize: result.prize }))),
+        // Like lp_snapshot (#88): rounds revealed to all, plus a round the caller opened.
+        myResults: room.rounds.filter(round => round.revealAt <= now || (round.startsAt <= now && round.number <= self.openedRound)).flatMap(round => round.results.filter(result => result.userId === userId).map(result => ({ roundNo: round.number, prize: result.prize }))),
         members: [...room.members.values()].filter(member => member.active).map(member => ({
           id: member.id, nickname: member.nickname, ready: member.ready,
           online: member.seenAt > now - SHARED_ONLINE_WINDOW_MS,
@@ -276,7 +291,10 @@ export class MockRoomServer {
         stock: pending ? null : (Object.entries(room.stock) as [SharedPrize, number][]).map(([prize, remaining]) => ({ prize, remaining })),
         round: room.round && {
           number: room.round.number, startsAt: new Date(room.round.startsAt).toISOString(),
+          revealAt: new Date(room.round.revealAt).toISOString(),
           nextReadyAt: new Date(room.round.nextReadyAt).toISOString(), guaranteed: room.round.guaranteed,
+          entrants: room.round.results.map(result => result.userId),
+          opened: room.round.results.filter(result => (room.members.get(result.userId)?.openedRound ?? 0) >= room.round!.number).map(result => result.userId),
           results: pending ? null : room.round.results.map(result => ({ ...result })),
         },
       }
@@ -306,7 +324,7 @@ export class MockRoomServer {
           roundNo: 0, members: new Map(),
           stock: { ...SHARED_INITIAL_STOCK }, round: null, rounds: [], scheduledAt: null, pitchMode: false, lastSchedule: null,
         }
-        room.members.set(userId, { id: userId, nickname: chosen ?? this.autoName(room, userId), balance: 3000, ready: false, active: true, seenAt: this.now() })
+        room.members.set(userId, { id: userId, nickname: chosen ?? this.autoName(room, userId), balance: 3000, ready: false, active: true, seenAt: this.now(), openedRound: 0 })
         this.rooms.set(request, room)
         return snapshot(request)
       },
@@ -336,7 +354,7 @@ export class MockRoomServer {
           if (!seatFree(room)) throw new RoomContractError('room-full')
           const nickname = mine && !this.nameTaken(room, mine.nickname, userId) ? mine.nickname : this.autoName(room, userId)
           if (mine) { mine.nickname = nickname; mine.active = true }
-          else room.members.set(userId, { id: userId, nickname, balance: 3000, ready: false, active: true, seenAt: now })
+          else room.members.set(userId, { id: userId, nickname, balance: 3000, ready: false, active: true, seenAt: now, openedRound: 0 })
         }
         room.members.get(userId)!.seenAt = now
         wake(room.id)
@@ -351,7 +369,7 @@ export class MockRoomServer {
         if (!previous?.active && !seatFree(room)) throw new RoomContractError('room-full')
         const nickname = this.pickName(room, chosen, userId)
         if (previous) { previous.nickname = nickname; previous.active = true; previous.seenAt = this.now() }
-        else room.members.set(userId, { id: userId, nickname, balance: 3000, ready: false, active: true, seenAt: this.now() })
+        else room.members.set(userId, { id: userId, nickname, balance: 3000, ready: false, active: true, seenAt: this.now(), openedRound: 0 })
         // Like lp_join (F13): the new member may be the guest a due schedule was waiting for.
         this.fireSchedule(room)
         wake(room.id)
@@ -415,11 +433,29 @@ export class MockRoomServer {
         if (this.pickName(room, nickname, userId) !== member.nickname) { member.nickname = nickname; wake(roomId) }
         return snapshot(roomId)
       },
+      open: async (roomId, roundNo) => {
+        const room = locked(roomId)
+        const round = room.round
+        // Like lp_open: only an entrant of the latest round, from startsAt.
+        if (!round || roundNo !== round.number || this.now() < round.startsAt || !round.results.some(result => result.userId === userId)) {
+          throw new RoomContractError('invalid-round')
+        }
+        const member = room.members.get(userId)!
+        member.seenAt = this.now()
+        if (member.openedRound < roundNo) {
+          member.openedRound = roundNo
+          this.settleOpen(room)
+          wake(roomId)
+        }
+        return snapshot(roomId)
+      },
       leave: async roomId => {
         const room = locked(roomId)
         const member = room.members.get(userId)!
         member.active = false
         member.ready = false
+        // Like lp_leave (#88): an entrant who leaves without opening is not waited for.
+        this.settleOpen(room)
         wake(roomId)
       },
       subscribe: (roomId, refresh, onStatus) => {

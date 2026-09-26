@@ -48,6 +48,7 @@ function network(inner: RoomTransport, latency = 0) {
     },
     schedule: (room, minutes) => call(() => inner.schedule(room, minutes)),
     setPitchMode: (room, on) => call(() => inner.setPitchMode(room, on)),
+    open: (room, roundNo) => call(() => inner.open(room, roundNo)),
     leave: room => call(() => inner.leave(room)),
     subscribe: (room, refresh, onStatus) => {
       if (net.subscribeFails) throw new Error('realtime: unauthorized')
@@ -101,7 +102,7 @@ test('100 席で満員を示し、101 人目は上限の数字を含まない日
   expect(stranger.getState().phase).toBe('unavailable')
 })
 
-test('サーバー時刻のずれを補正し、startsAt まで結果を隠して直後に公開する', async () => {
+test('サーバー時刻のずれを補正し、startsAt から自分のカプセルを開け、全員が開けたら全員の結果を出す', async () => {
   const skew = 90_000
   const { server, controller } = setup(skew)
   const { transport } = network(server.asUser('host'), 100)
@@ -130,11 +131,21 @@ test('サーバー時刻のずれを補正し、startsAt まで結果を隠し�
   expect(host.getState()).toMatchObject({ phase: 'countdown', secondsLeft: 1 })
   expect(host.getState().round?.results).toBeNull()
 
+  // #88: startsAt から自分のカプセル。全員の結果は 10 秒後（全員が開ければその時点）まで出さない。
   await vi.advanceTimersByTimeAsync(150)
-  expect(host.getState()).toMatchObject({ phase: 'opening', secondsLeft: 0 })
+  expect(host.getState()).toMatchObject({
+    phase: 'opening', secondsLeft: 10, isEntrant: true, hasOpened: false, canOpen: true, openedCount: 0, entrantCount: 2, myPrize: null,
+  })
   expect(host.getState().round?.results).toBeNull()
 
-  await vi.advanceTimersByTimeAsync(550)
+  expect((await settle(host.openCapsule())).ok).toBe(true)
+  expect(host.getState()).toMatchObject({ phase: 'waiting', hasOpened: true, canOpen: false, openedCount: 1, myPrize: 'plush' })
+  expect(host.getState().round?.results).toBeNull()
+  expect(host.getState().snapshot?.stock).toBeNull()
+
+  // 友だちが開けると全員の結果。起床通知で取り直す。
+  await friend.open(id, 1)
+  await vi.advanceTimersByTimeAsync(300)
   expect(host.getState()).toMatchObject({ phase: 'results', myPrize: 'plush', startBlockedBy: 'round-active', canReady: false })
   expect(host.getState().round?.results).toHaveLength(2)
   expect(host.getState().unseenResults).toEqual([{ roundNo: 1, prize: 'plush' }])
@@ -357,7 +368,7 @@ test('通信断のあいだは最後の状態を保ち、復帰後に見逃し�
   for (const guest of ['a', 'b']) await server.asUser(guest).join(reopened.getState().snapshot!.invite, guest)
   await reopened.setReady(true)
   await reopened.start()
-  await vi.advanceTimersByTimeAsync(9_000)
+  await vi.advanceTimersByTimeAsync(19_000)
   expect(reopened.getState()).toMatchObject({ phase: 'results', unseenResults: [{ roundNo: 1, prize: 'plush' }] })
 })
 
@@ -494,7 +505,7 @@ test('予約した開始時刻まで補正した秒読みを出し、ホスト�
   })
   expect(friend.getState().members.find(member => member.id === 'host')?.online).toBe(false)
   expect(Date.parse(friend.getState().round!.startsAt) - Date.parse(scheduledAt)).toBeGreaterThanOrEqual(8_000)
-  await vi.advanceTimersByTimeAsync(8_500)
+  await vi.advanceTimersByTimeAsync(18_500)
   expect(friend.getState()).toMatchObject({ phase: 'results', myPrize: 'plush' })
   expect(friend.getState().round?.results).toHaveLength(1)
   expect((await server.asUser('host').snapshot(host.getState().snapshot!.id)).balance).toBe(3000)
@@ -552,7 +563,7 @@ test('ピッチモードと目玉の確定を全員の状態に出す', async ()
   await vi.advanceTimersByTimeAsync(0)
   expect(friend.getState()).toMatchObject({ phase: 'countdown', roundGuaranteed: true, myPrize: null })
   expect(friend.getState().round?.results).toBeNull()
-  await vi.advanceTimersByTimeAsync(8_500)
+  await vi.advanceTimersByTimeAsync(18_500)
   expect(friend.getState()).toMatchObject({ phase: 'results', roundGuaranteed: true, myPrize: 'plush' })
 
   await host.setPitchMode(false)
@@ -695,4 +706,37 @@ test('F13: 予約の時刻を過ぎても人数が足りなければ待ち、2 �
     lastSchedule: { status: 'started', scheduledAt, roundNo: 1 },
   })
   expect(b.getState().balance).toBe(3000)
+})
+
+test('#88: 見守る人はカプセルなしで待ち、開けない人がいても 10 秒で全員の結果。起床通知がなければ短い間隔で取り直す', async () => {
+  const { server, controller } = setup()
+  const host = controller('host')
+  await host.createAsHost(KEY, 'ホスト')
+  const { invite, id } = host.getState().snapshot!
+  const { transport, net } = network(server.asUser('watcher'))
+  net.subscribeFails = true
+  const watcher = controller('watcher', transport)
+  await watcher.join(invite, '見守り')
+  const friend = server.asUser('friend')
+  const other = server.asUser('other')
+  for (const [user, name] of [[friend, '友だち'], [other, 'もうひとり']] as const) { await user.join(invite, name); await user.ready(id, true) }
+  await host.refresh()
+  await host.start()
+  // 起床通知がない見守る人は、開始をポーリングで知る（ここでは画面の再取得）。
+  await watcher.refresh()
+  await vi.advanceTimersByTimeAsync(8_300)
+  expect(watcher.getState()).toMatchObject({ phase: 'waiting', isEntrant: false, canOpen: false, entrantCount: 2, openedCount: 0, realtime: 'polling' })
+  expect(host.getState()).toMatchObject({ phase: 'waiting', isEntrant: false })
+  expect((await watcher.openCapsule()).error?.code).toBe('invalid-round')
+
+  // 友だちだけ開ける。見守る人はポーリングの短い間隔で開けた人数を受け取る。
+  await friend.open(id, 1)
+  await vi.advanceTimersByTimeAsync(2_000)
+  expect(watcher.getState()).toMatchObject({ phase: 'waiting', openedCount: 1 })
+  expect(watcher.getState().round?.results).toBeNull()
+
+  // もうひとりは開けない。startsAt から 10 秒で全員の結果。
+  await vi.advanceTimersByTimeAsync(8_000)
+  expect(watcher.getState()).toMatchObject({ phase: 'results', myPrize: null })
+  expect(watcher.getState().round?.results).toHaveLength(2)
 })
