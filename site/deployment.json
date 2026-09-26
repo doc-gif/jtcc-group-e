@@ -1,7 +1,7 @@
 {
-  "version": "v0.3.0",
-  "sha": "09237ac01ac12263e84038d7549986e2c508b6d9",
-  "digest": "1891ebf1142b626e3fb21a9b989413d9d7812be48c3f172f6d49ef73c0c62cb7",
-  "createdAt": "2026-09-26T04:50:25.585Z",
+  "version": "v0.3.1",
+  "sha": "f5ba9b580839219faa7abb47aa3f00d94ab52d86",
+  "digest": "af15df4615fd85b95fee070e74f65e1a3e9944c54082c1efbc7c06e656c9c594",
+  "createdAt": "2026-09-26T05:51:56.078Z",
   "repository": "doc-gif/jtcc-group-e"
 }
