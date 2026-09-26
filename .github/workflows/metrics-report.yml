@@ -1,0 +1,43 @@
+name: Metrics report
+# GA4 と Clarity から「LP をしっかり見た人・デモに進んだ割合」を集計し、[metrics] の Issue にコメントする（docs/METRICS.md）。
+# 秘密 GA4_SA_KEY・CLARITY_TOKEN、変数 GA4_PROPERTY_ID・METRICS_ISSUE が無いうちは何もしない。
+on:
+  schedule:
+    - cron: '17 23 * * *' # 毎日 08:17 JST
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'GA4 の集計日数（1〜90）'
+        default: '7'
+permissions:
+  issues: write
+  contents: read
+jobs:
+  report:
+    if: vars.GA4_PROPERTY_ID != '' || vars.CLARITY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    env:
+      GA4_PROPERTY_ID: ${{ vars.GA4_PROPERTY_ID }}
+      GA4_SA_KEY: ${{ secrets.GA4_SA_KEY }}
+      CLARITY_TOKEN: ${{ secrets.CLARITY_TOKEN }}
+      METRICS_DAYS: ${{ inputs.days || '7' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Aggregate
+        id: agg
+        run: |
+          node scripts/metrics-report.mjs --days "$METRICS_DAYS" --out metrics.md
+          cat metrics.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Comment on the metrics Issue
+        if: vars.METRICS_ISSUE != ''
+        uses: actions/github-script@v8
+        env:
+          METRICS_ISSUE: ${{ vars.METRICS_ISSUE }}
+        with:
+          script: |
+            const fs = require('fs')
+            const body = fs.readFileSync('metrics.md', 'utf8')
+            await github.rest.issues.createComment({ ...context.repo, issue_number: Number(process.env.METRICS_ISSUE), body })
