@@ -1,6 +1,6 @@
 /* ===== ガチャの流れ（T08・マスター 267:8266〜267:8461）=====
- * 色は src/index.css の「さくらミルク」トークンだけを使う。
- * 主操作はマスターの #be6482（白文字 3.93:1）ではなく --deep（#A94A68・5.43:1）。 */
+ * 文字とボタンの色は src/index.css のトークンと共通のボタンクラスだけを使う（マスターの配色への切り替えは F06 でまとめて行う）。
+ * ここに直接書く色は、カプセルの絵・光る縁（ローズゴールド・パール）の飾りと、確定演出の暗い背景の上の白文字（既存の App.css と同じ）だけ。 */
 
 /* ガチャ詳細（267:8279）：目玉の候補 */
 .feature-card {
@@ -68,7 +68,7 @@
 .open-scene.glow-featured .turn-bars span { background: rgba(255, 255, 255, 0.35); }
 .open-scene.glow-featured .turn-bars span.on { background: #fff; }
 /* ワインローズの背景では、ボタンの形が背景に溶けないよう白地にする */
-.open-scene.glow-featured .open-tap { background: #fff; color: var(--deep); }
+.open-scene.glow-featured .open-tap { background: var(--surface); color: var(--deep); }
 .capsule-art { position: relative; align-self: center; width: min(13rem, 70vw); aspect-ratio: 1; margin: 0.5rem 0; cursor: pointer; }
 .capsule-glow { position: absolute; inset: -6%; border-radius: 50%; background: rgba(253, 238, 242, 0.9); }
 .capsule-top, .capsule-bottom { position: absolute; left: 4%; right: 4%; height: 46%; border: 4px solid #C77A96; transition: transform 0.35s cubic-bezier(0.3, 1.4, 0.5, 1); }
