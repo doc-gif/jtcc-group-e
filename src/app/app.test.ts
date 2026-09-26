@@ -8,8 +8,10 @@ afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 describe('画面のハッシュ', () => {
   test('設計書のルートに対応する', () => {
-    expect(parseHash('')).toEqual({ name: 'home' })
-    expect(parseHash('#/')).toEqual({ name: 'home' })
+    expect(parseHash('')).toEqual({ name: 'town' })
+    expect(parseHash('#/')).toEqual({ name: 'town' })
+    expect(parseHash(paths.gachaList)).toEqual({ name: 'gachaList' })
+    expect(parseHash('#/gacha/')).toEqual({ name: 'gachaList' })
     expect(parseHash(paths.welcome)).toEqual({ name: 'welcome' })
     expect(parseHash(paths.gacha('a-1'))).toEqual({ name: 'gacha', id: 'a-1', room: false })
     expect(parseHash(paths.createRoom('a-1'))).toEqual({ name: 'gacha', id: 'a-1', room: true })
@@ -20,7 +22,7 @@ describe('画面のハッシュ', () => {
   })
 
   test('不正な形は見つからない扱い', () => {
-    for (const hash of ['#/gacha', '#/gacha/A B', '#/gacha/x/y', '#/room/x/y', '#/spin/x', '#/other/x']) expect(parseHash(hash)).toEqual({ name: 'notfound' })
+    for (const hash of ['#/gacha/A B', '#/gacha/x/y', '#/room/x/y', '#/spin/x', '#/other/x']) expect(parseHash(hash)).toEqual({ name: 'notfound' })
   })
 })
 

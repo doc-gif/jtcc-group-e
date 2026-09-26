@@ -1,12 +1,24 @@
 import { AxeBuilder } from '@axe-core/playwright'
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { uxScenarios } from './ux-scenarios.ts'
+
+/**
+ * 時計を止めた画面では、axe が使うタイマーだけを 1ms ずつ進めて検査する（導入は 3 秒まで進まない）。
+ * axe は結果の集計に一時的なページを開いて閉じるため、その間の runFor の失敗は無視する。
+ */
+async function axeViolations(page: Page, paused: boolean) {
+  let done = false
+  const result = new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze().finally(() => { done = true })
+  while (paused && !done) await page.clock.runFor(1).catch(() => undefined)
+  return (await result).violations
+}
 
 for (const scenario of uxScenarios) {
   test(`${scenario.name}: HIG を Web に適用した UI/UX 基準`, async ({ page }, testInfo) => {
+    if (scenario.pauseTimers) { await page.clock.install({ time: 0 }); await page.clock.pauseAt(1000) }
     await page.goto(scenario.path)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([])
+    expect(await axeViolations(page, Boolean(scenario.pauseTimers))).toEqual([])
     const controls = page.locator('button, a[href], input:not([type="hidden"]), select, textarea, [role="button"], [role="tab"]')
     for (const control of await controls.all()) {
       if (!(await control.isVisible())) continue

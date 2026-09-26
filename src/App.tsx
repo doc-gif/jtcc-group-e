@@ -4,17 +4,19 @@ import { AppProvider } from './app/AppProvider'
 import { useRoute, type Route } from './app/router'
 import { Collection } from './screens/Collection'
 import { GachaDetail } from './screens/GachaDetail'
-import { Home } from './screens/Home'
+import { GachaList } from './screens/GachaList'
 import { Me } from './screens/Me'
 import { NotFound } from './screens/NotFound'
 import { Room } from './screens/Room'
 import { Spin } from './screens/Spin'
 import { Together } from './screens/Together'
+import { Town } from './screens/Town'
 import { Welcome } from './screens/Welcome'
 
 function Screen({ route }: { route: Route }) {
   switch (route.name) {
-    case 'home': return <Home />
+    case 'town': return <Town />
+    case 'gachaList': return <GachaList />
     case 'gacha': return <GachaDetail id={route.id} room={route.room} />
     case 'welcome': return <Welcome />
     case 'spin': return <Spin id={route.id} mode="solo" />

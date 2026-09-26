@@ -387,7 +387,7 @@ function SpinProblem({ gacha, problem }: { gacha: Gacha; problem: NonNullable<Re
         ) : (
           <>
             <p className="lead spin-lead">このガチャは売り切れました。ほかのガチャを見てみてください。</p>
-            <a className="btn btn-main" href={paths.home}>ガチャの一覧へ</a>
+            <a className="btn btn-main" href={paths.gachaList}>ガチャの一覧へ</a>
           </>
         )}
       </main>

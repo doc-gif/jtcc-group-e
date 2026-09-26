@@ -53,10 +53,116 @@ afterEach(() => {
   window.location.hash = ''
 })
 
-describe('ホーム', () => {
-  test('作品・種類・並び替えでガチャを選べる', () => {
+describe('街（ホーム）と下のタブ', () => {
+  const heading = () => screen.getByRole('heading', { level: 1 })
+
+  test('街から、ガチャのお店・コレクション・フレンドと注目のピースへ行ける', () => {
     start()
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('ラストピース')
+    expect(heading()).toHaveTextContent('ラストピース')
+    expect(screen.getByText('提案モック・公式サービスではありません。', { exact: false })).toBeVisible()
+    expect(screen.getByRole('link', { name: /デモのコイン残高 3,000/ })).toHaveAttribute('href', '#/me')
+    const map = screen.getByRole('region', { name: /街の地図/ })
+    expect(within(map).getByRole('link', { name: 'ガチャのお店' })).toHaveAttribute('href', '#/gacha')
+    expect(within(map).getByRole('link', { name: 'コレクション' })).toHaveAttribute('href', '#/collection')
+    expect(within(map).getByRole('link', { name: 'フレンド' })).toHaveAttribute('href', '#/together')
+    expect(within(map).getByText('当てたもの 0')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /注目のピース/ })).toHaveAttribute('href', '#/gacha/melody-anniv')
+    expect(screen.getByRole('link', { name: 'ガチャのお店へ' })).toHaveAttribute('href', '#/gacha')
+    expect(screen.getByRole('link', { name: /当てたもの 0点/ })).toHaveAttribute('href', '#/collection')
+  })
+
+  test('街の地図はマウスでドラッグでき、ドラッグの終わりで場所のリンクを押したことにしない', () => {
+    start()
+    const map = screen.getByRole('region', { name: /街の地図/ })
+    expect(map).toHaveAttribute('tabindex', '0')
+    const shop = within(map).getByRole('link', { name: 'ガチャのお店' })
+    const clicked = vi.fn((event: Event) => event.preventDefault())
+    shop.addEventListener('click', clicked)
+    fireEvent.pointerDown(map, { pointerType: 'mouse', button: 0, pointerId: 1, clientX: 100, clientY: 100 })
+    fireEvent.pointerMove(map, { pointerType: 'mouse', pointerId: 1, clientX: 60, clientY: 70 })
+    expect(map).toHaveClass('is-dragging')
+    fireEvent.pointerUp(map, { pointerType: 'mouse', pointerId: 1, clientX: 60, clientY: 70 })
+    expect(map).not.toHaveClass('is-dragging')
+    fireEvent.click(shop)
+    expect(clicked).not.toHaveBeenCalled()
+    tick(1)
+    // ほとんど動かさないタップは、そのままリンクとして押せる
+    fireEvent.pointerDown(map, { pointerType: 'mouse', button: 0, pointerId: 2, clientX: 100, clientY: 100 })
+    fireEvent.pointerMove(map, { pointerType: 'mouse', pointerId: 2, clientX: 101, clientY: 101 })
+    fireEvent.pointerUp(map, { pointerType: 'mouse', pointerId: 2, clientX: 101, clientY: 101 })
+    fireEvent.click(shop)
+    expect(clicked).toHaveBeenCalledTimes(1)
+  })
+
+  test('下のタブは4つ（街・ガチャ・コレクション・フレンド）で、いまの画面を示す', () => {
+    start()
+    const nav = () => screen.getByRole('navigation', { name: 'メイン' })
+    expect(within(nav()).getAllByRole('link').map((link) => link.textContent)).toEqual(['街', 'ガチャ', 'コレクション', 'フレンド'])
+    expect(within(nav()).getByRole('link', { name: '街' })).toHaveAttribute('aria-current', 'page')
+    for (const [hash, name, title] of [['#/gacha', 'ガチャ', 'ガチャのお店'], ['#/collection', 'コレクション', '当てたもの'], ['#/together', 'フレンド', 'いっしょに回す']] as const) {
+      go(hash)
+      expect(heading()).toHaveTextContent(title)
+      expect(within(nav()).getByRole('link', { name })).toHaveAttribute('aria-current', 'page')
+      expect(within(nav()).getAllByRole('link').filter((link) => link.getAttribute('aria-current') === 'page')).toHaveLength(1)
+    }
+    go('#/me')
+    expect(within(nav()).queryAllByRole('link').filter((link) => link.getAttribute('aria-current') === 'page')).toHaveLength(0)
+  })
+
+  test('アプリを開いた直後は導入が出て、3秒で街に着く。再読み込みでくり返さない', () => {
+    start('')
+    expect(heading()).toHaveTextContent('好きが集まる、あなたの街へ。')
+    expect(screen.getByText('提案モック・公式サービスではありません')).toBeVisible()
+    expect(screen.queryByRole('navigation', { name: 'メイン' })).toBeNull()
+    // 導入の地図は飾りなので、読み上げと焦点の対象から外す
+    const preview = document.querySelector('.opening-town')
+    expect(preview).toHaveAttribute('aria-hidden', 'true')
+    expect(preview).toHaveAttribute('inert')
+    tick(1200)
+    expect(heading()).toHaveTextContent('いっしょに、わくわくを開けよう。')
+    tick(1799)
+    expect(heading()).toHaveTextContent('いっしょに')
+    tick(1)
+    expect(heading()).toHaveTextContent('ラストピース')
+    expect(window.location.hash).toBe('#/')
+    expect(heading()).toHaveFocus()
+    cleanup()
+    render(<App storage={store} />)
+    expect(heading()).toHaveTextContent('ラストピース')
+  })
+
+  test('導入はスキップでも、すぐに街へでも飛ばせる', () => {
+    start('')
+    fireEvent.click(button('スキップ'))
+    expect(heading()).toHaveTextContent('ラストピース')
+    expect(window.location.hash).toBe('#/')
+    tick(5000)
+    expect(heading()).toHaveTextContent('ラストピース')
+    cleanup()
+    start('')
+    fireEvent.click(button('すぐに街へ'))
+    expect(heading()).toHaveTextContent('ラストピース')
+  })
+
+  test('動きを減らす設定では、導入を1枚にして自動で進めない', () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query, addEventListener: () => {}, removeEventListener: () => {} }))
+    try {
+      start('')
+      expect(heading()).toHaveTextContent('ようこそ、ラストピースへ。')
+      tick(10000)
+      expect(heading()).toHaveTextContent('ようこそ')
+      fireEvent.click(button('街へ'))
+      expect(heading()).toHaveTextContent('ラストピース')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})
+
+describe('ガチャのお店（一覧）', () => {
+  test('作品・種類・並び替えでガチャを選べる', () => {
+    start('#/gacha')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('ガチャのお店')
     expect(screen.getByText('提案モック・公式サービスではありません。', { exact: false })).toBeVisible()
     expect(screen.getAllByRole('article')).toHaveLength(3)
     fireEvent.click(button(/ちいかわ/))
@@ -72,7 +178,7 @@ describe('ホーム', () => {
   })
 
   test('条件に合うガチャがないときは、条件をもどせる', () => {
-    start()
+    start('#/gacha')
     fireEvent.click(button(/サンリオ/))
     fireEvent.click(button(/ぬいぐるみ/))
     fireEvent.click(button('即完売品'))

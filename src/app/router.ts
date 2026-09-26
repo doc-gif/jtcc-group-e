@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 
 export type Route =
-  | { name: 'home' }
+  | { name: 'town' }
+  | { name: 'gachaList' }
   | { name: 'welcome' }
   | { name: 'gacha'; id: string; room: boolean }
   | { name: 'spin'; id: string }
@@ -16,9 +17,10 @@ const ID = /^[a-z0-9-]+$/
 /** 静的ホスティング（固定版 URL を含む）で再読み込みできるよう、画面はハッシュで表す。 */
 export function parseHash(hash: string): Route {
   const path = hash.replace(/^#/, '').replace(/^\/+|\/+$/g, '')
-  if (path === '') return { name: 'home' }
+  if (path === '') return { name: 'town' }
   const parts = path.split('/')
   const [head, id, extra] = parts
+  if (parts.length === 1 && head === 'gacha') return { name: 'gachaList' }
   if (parts.length === 1 && (head === 'collection' || head === 'together' || head === 'me' || head === 'welcome')) return { name: head }
   if (!id || !ID.test(id)) return { name: 'notfound' }
   if (head === 'gacha' && parts.length === 2) return { name: 'gacha', id, room: false }
@@ -30,7 +32,10 @@ export function parseHash(hash: string): Route {
 }
 
 export const paths = {
-  home: '#/',
+  /** 街（ホーム）。アプリを開いた直後だけ導入を出す（URL にハッシュがないとき）。 */
+  town: '#/',
+  /** ガチャのお店（ガチャ一覧） */
+  gachaList: '#/gacha',
   welcome: '#/welcome',
   gacha: (id: string) => `#/gacha/${id}`,
   createRoom: (id: string) => `#/gacha/${id}/room`,
