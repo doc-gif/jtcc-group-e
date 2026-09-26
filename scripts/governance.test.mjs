@@ -62,3 +62,16 @@ test('ガチャ詳細・中身と確率に残り口数の数字（◯/◯）を�
   // 担当者の決定（2026-09-26）でガチャ詳細はマスター 267:8279 に合わせ、残りバーは一覧のカード（マスター 267:8266「残り たっぷり」）で出す
   expect(await read('src/screens/GachaList.tsx')).toContain('<RemainBar')
 })
+
+test('F15: ビルドの Supabase 設定（.env.production）はブラウザに公開してよい URL と publishable キーだけ', async () => {
+  const lines = (await read('.env.production')).split('\n').map((line) => line.trim()).filter((line) => line && !line.startsWith('#'))
+  const entries = Object.fromEntries(lines.map((line) => line.split(/=(.*)/s).slice(0, 2)))
+  expect(Object.keys(entries).sort()).toEqual(['VITE_SUPABASE_PUBLISHABLE_KEY', 'VITE_SUPABASE_URL'])
+  expect(entries.VITE_SUPABASE_URL).toMatch(/^https:\/\/[a-z0-9]{20}\.supabase\.co$/)
+  expect(entries.VITE_SUPABASE_PUBLISHABLE_KEY).toMatch(/^sb_publishable_[A-Za-z0-9_-]+$/)
+  // service_role・secret・旧形式の JWT（anon でも service_role でも同じ形）を置かない
+  for (const path of ['.env.production', ...sources]) {
+    const text = await read(path)
+    expect(/sb_secret_|service_role|eyJhbGciOi/.test(text), path).toBe(false)
+  }
+})

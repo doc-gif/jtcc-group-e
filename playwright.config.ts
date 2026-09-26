@@ -1,5 +1,9 @@
 import { defineConfig, devices } from '@playwright/test'
 
+// ビルド（.env.production）は実 Supabase を指す。E2E・UI/UX 検査は通信しないよう、全ページで端末内デモにする
+// （src/app/sharedRoom.ts の ROOM_FORCE_DEMO_KEY）。e2e/room.spec.ts が *.supabase.co への要求が0件であることを確かめる。
+const forceRoomDemo = { cookies: [], origins: [{ origin: 'http://127.0.0.1:4173', localStorage: [{ name: 'lastpiece_room_force_demo', value: '1' }] }] }
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -9,6 +13,7 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'http://127.0.0.1:4173/jtcc-group-e/',
+    storageState: forceRoomDemo,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

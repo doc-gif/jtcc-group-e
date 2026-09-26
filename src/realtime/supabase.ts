@@ -46,15 +46,27 @@ export function supabaseTransport(client: SupabaseClient): RoomTransport {
     },
   }
 }
+let client: SupabaseClient | null | undefined
 let instance: RoomTransport | null | undefined
-export function configuredTransport(): RoomTransport | null {
-  if (instance !== undefined) return instance
+
+/**
+ * ビルドの設定（`.env.production` の `VITE_SUPABASE_URL`・`VITE_SUPABASE_PUBLISHABLE_KEY`、どちらもブラウザに公開してよい値）から
+ * 作る Supabase の接続。設定がない・形が違うビルド（開発・単体テスト）は null で、ルームは端末内デモになる。
+ */
+export function configuredClient(): SupabaseClient | null {
+  if (client !== undefined) return client
   const url = import.meta.env.VITE_SUPABASE_URL
   const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-  if (!url || !key) return instance = null
-  if (!url.startsWith('https://') || !key.startsWith('sb_publishable_')) return instance = null
+  if (!url || !key) return client = null
+  if (!url.startsWith('https://') || !key.startsWith('sb_publishable_')) return client = null
   // Anonymous identity stays in this browser. No service-role key, no cross-device handover.
-  return instance = supabaseTransport(createClient(url, key, {
+  return client = createClient(url, key, {
     auth: { storageKey: `lastpiece_guest_${new URL(url).hostname}_${location.pathname}`, detectSessionInUrl: false },
-  }))
+  })
+}
+
+export function configuredTransport(): RoomTransport | null {
+  if (instance !== undefined) return instance
+  const real = configuredClient()
+  return instance = real ? supabaseTransport(real) : null
 }

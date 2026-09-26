@@ -63,3 +63,64 @@ test('ホスト用キー・名前の RPC を SQL の名前と引数で呼び、�
   ])
   expect('claim' in transport).toBe(false)
 })
+
+test('F15: セッションがなければ匿名ログインを1回だけしてから RPC を呼ぶ。ログインに失敗したら次の操作でやり直す', async () => {
+  let session: object | null = null
+  let failNext = true
+  const signInAnonymously = vi.fn(async () => {
+    if (failNext) { failNext = false; return { data: null, error: new Error('over_request_rate_limit') } }
+    session = {}
+    return { data: { session }, error: null }
+  })
+  const rpc = vi.fn(async (_name: string) => ({ data: { id: 'room' }, error: null }))
+  const client = {
+    auth: { getSession: async () => ({ data: { session }, error: null }), signInAnonymously },
+    rpc,
+  } as unknown as SupabaseClient
+  const transport = supabaseTransport(client)
+  // 1回目: ログインの失敗は RPC を呼ばずにエラー（状態層は通信の失敗として再試行を案内する）
+  await expect(transport.join('invite', null)).rejects.toThrow('over_request_rate_limit')
+  expect(rpc).not.toHaveBeenCalled()
+  // 2回目: 同時の操作でもログインは1回だけ
+  await Promise.all([transport.join('invite', null), transport.snapshot('room')])
+  expect(signInAnonymously).toHaveBeenCalledTimes(2)
+  // 3回目: ログイン済みなら、もうログインしない
+  await transport.ready('room', true)
+  expect(signInAnonymously).toHaveBeenCalledTimes(2)
+  expect(rpc.mock.calls.map(([name]) => name)).toEqual(['lp_join', 'lp_snapshot', 'lp_ready'])
+})
+
+test('F15: 購読は本人の JWT を Realtime に渡してから非公開チャンネルに入り、失敗してもポーリングに任せる', async () => {
+  const on = vi.fn()
+  const channel = { on: (...args: unknown[]) => { on(...args); return channel }, subscribe: vi.fn(() => channel) }
+  const removeChannel = vi.fn(async () => 'ok')
+  const setAuth = vi.fn(async () => {})
+  const makeChannel = vi.fn(() => channel)
+  const client = {
+    auth: { getSession: async () => ({ data: { session: {} }, error: null }) },
+    realtime: { setAuth },
+    channel: makeChannel,
+    removeChannel,
+  } as unknown as SupabaseClient
+  const refresh = vi.fn()
+  const stop = supabaseTransport(client).subscribe('room-1', refresh)
+  await vi.waitFor(() => expect(channel.subscribe).toHaveBeenCalled())
+  expect(setAuth.mock.invocationCallOrder[0]).toBeLessThan(channel.subscribe.mock.invocationCallOrder[0])
+  expect(makeChannel).toHaveBeenCalledWith('lp:room-1', { config: { private: true } })
+  expect(on).toHaveBeenCalledWith('broadcast', { event: 'round' }, refresh)
+  stop()
+  expect(removeChannel).toHaveBeenCalledWith(channel)
+
+  // Realtime に入れなくても例外を外に出さない（ポーリングが正）
+  const brokenChannel = vi.fn()
+  const broken = {
+    auth: { getSession: async () => ({ data: { session: {} }, error: null }) },
+    realtime: { setAuth: async () => { throw new Error('realtime unavailable') } },
+    channel: brokenChannel,
+    removeChannel,
+  } as unknown as SupabaseClient
+  const stopBroken = supabaseTransport(broken).subscribe('room-1', refresh)
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  expect(brokenChannel).not.toHaveBeenCalled()
+  stopBroken()
+})

@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { fullRoom, revealedRound, ROOM_INVITE, ROOM_T0, roomSeed, type RoomSeed } from './room-seeds.ts'
 
-// 共有ルーム（T10・F05）。Supabase の設定がないビルドなので、同じブラウザのタブの間だけで動く端末内デモで確かめる。
+// 共有ルーム（T10・F05）。ビルドは実 Supabase を指す（.env.production、F15）が、E2E は playwright.config.ts の
+// lastpiece_room_force_demo=1 で、同じブラウザのタブの間だけで動く端末内デモにして確かめる（実 Supabase へは通信しない）。
 
 function watchErrors(page: Page) {
   const errors: string[] = []
@@ -178,6 +180,26 @@ test('満員なら入れず（数は出さない）、期限の過ぎたルー�
   await expect(heading(late)).toHaveText('ルームは終了しました')
   await expect(late.getByText('有効期限が過ぎました', { exact: true })).toBeVisible()
   await expect(late.getByRole('link', { name: '新しいルームを作る' })).toBeVisible()
+})
+
+test('F15: ビルドは実 Supabase を指すが、E2E は端末内デモにして *.supabase.co へ通信しない', async ({ page, context, request }) => {
+  const env = readFileSync('.env.production', 'utf8')
+  const url = env.match(/^VITE_SUPABASE_URL=(https:\/\/[a-z0-9]+\.supabase\.co)$/m)?.[1]
+  expect(url, '.env.production の URL').toBeTruthy()
+  expect(env).toMatch(/^VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_[A-Za-z0-9_-]+$/m)
+  const remote: string[] = []
+  context.on('request', (req) => { if (req.url().includes('.supabase.co')) remote.push(req.url()) })
+  await page.goto('./#/room/new')
+  await expect(heading(page)).toHaveText('ルームを作る')
+  await expect(page.getByText('この端末のブラウザの中だけのルームです', { exact: false })).toBeVisible()
+  // テストしている成果物（CI の web-dist は本番の公開にもそのまま使う）に、実 Supabase の URL が入っている
+  const scripts = await page.locator('script[type="module"][src]').evaluateAll((nodes) => nodes.map((node) => (node as HTMLScriptElement).src))
+  const bodies = await Promise.all(scripts.map(async (src) => (await request.get(src)).text()))
+  expect(bodies.some((body) => body.includes(url!))).toBe(true)
+  await page.getByLabel('表示する名前').fill('ミオ')
+  await page.getByRole('button', { name: 'ルームを作る' }).click()
+  await expect(heading(page)).toHaveText('あと2人で始められます')
+  expect(remote).toEqual([])
 })
 
 test('ホスト用リンクが無効なら、ホストにはなれない', async ({ page }) => {

@@ -1,0 +1,58 @@
+{
+  "uiDigest": "6e883ca50b62bbbd57172f6943c3bbf8a877bd19b7e9a6987f7f0454bc5a228b",
+  "reviewer": "Claude (implementation agent, F15 multi-device)",
+  "reviewedAt": "2026-09-26",
+  "summary": "共有ルームを専用の Supabase（lastpiece-pitch）につなぎ、本番・確認用プレビュー・CI のビルドで別々のスマホが同じルームに入れるようにした（.env.production の URL と publishable キー）。画面の部品・文言・レイアウトは変えていない。実 transport のときは F05 から条件付きだったデモの注記（「デモ：この端末のブラウザの中だけのルームです」、共有シートのデモの説明、ルームを作る画面の「この端末をデモのホストにして作ります」、「デモのルームが見つかりません」）が出ず、マスター T10 の文言だけになる（src/app/roomSession.test.ts と Room.test.tsx の実 transport のセッション）。E2E・UI/UX 検査は playwright.config.ts の lastpiece_room_force_demo=1 で端末内デモのまま、Chromium（small-mobile・android・desktop）で app・room・ux・colors の 438 件中 435 件成功。失敗の 3 件は main でも同じ、この環境の古い Chromium の console 404 によるプレビュー確認の既知の失敗（F11 の記録と同じ）で、CI に任せる。room.spec は *.supabase.co への要求 0 件と成果物に URL が入っていることを確認。実 Supabase の画面はこの環境から HTTP で接続できず見ていない（実機2台の確認手順は docs/MULTI_DEVICE.md）。WebKit は CI。",
+  "criteria": [
+    {
+      "id": "HIG-01",
+      "result": "pass",
+      "evidence": "色・文字・部品は変えていない。UX テストの room 31場面×3構成で axe WCAG AA 違反0（端末内デモ）。実 transport ではデモの注記の1行がなくなるだけで、残る文字の色・大きさは同じ。"
+    },
+    {
+      "id": "HIG-02",
+      "result": "pass",
+      "evidence": "操作は増減していない。UX テストで全ボタン・リンク・入力が44×44px以上のまま。実 transport ではルームを作る操作がホスト用リンクを開いた端末だけになり（F10 の決定どおり）、ほかの人には「ルームを作れるのはホストだけです」と招待リンクでの参加を案内する。"
+    },
+    {
+      "id": "HIG-03",
+      "result": "pass",
+      "evidence": "レイアウトは変えていない。320px・390px・文字200%・横向きの room 場面で横はみ出しなし（UX テスト）。デモの注記がない分、実 transport の画面は1行短くなる。"
+    },
+    {
+      "id": "HIG-04",
+      "result": "pass",
+      "evidence": "つながっている場合は「デモ」と書かず、つながっていない場合（開発・テスト）は従来どおり「別のスマホとはつながりません」と書くので、どちらでも実際の動きと表示が一致する。匿名ログインに失敗したときは RPC を呼ばずに通信の失敗として日本語で再試行を案内し、次の操作でログインをやり直す（supabase.test.ts）。"
+    },
+    {
+      "id": "HIG-05",
+      "result": "pass",
+      "evidence": "動き・音は変えていない。reduced-motion 検査で続く動き0、自動再生の音声・動画0（room 31場面）。"
+    },
+    {
+      "id": "GAME-01",
+      "result": "pass",
+      "evidence": "マスター T10（28画面）との対応は F05 の記録のまま。マスターにないデモの注記は実 transport では出ないので、実際のルームの画面はマスターの文言により近くなる。画面の node と状態の対応は ADOPTED_DESIGN.md のまま（友達と回す（デモ）の2画面は PR #39 でアーカイブ済みと履歴に直した）。"
+    },
+    {
+      "id": "GAME-02",
+      "result": "pass",
+      "evidence": "別々の端末で、参加・準備・開始・結果が同じサーバーの状態から出る。実 DB（RPC を authenticated として実行し取り消し）で、3人が同じ結果を受け取り、再送で二重に減らないことを確認。ほかの端末への反映はポーリング15秒（Realtime 未初期化）なので、全員の秒読みをそろえるには予約開始を使うと MULTI_DEVICE.md に書いた。"
+    },
+    {
+      "id": "GAME-03",
+      "result": "pass",
+      "evidence": "通知・バッジ・引き止めは増やしていない。ルームを離れても席と結果は残り、再読み込みで同じルームへ戻る（匿名 ID はその端末のブラウザに残る）。"
+    },
+    {
+      "id": "GAME-04",
+      "result": "pass",
+      "evidence": "招待リンクを受け取った人だけが入れ、ホストは担当者だけ（F10）。実 DB で招待のない人の読み取りは room-unavailable、ログインなしは 42501 を確認。名前・見守りの選択は変えていない。"
+    },
+    {
+      "id": "GAME-05",
+      "result": "pass",
+      "evidence": "専門用語（Supabase・匿名ログイン）は画面に出さない。コイン・商品・在庫が説明用の架空データであることの注記（提案モック）は変えていない。担当者向けの2台での確認手順を docs/MULTI_DEVICE.md に置いた。"
+    }
+  ]
+}
