@@ -326,6 +326,7 @@ describe('ガチャの流れ（T08）', () => {
     start('#/gacha/sanrio-capsule')
     expect(screen.getByRole('status')).toHaveTextContent('このガチャは売り切れました')
     // 回帰：回せないときは、詳細と確率の画面でも回す操作を出さない
+    expect(screen.getByText(/所持 3,000/)).toHaveTextContent('売り切れのため引けません')
     expect(screen.getByRole('link', { name: '1回引く準備へ' })).toHaveAttribute('aria-disabled', 'true')
     expect(screen.getByRole('link', { name: '1回引く準備へ' })).not.toHaveAttribute('href')
     go('#/gacha/sanrio-capsule/odds')

@@ -45,8 +45,10 @@ export function GachaDetail({ id, room }: { id: string; room: boolean }) {
           <h2 id="pay-title" className="pay-kicker">1回だけ引く</h2>
           <p className="pay-price"><b>{coinText(quote.price)}</b> コイン</p>
           <p className="pay-balance">
-            {quote.shortBy > 0
-              ? <>所持 {coinText(quote.balance)}・あと {coinText(quote.shortBy)} コイン足りません</>
+            {problem === 'sold-out'
+              ? <>所持 {coinText(quote.balance)}・売り切れのため引けません</>
+              : quote.shortBy > 0
+              ?<>所持 {coinText(quote.balance)}・あと {coinText(quote.shortBy)} コイン足りません</>
               : <>所持 {coinText(quote.balance)} <span aria-hidden="true">→</span><span className="visually-hidden">から</span> 引いた後 {coinText(quote.after)}</>}
           </p>
           <RemainBar gacha={gacha} stock={state.stock} />
