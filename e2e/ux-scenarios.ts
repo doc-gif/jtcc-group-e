@@ -6,7 +6,7 @@
 function demoState(extra: Record<string, unknown> = {}): string {
   const win = (id: string, prizeId: string, companions: string[]) => ({ id, gachaId: 'sanrio-capsule', prizeId, spent: 500, wonAt: '2026-09-20T00:00:00.000Z', companions, status: 'kept' })
   return JSON.stringify({
-    version: 1, coins: 2000, nickname: 'あなた', stock: {}, forceFeaturedNext: false, nextWinSeq: 3, welcomed: true, voiceOn: false, soundOn: false,
+    version: 1, coins: 29000, nickname: 'あなた', stock: {}, forceFeaturedNext: false, nextWinSeq: 3, welcomed: true, voiceOn: false, soundOn: false,
     wins: [win('w2', 'sanrio-capsule-2', ['ゆい', 'さき']), win('w1', 'sanrio-capsule-1', [])], favorites: [], reactions: [], ...extra,
   })
 }
