@@ -1,6 +1,6 @@
 import { HOST_KEY_PATTERN } from './hostKey'
 import {
-  cleanName, nameKey, RoomContractError, SHARED_CAPACITY, SHARED_NAME_MAX, SHARED_INITIAL_STOCK, SHARED_ONLINE_WINDOW_MS, SHARED_PRICE,
+  cleanName, nameKey, RoomContractError, SHARED_CAPACITY, SHARED_NAME_MAX, SHARED_INITIAL_STOCK, SHARED_MIN_GUESTS, SHARED_ONLINE_WINDOW_MS, SHARED_PRICE,
   SHARED_ROUND_LOCK_MS, SHARED_SCHEDULE_EXPIRY_MARGIN_MS, SHARED_SCHEDULE_MINUTES, SHARED_START_DELAY_MS, SHARED_TOP_PRIZE,
   type RoomErrorCode, type RoomTransport, type ScheduleOutcome, type SharedPrize, type Snapshot,
 } from './protocol'
@@ -94,10 +94,16 @@ export class MockRoomServer {
     return previous !== undefined && !this.nameTaken(room, previous, self) ? previous : this.autoName(room, self)
   }
 
+  /** Like lp_guest_count: active seats other than the host (not online presence). */
+  private guestCount(room: MockRoom) {
+    return [...room.members.values()].filter(member => member.active && member.id !== room.host).length
+  }
+
   /** All-or-nothing draw, like lp_draw: nothing changes unless every entrant gets a prize. */
   private draw(room: MockRoom, request: string) {
     const now = this.now()
     if (room.round && room.round.nextReadyAt > now) throw new RoomContractError('round-active')
+    if (this.guestCount(room) < SHARED_MIN_GUESTS) throw new RoomContractError('need-more-players')
     const entrants = [...room.members.values()].filter(member => member.active && member.ready && member.seenAt > now - SHARED_ONLINE_WINDOW_MS)
     if (!entrants.length) throw new RoomContractError('nobody-ready')
     const available = Object.values(room.stock).reduce((sum, n) => sum + n, 0)
@@ -132,10 +138,14 @@ export class MockRoomServer {
     for (const member of entrants) member.balance -= SHARED_PRICE
   }
 
-  /** Like lp_fire_schedule: the first snapshot at or after scheduledAt starts the round once. */
+  /**
+   * Like lp_fire_schedule: the first snapshot at or after scheduledAt starts the round once. With fewer than
+   * SHARED_MIN_GUESTS guests the schedule waits (stays set, no lastSchedule) until a join brings the last one.
+   */
   private fireSchedule(room: MockRoom) {
     const at = room.scheduledAt
     if (at === null || at > this.now()) return
+    if (this.guestCount(room) < SHARED_MIN_GUESTS) return
     room.scheduledAt = null
     const request = `schedule:${at}`
     if (room.rounds.some(round => round.request === request)) return
@@ -268,6 +278,8 @@ export class MockRoomServer {
         const nickname = this.pickName(room, chosen, userId)
         if (previous) { previous.nickname = nickname; previous.active = true; previous.seenAt = this.now() }
         else room.members.set(userId, { id: userId, nickname, balance: 3000, ready: false, active: true, seenAt: this.now() })
+        // Like lp_join (F13): the new member may be the guest a due schedule was waiting for.
+        this.fireSchedule(room)
         wake(room.id)
         return snapshot(room.id)
       },

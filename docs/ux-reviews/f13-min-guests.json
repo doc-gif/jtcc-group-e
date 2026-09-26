@@ -1,0 +1,58 @@
+{
+  "uiDigest": "1522a9b545bb3eb838e54f4c9f78694c7e8c6d8d16a23ec0a06058257b5f4806",
+  "reviewer": "Claude (F13: at least 2 guests besides the host)",
+  "reviewedAt": "2026-09-26",
+  "summary": "担当者の決定「ガチャはホスト以外に2人以上じゃないと引けないようにしたい」を、共有ルームの SQL・模擬サーバー・状態層（src/realtime/）とテスト・文書に追加した。画面・CSS・遷移は変更していない（src/realtime はどの画面からも import していない。ひとりで回すガチャと「友達と回す（デモ）」の useSimulatedRoom は変更なし）。今すぐ開始はホスト以外の active メンバーが 2 人未満なら need-more-players、予約は時刻を過ぎても足りなければ待ち、2 人目の入室で始まる。状態層は guestCount・playersNeeded・scheduleWaiting を出し、canStart と startBlockedBy に人数を含める。ロビーの開始ボタンと案内は F05 の画面でつなぐ。",
+  "criteria": [
+    {
+      "id": "HIG-01",
+      "result": "not-applicable",
+      "evidence": "画面を追加・変更していない。人数の案内の文字の大きさ・コントラストは F05 の画面実装時に評価する。開始できない理由は色だけでなく文言（playersNeededMessage「あと N 人で始められます」）で渡す（protocol.test.ts「F13: guests are active non-host seats…」）。"
+    },
+    {
+      "id": "HIG-02",
+      "result": "not-applicable",
+      "evidence": "画面を追加・変更していない。無効な開始ボタンの操作領域と読み上げは F05 で評価する。"
+    },
+    {
+      "id": "HIG-03",
+      "result": "not-applicable",
+      "evidence": "画面を追加・変更していない。320px・文字200%は F05 で評価する。"
+    },
+    {
+      "id": "HIG-04",
+      "result": "pass",
+      "evidence": "画面はないが、状態層が次の操作と理由を渡す。人数が足りないとき canStart=false、startBlockedBy='need-more-players'、playersNeeded にあと何人かが入り、参加者の状態にも同じ人数が出る（roomController.test.ts「F13: ホストのほかに 2 人以上いないと…」）。古い状態から開始を送ってもサーバーが need-more-players で断り、日本語の説明を返す（同テスト、supabase.test.ts「F13: 人数不足の開始は…」）。"
+    },
+    {
+      "id": "HIG-05",
+      "result": "not-applicable",
+      "evidence": "画面・演出・音を追加していない。動きを減らす設定への対応は F05 で評価する。"
+    },
+    {
+      "id": "GAME-01",
+      "result": "not-applicable",
+      "evidence": "画面を追加・変更していないため、実画面とマスターの照合は F05 で行う。F13 の状態（ホストのロビーで開始ボタンが無効と「あと N 人で始められます」、参加者側の同じ案内、予約の時刻を過ぎて人数待ち）は Figma のマスターに先に加えた（docs/ADOPTED_DESIGN.md の F13 の node）。"
+    },
+    {
+      "id": "GAME-02",
+      "result": "pass",
+      "evidence": "開始できないときにコイン・在庫・ラウンド・準備・予約を変えない（shared-db.test.mjs「starting now is refused with 0 or 1 guest…」、protocol.test.ts「mock parity (F13): starting now needs 2 active guests…」）。予約は時刻を過ぎても人数が足りなければ消えずに待ち、2 人目の入室で 1 回だけ始まる（shared-db.test.mjs「a due schedule waits for the second guest…」、protocol.test.ts「mock parity (F13): a due schedule waits…」）。エラー文言は責めない日本語で、上限の人数や DB の詳細を出さない。"
+    },
+    {
+      "id": "GAME-03",
+      "result": "pass",
+      "evidence": "人数待ちの間、状態層は 1 秒ごとの再取得をやめ、通常のポーリングと入室の通知で受け取る（roomController.test.ts「F13: 予約の時刻を過ぎても人数が足りなければ待ち…」）。通知・バッジは追加していない。待っている予約はホストが変更・取り消しできる（shared-db.test.mjs「the host can still change or cancel a waiting schedule」）。"
+    },
+    {
+      "id": "GAME-04",
+      "result": "not-applicable",
+      "evidence": "着せ替え・選択肢・公開範囲は変更していない。"
+    },
+    {
+      "id": "GAME-05",
+      "result": "not-applicable",
+      "evidence": "画面・説明文を追加していない。追加した日本語は errorMessage の need-more-players（「ガチャを始めるには、ホストのほかに2人以上が必要です。」）、playersNeededMessage、scheduleWaitingMessage だけ。画面での説明は F05 で評価する。"
+    }
+  ]
+}
