@@ -7,6 +7,15 @@ on:
   push:
     branches: [main]
   workflow_call:
+  # マージのキュー（scripts/auto-merge.mjs の advanceQueue）が、main を取り込んだ PR のブランチで起動する。
+  # GITHUB_TOKEN の push では pull_request の CI が動かないため。結果は PR の head の SHA に付き、必須チェックになる。
+  workflow_dispatch:
+    inputs:
+      queue_base:
+        description: main SHA the merge queue merged into this branch (classifies the change against it)
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -31,13 +40,25 @@ jobs:
         with:
           node-version: 24
       # PR の CI はマージ用のコミットで動く。main 側（HEAD^1）の判定スクリプトで PR の差分を判定し、
-      # PR が判定スクリプト自体を書き換えても全部の検査を飛ばせないようにする。push・呼び出しは常に全部。
+      # PR が判定スクリプト自体を書き換えても全部の検査を飛ばせないようにする。キューの CI は取り込んだ main の SHA と比べる。
+      # push・呼び出し（本番公開）は常に全部。
       - name: Classify the PR with main's rules
         id: scope
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.queue_base != '')
+        env:
+          QUEUE_BASE: ${{ inputs.queue_base }}
         run: |
-          if git show HEAD^1:scripts/change-scope.mjs > "$RUNNER_TEMP/change-scope.mjs" 2>/dev/null; then
-            node "$RUNNER_TEMP/change-scope.mjs" HEAD^1 HEAD
+          BASE=HEAD^1
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            if ! printf '%s' "$QUEUE_BASE" | grep -Eq '^[0-9a-f]{40}$' || ! git fetch --no-tags --depth=1 origin "$QUEUE_BASE"; then
+              echo "docs_only=false" >> "$GITHUB_OUTPUT"
+              echo "Full checks: queue base is not a readable main SHA"
+              exit 0
+            fi
+            BASE=$QUEUE_BASE
+          fi
+          if git show "$BASE:scripts/change-scope.mjs" > "$RUNNER_TEMP/change-scope.mjs" 2>/dev/null; then
+            node "$RUNNER_TEMP/change-scope.mjs" "$BASE" HEAD
           else
             echo "docs_only=false" >> "$GITHUB_OUTPUT"
             echo "Full checks: main has no change-scope.mjs yet"
