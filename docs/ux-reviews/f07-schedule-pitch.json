@@ -1,0 +1,18 @@
+{
+  "uiDigest": "a72d99b649423cd8aad81b8c18550df978a60cdb27fce34965b2963e00830e1a",
+  "reviewer": "Claude (F07 schedule and pitch mode review)",
+  "reviewedAt": "2026-09-26",
+  "summary": "F07 は共有ルームの SQL・transport・模擬サーバー・状態層（src/realtime/）とテストだけの変更で、画面・CSS・遷移は変更していない。src/realtime はどの画面からも import しておらず、pnpm build の JS に lp_schedule・invalid-schedule は含まれない。予約の選択・秒読み・ピッチモードの表示は Figma（task/F08 284:2717）の確認後に F05 で実装し、そのとき実画面を評価する。",
+  "criteria": [
+    { "id": "HIG-01", "result": "not-applicable", "evidence": "画面を追加・変更していない。予約の秒読みとピッチモードの表示の文字・コントラスト・色に頼らない表示は F05 の画面実装時に評価する。" },
+    { "id": "HIG-02", "result": "not-applicable", "evidence": "画面を追加・変更していない。1・3・5・10分の選択ボタンの操作領域・キーボード操作は F05 で評価する。状態層は選べる時間だけを scheduleOptions で渡す（roomController.test.ts「予約の変更・取り消し・期限の上限…」）。" },
+    { "id": "HIG-03", "result": "not-applicable", "evidence": "画面を追加・変更していない。320px・横向き・文字200%・セーフエリアは F05 で評価する。" },
+    { "id": "HIG-04", "result": "not-applicable", "evidence": "画面を追加・変更していない。予約の取り消し・今すぐ開始の導線とフォーカス移動は F05 で評価する。状態層は canSchedule・canSetPitchMode と、開始できなかった理由を scheduleNotice で渡す。" },
+    { "id": "HIG-05", "result": "not-applicable", "evidence": "画面・演出・音を追加していない。予約の秒読みの動きを減らす設定への対応は F05 で評価する。" },
+    { "id": "GAME-01", "result": "not-applicable", "evidence": "画面を追加・変更していないため、Figma の予約開始・ピッチ用デモの作業領域 task/F08 284:2717（ホストの予約設定 284:2719、予約済み 284:2814・284:2904、予約開始できず 284:2985、結果 284:3073）との照合は F05 で行う。状態層の項目（scheduledAt・secondsToScheduled・scheduleNotice・pitchMode・roundGuaranteed）はこれらの状態に対応させた。" },
+    { "id": "GAME-02", "result": "pass", "evidence": "ピッチモードの目玉は本物の在庫から出し、在庫が 0 なら確定しない（guaranteed=false）。確定したかを全員の snapshot に出すので、画面は「ピッチ用デモ」と明示できる（scripts/shared-db.test.mjs「pitch mode guarantees one real top prize…」、protocol.test.ts「mock pitch mode guarantees…」）。予定の時刻に開始できなかったときはコイン・在庫・準備を変えず、理由を日本語で返す（shared-db.test.mjs「nobody ready clears the schedule…」、roomController.test.ts「予約の変更・取り消し…」）。満員の案内に上限の数字を出さない。画面の文言と確率の注記は F05 で評価する。" },
+    { "id": "GAME-03", "result": "pass", "evidence": "予約はサーバー時刻で数え、ホストが通信を失っても時刻になればほかの参加者の再取得で 1 回だけ始まる（roomController.test.ts「予約した開始時刻まで補正した秒読みを出し、ホストが不在でも時刻になれば始まる」、shared-db.test.mjs「a non-host snapshot starts a due schedule once…」）。通知やバッジは追加していない。" },
+    { "id": "GAME-04", "result": "not-applicable", "evidence": "画面を追加・変更していない。予約中の準備の取り消しや見守り参加の表示は F05 で評価する。状態層では予約中も setReady(false) で取り消せ、開始時にオンラインで準備済みの人だけが対象になる。" },
+    { "id": "GAME-05", "result": "not-applicable", "evidence": "画面・説明文を追加していない。予約とピッチモードの説明は F05 で評価する。追加した日本語は errorMessage の invalid-schedule と scheduleMessage の案内だけ。" }
+  ]
+}

@@ -30,8 +30,9 @@ Linux の CI は `playwright install --with-deps chromium webkit` で OS 依存�
 全体 CI は [自動分割・結果集約](CI_SCALING.md)で全件を実行する。テスト数に応じて分割数を増やし、実行前の検出件数と最後の合格件数が一致しない場合はマージしない。
 
 - ラストピースの業務ロジック（抽選・確率・残りの段階・一律20%の交換・届け待ち・保存の復元・演出の台本・90日ルール）を `src/domain/domain.test.ts` で検証。
-- 40人ルームの状態層（40席と満員、サーバー時刻のずれと公開時刻、開始の再送、45秒後のホスト交代、再接続後の結果、購読失敗時のポーリング、アンマウントでの停止）を `src/realtime/roomController.test.ts` と `useSharedRoom.test.tsx` で検証。
+- 共有ルームの状態層（100席と満員、サーバー時刻のずれと公開時刻、開始の再送、45秒後のホスト交代、再接続後の結果、購読失敗時のポーリング、アンマウントでの停止、予約の秒読みとホスト不在での開始、予約の変更・取り消し・期限、ピッチモードの表示）を `src/realtime/roomController.test.ts` と `useSharedRoom.test.tsx` で検証。模擬サーバーと SQL の同等性は `src/realtime/protocol.test.ts`、SQL は `scripts/shared-db.test.mjs`（PGlite）で検証。
 - 画面の操作（ホームの絞り込み、詳細、ひとりで回す、友達と回すデモ、招待、当てたもの、マイページ、はじめて、保存できない端末）を `src/App.test.tsx` で検証。
+- 街の読み込み中（すぐ準備できたら出さない、0.3秒待ったら出す、準備できたら街へ、先に街へ行く、失敗とやり直し、導入のあと、動きを減らす設定）を `src/App.test.tsx` と `src/app/assets.test.ts`、ブラウザでは絵の読み込みを止めて `e2e/app.spec.ts` と UI/UX 検査（`town-loading`・`town-loading-error`）で検証。
 - 棚（9枠・お気に入りと取り消し・棚の外・共有前の見え方）とフレンド（友だちなし・友だちの棚・「いいな〜」は1回だけ・見られない状態）を `src/domain/shelf.test.ts` と `src/screens/Shelf.test.tsx`、ブラウザでは `e2e/app.spec.ts` で検証。
 - 法務・ブランドのきまり（禁止語、注記、ピピのセリフ、画像の許可リスト、交換シートの文言、残り口数を出さない）を `scripts/governance.test.mjs` で検証。
 - ブラウザで、ひとりで回す → 当てたもの → コインに交換、ハンドルを指でなぞる操作、友達と回す（目玉確定）、招待リンクからの参加を `e2e/app.spec.ts` で検証。
