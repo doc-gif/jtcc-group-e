@@ -1,42 +1,61 @@
+import './shelf.css'
 import { useApp } from '../app/appContext'
 import { paths } from '../app/router'
-import { catalog, findPrize } from '../domain/catalog'
-import { MockNotice, TabBar, TopBar } from '../components/Chrome'
-import { GoodsImage } from '../components/Goods'
+import { friendsOf } from '../domain/shelf'
+import { BackBar, MockNotice, TabBar } from '../components/Chrome'
 
+/** フレンドなしのイラスト（T09 267:8884 のベクター画をコードで描き直したもの）。 */
+function FriendsArt() {
+  return (
+    <span className="friend-art is-round" aria-hidden="true">
+      <svg viewBox="0 0 160 120" width="160" height="120" focusable="false">
+        <circle cx="62" cy="44" r="20" className="art-fill-soft" stroke="currentColor" strokeWidth="3" opacity="0.8" />
+        <circle cx="100" cy="44" r="20" className="art-fill" stroke="currentColor" strokeWidth="3" />
+        <path d="M30 112c0-26 14-42 32-42s32 16 32 42" className="art-fill" stroke="currentColor" strokeWidth="3" opacity="0.8" />
+        <path d="M68 112c0-26 14-42 32-42s32 16 32 42" className="art-fill" stroke="currentColor" strokeWidth="3" />
+      </svg>
+    </span>
+  )
+}
+
+/** フレンド（T09 267:8766 友だちあり・267:8884 なし）。友だちはデモ。文言はマスターに合わせる。 */
 export function Together() {
   const { state } = useApp()
-  const memories = state.wins.filter((win) => win.companions.length > 0).slice(0, 6)
+  const friends = friendsOf(state)
   return (
     <div className="screen">
-      <TopBar title="いっしょに回す" sub="TOGETHER" />
+      <BackBar title="フレンド" back={paths.town} backLabel="戻る" />
       <main className="content">
-        <p className="lead together-lead">友達とリンクでつながって、同じガチャを同時に回せます。当たった物も、はずれも、その場でいっしょに見られます。</p>
-        <ol className="steps">
-          <li><b>ルームを作る</b><span>ガチャを選んで「友達と回す」</span></li>
-          <li><b>リンクを送る</b><span>最大4人・リンクを持つ人だけ</span></li>
-          <li><b>みんなで回す</b><span>結果とおそろいを一緒に楽しむ</span></li>
-        </ol>
-        <section aria-labelledby="pick-title">
-          <h2 id="pick-title" className="section-title">どのガチャで回す？</h2>
-          <ul className="pick-list">
-            {catalog.map((gacha) => (
-              <li key={gacha.id}><a className="pick" href={paths.createRoom(gacha.id)}><span>{gacha.title}</span><small>♡ 友達と回す ›</small></a></li>
-            ))}
-          </ul>
-        </section>
-        <section aria-labelledby="memory-title">
-          <h2 id="memory-title" className="section-title">いっしょに当てた記録</h2>
-          {memories.length === 0 ? <p className="empty-line">まだありません。はじめての1回を、友達といっしょに。</p> : (
-            <ul className="memory-list">
-              {memories.map((win) => {
-                const found = findPrize(win.gachaId, win.prizeId)
-                if (!found) return null
-                return <li key={win.id}><GoodsImage art={found.prize.art} glow={found.prize.glow} size="sm" /><span><b>{found.prize.name}</b><small>♡ {win.companions.join('・')}と</small></span></li>
-              })}
+        {friends.length === 0 ? (
+          <div className="friend-empty">
+            <FriendsArt />
+            <h2 className="friend-empty-title">まだ友だちはいません</h2>
+            <p className="lead together-lead">いっしょに回した友だちの棚を、ここから見られます。</p>
+            <p className="fine">招待と共有範囲は後続で設計します。</p>
+            <a className="btn btn-main btn-block" href={paths.gachaList}>ガチャを見る</a>
+          </div>
+        ) : (
+          <section aria-labelledby="friends-title">
+            <h2 id="friends-title" className="lead together-lead">見に行ける友だち（デモ）</h2>
+            <ul className="friend-list">
+              {friends.map((friend) => (
+                <li key={friend.id} className={`friend-card${friend.viewable ? '' : ' is-unavailable'}`}>
+                  <span className="friend-avatar" aria-hidden="true">{friend.name.slice(0, 1)}</span>
+                  <span className="friend-text">
+                    <b>{friend.name}さんの棚</b>
+                    <span>{friend.viewable ? `飾っている ${friend.shelf.length} 点・デモ表示` : '今は見られません・デモ表示'}</span>
+                  </span>
+                  <a className={`btn btn-block ${friend.viewable ? 'btn-main' : 'btn-outline'}`} href={paths.friend(friend.id)}
+                    aria-label={friend.viewable ? `${friend.name}さんの棚を見に行く` : `${friend.name}さんの棚の状態を見る`}>
+                    {friend.viewable ? '棚を見に行く' : '状態を見る'}
+                  </a>
+                </li>
+              ))}
             </ul>
-          )}
-        </section>
+            <p className="fine">友だちの品は、あなたの持ち物に入りません。</p>
+            <a className="btn btn-outline btn-block" href={paths.gachaList}>ガチャのお店へ</a>
+          </section>
+        )}
         <MockNotice />
       </main>
       <TabBar active="friend" />

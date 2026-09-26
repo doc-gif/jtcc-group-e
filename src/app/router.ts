@@ -9,6 +9,11 @@ export type Route =
   | { name: 'spin'; id: string }
   | { name: 'room'; code: string; spin: boolean }
   | { name: 'collection' }
+  | { name: 'shelf' }
+  | { name: 'shelfShare' }
+  | { name: 'shelfItem'; id: string }
+  | { name: 'friend'; id: string }
+  | { name: 'friendItem'; id: string; item: string }
   | { name: 'together' }
   | { name: 'me' }
   | { name: 'notfound' }
@@ -22,6 +27,7 @@ export function parseHash(hash: string): Route {
   const parts = path.split('/')
   const [head, id, extra] = parts
   if (parts.length === 1 && head === 'gacha') return { name: 'gachaList' }
+  if (parts.length === 1 && head === 'shelf') return { name: 'shelf' }
   if (parts.length === 1 && (head === 'collection' || head === 'together' || head === 'me' || head === 'welcome')) return { name: head }
   if (!id || !ID.test(id)) return { name: 'notfound' }
   if (head === 'gacha' && parts.length === 2) return { name: 'gacha', id, room: false }
@@ -30,6 +36,9 @@ export function parseHash(hash: string): Route {
   if (head === 'gacha' && parts.length === 3 && extra === 'spin') return { name: 'spin', id }
   if (head === 'room' && parts.length === 2) return { name: 'room', code: id, spin: false }
   if (head === 'room' && parts.length === 3 && extra === 'spin') return { name: 'room', code: id, spin: true }
+  if (head === 'shelf' && parts.length === 2) return id === 'share' ? { name: 'shelfShare' } : { name: 'shelfItem', id }
+  if (head === 'friend' && parts.length === 2) return { name: 'friend', id }
+  if (head === 'friend' && parts.length === 3 && ID.test(extra)) return { name: 'friendItem', id, item: extra }
   return { name: 'notfound' }
 }
 
@@ -47,7 +56,17 @@ export const paths = {
   /** 招待リンクの行き先。デモではルームのコード＝ガチャの ID。 */
   room: (code: string) => `#/room/${code}`,
   roomSpin: (code: string) => `#/room/${code}/spin`,
+  /** 当てたもの（記録の一覧・交換・届けてもらう） */
   collection: '#/collection',
+  /** わたしの棚（下のタブ「コレクション」） */
+  shelf: '#/shelf',
+  /** 友だちからの見え方（共有前のプレビュー。公開はしない） */
+  shelfShare: '#/shelf/share',
+  shelfItem: (prizeId: string) => `#/shelf/${prizeId}`,
+  /** 友だち（デモ）の棚 */
+  friend: (id: string) => `#/friend/${id}`,
+  friendItem: (id: string, prizeId: string) => `#/friend/${id}/${prizeId}`,
+  /** フレンド（下のタブ「フレンド」） */
   together: '#/together',
   me: '#/me',
 }

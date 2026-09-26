@@ -5,7 +5,8 @@ import { findGacha, findPrize, seriesList } from '../domain/catalog'
 import { exchange, exchangeQuote, requestDelivery, summarize } from '../domain/game'
 import { coinText, EXCHANGE_RATE, yen } from '../domain/odds'
 import type { SeriesId, WinRecord, WinStatus } from '../domain/types'
-import { MockNotice, SaveWarning, TabBar, TopBar } from '../components/Chrome'
+import { ownedItems, SHELF_SIZE } from '../domain/shelf'
+import { BackBar, CoinPill, MockNotice, SaveWarning, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { Sheet } from '../components/Sheet'
 
@@ -34,6 +35,8 @@ export function Collection() {
   const toggle = (id: string) => setSelected((list) => list.includes(id) ? list.filter((item) => item !== id) : [...list, id])
   const quote = exchangeQuote(state, selected)
   const quoteTotal = quote.reduce((sum, row) => sum + row.coins, 0)
+  // 棚の何番目に飾られているか（T09 267:8623 の「持っている・棚 01」）
+  const shelfSlot = new Map(ownedItems(state).slice(0, SHELF_SIZE).map((item, index) => [item.prize.id, index + 1]))
 
   const doExchange = () => {
     update((current) => exchange(current, selected))
@@ -48,7 +51,7 @@ export function Collection() {
 
   return (
     <div className="screen">
-      <TopBar title="当てたもの" sub="MY COLLECTION" />
+      <BackBar title="当てたもの" back={paths.shelf} backLabel="戻る"><CoinPill /></BackBar>
       <main className="content">
         <p className="lead collection-lead">これまで当てた物の記録です。手元にある物は、届けてもらうか、コインに交換できます。</p>
         <dl className="summary">
@@ -83,6 +86,7 @@ export function Collection() {
               if (!found) return null
               const { prize } = found
               const selectable = win.status === 'kept'
+              const slot = win.status === 'exchanged' ? undefined : shelfSlot.get(prize.id)
               return (
                 <li key={win.id} className={`win glow-${prize.glow}`}>
                   <GoodsImage art={prize.art} glow={prize.glow} />
@@ -90,6 +94,7 @@ export function Collection() {
                   <span className="win-with">{withText(win)}</span>
                   <span className="win-meta">{yen(prize.refPrice)}相当・{dateText(win.wonAt)}</span>
                   <span className={`win-status st-${win.status}`}>{statusLabel[win.status]}{win.exchangedCoins !== undefined && `（+${coinText(win.exchangedCoins)}）`}</span>
+                  {win.status !== 'exchanged' && <a className="win-link" href={paths.shelfItem(prize.id)}>{slot ? `棚 ${String(slot).padStart(2, '0')} で見る` : 'くわしく見る'} ›</a>}
                   {selectable && (
                     <label className="win-check">
                       <input type="checkbox" checked={selected.includes(win.id)} onChange={() => toggle(win.id)} />
@@ -101,6 +106,7 @@ export function Collection() {
             })}
           </ul>
         )}
+        <a className="btn btn-outline btn-block" href={paths.shelf}>棚ビューに戻る</a>
         <SaveWarning />
         <MockNotice />
       </main>

@@ -26,7 +26,7 @@ test('禁止語（換金・必ず当たる・還元率100%・等級の文字）�
 
 test('「提案モック・公式サービスではありません」を表示する部品があり、各入口で使う', async () => {
   expect(await read('src/components/Chrome.tsx')).toContain('提案モック・公式サービスではありません')
-  for (const screen of ['Town', 'GachaList', 'GachaDetail', 'GachaOdds', 'Welcome', 'Room', 'Spin', 'Collection', 'Me', 'Together']) {
+  for (const screen of ['Town', 'GachaList', 'GachaDetail', 'GachaOdds', 'Welcome', 'Room', 'Spin', 'Collection', 'Me', 'Together', 'Shelf', 'Friend']) {
     expect(await read(`src/screens/${screen}.tsx`), screen).toContain('<MockNotice />')
   }
 })

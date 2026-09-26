@@ -1,6 +1,6 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { uxScenarios } from './ux-scenarios.ts'
+import { SEED_STORAGE_KEY, uxScenarios } from './ux-scenarios.ts'
 
 /**
  * 時計を止めた画面では、axe が使うタイマーだけを 1ms ずつ進めて検査する（導入は 3 秒まで進まない）。
@@ -16,7 +16,7 @@ async function axeViolations(page: Page, paused: boolean) {
 for (const scenario of uxScenarios) {
   test(`${scenario.name}: HIG を Web に適用した UI/UX 基準`, async ({ page }, testInfo) => {
     if (scenario.pauseTimers) { await page.clock.install({ time: 0 }); await page.clock.pauseAt(1000) }
-    if (scenario.saved) await page.addInitScript((value) => { localStorage.setItem('lastpiece_app_v1', value) }, JSON.stringify(scenario.saved))
+    if (scenario.seed) await page.addInitScript(([key, value]) => { localStorage.setItem(key, value) }, [SEED_STORAGE_KEY, scenario.seed])
     await page.goto(scenario.path)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     expect(await axeViolations(page, Boolean(scenario.pauseTimers))).toEqual([])

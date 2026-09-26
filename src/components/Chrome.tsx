@@ -59,13 +59,13 @@ function TabIcon({ id, active }: { id: Tab; active: boolean }) {
 
 /**
  * 共通の下のタブ（デザインマスター 267:8198 の 4 タブ）。
- * ガチャ・コレクション・フレンドは、マスターの画面を実装するまで既存の画面へつなぐ。
+ * コレクションは「わたしの棚」、フレンドは友だち（デモ）の入口（F04・T09）。
  */
 export function TabBar({ active }: { active?: Tab }) {
   const tabs: Array<{ id: Tab; label: string; href: string }> = [
     { id: 'town', label: '街', href: paths.town },
     { id: 'gacha', label: 'ガチャ', href: paths.gachaList },
-    { id: 'collection', label: 'コレクション', href: paths.collection },
+    { id: 'collection', label: 'コレクション', href: paths.shelf },
     { id: 'friend', label: 'フレンド', href: paths.together },
   ]
   return (
