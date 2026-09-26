@@ -1,8 +1,8 @@
 {
-  "uiDigest": "c2316796c2d2aa7eccbf4274bd4cecdf2b31bbe3b908f3e5a28e668481646139",
+  "uiDigest": "d2e80ecdcaedc4b9a2b80b48a10746c91c5a629bea25433cc2e6623b00abce50",
   "reviewer": "Claude (implementation agent, local #125)",
   "reviewedAt": "2026-09-27",
-  "summary": "#122 で Figma の Lastpiece v2 DS に入ったトークンを src/index.css に同じ名前・同じ値で持った（#125）。見た目で変わるのは --radius が radius/control の別名になり 14px → 12px になった 10 か所（.btn・.welcome-card・.empty・.notice-box・.prize・.summary div・.win・.panel・.steps li・.pick）だけ。そのほかは同じ値の直値をトークン参照に置き換えただけで、描画は変わらない。Chromium の 320px（vite dev）で街の導入・はじめて・ガチャ詳細・確率・わたしの棚・ルームを作る を開き、.btn の角丸が 12px、横はみ出し 0 を確認し、文字 200%（html の font-size 200%）でも 6 画面すべて横はみ出し 0。見出し・コイン札・Chip/Input/Text ボタンの見た目は #143 で、この記録の対象外。",
+  "summary": "#122 で Figma の Lastpiece v2 DS に入ったトークンを src/index.css に同じ名前・同じ値で持った（#125）。見た目で変わるのは --radius が radius/control の別名になり 14px → 12px になった 10 か所（.btn・.welcome-card・.empty・.notice-box・.prize・.summary div・.win・.panel・.steps li・.pick）だけ。そのほかは同じ値の直値をトークン参照に置き換えただけで、描画は変わらない。Chromium の 320px（vite dev）で街の導入・はじめて・ガチャ詳細・確率・わたしの棚・ルームを作る を開き、.btn の角丸が 12px、横はみ出し 0 を確認し、文字 200%（html の font-size 200%）でも 6 画面すべて横はみ出し 0。見出し・コイン札・Chip/Input/Text ボタンの見た目は #143 で、この記録の対象外。マージのキューが取り込んだ main（#156・#153 のキャラクターの絵 .char-art）は --radius などのトークンを使わず、この変更と重ならないことを確かめて digest を取り直した。",
   "criteria": [
     {
       "id": "HIG-01",
