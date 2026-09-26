@@ -25,6 +25,8 @@ async function seeded(page: Page, seed: RoomSeed) {
 }
 
 test('ホストが作って予約・ピッチ用・今すぐ開始、参加者は名前を選んで準備し、秒読み → 同時開封 → 結果', async ({ page, context }) => {
+  // 3つのタブの流れで、タブ間の伝播待ち（最大20秒）と秒読みを含むため、既定の30秒では足りないことがある（Chromium で約27秒、WebKit の CI で timeout）。上限を3倍にする
+  test.slow()
   const errors = watchErrors(page)
   await page.goto('./#/gacha/melody-anniv')
   await page.getByRole('link', { name: /友達と回す/ }).click()
