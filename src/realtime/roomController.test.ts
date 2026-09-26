@@ -560,12 +560,12 @@ test('F13: ホストのほかに 2 人以上いないと始められず、あと
   const { server, controller } = setup()
   const { transport, net } = network(server.asUser('host'))
   const host = controller('host', transport)
-  expect(host.getState()).toMatchObject({ guestCount: 0, playersNeeded: 0 })
+  expect(host.getState()).toMatchObject({ guestCount: 0, playersNeeded: 0, playersNeededMessage: null })
   await host.createAsHost(KEY, 'ホスト')
   await host.setReady(true)
   expect(host.getState()).toMatchObject({
     guestCount: 0, playersNeeded: 2, canStart: false, startBlockedBy: 'need-more-players', readyOnline: 1,
-    seats: { taken: 1 },
+    seats: { taken: 1 }, playersNeededMessage: 'あと2人で始められます', scheduleWaitingMessage: null,
   })
   const invite = host.getState().snapshot!.invite
   const a = controller('a')
@@ -574,7 +574,7 @@ test('F13: ホストのほかに 2 人以上いないと始められず、あと
   await vi.advanceTimersByTimeAsync(0)
   expect(host.getState()).toMatchObject({ guestCount: 1, playersNeeded: 1, canStart: false, startBlockedBy: 'need-more-players' })
   // 参加者にも同じ人数を出す（開始できない理由はホストでないこと）。
-  expect(a.getState()).toMatchObject({ guestCount: 1, playersNeeded: 1, startBlockedBy: 'host-required' })
+  expect(a.getState()).toMatchObject({ guestCount: 1, playersNeeded: 1, startBlockedBy: 'host-required', playersNeededMessage: 'あと1人で始められます' })
   // 古い状態の端末から送っても、サーバーが断る。コイン・ラウンドは変わらない。
   expect(await host.start()).toEqual({
     ok: false, error: { code: 'need-more-players', message: 'ガチャを始めるには、ホストのほかに2人以上が必要です。' },
@@ -585,7 +585,7 @@ test('F13: ホストのほかに 2 人以上いないと始められず、あと
   const b = controller('b')
   await b.join(invite, 'い')
   await vi.advanceTimersByTimeAsync(0)
-  expect(host.getState()).toMatchObject({ guestCount: 2, playersNeeded: 0, canStart: true, startBlockedBy: null, seats: { taken: 3 } })
+  expect(host.getState()).toMatchObject({ guestCount: 2, playersNeeded: 0, canStart: true, startBlockedBy: null, seats: { taken: 3 }, playersNeededMessage: null })
   expect(b.getState()).toMatchObject({ guestCount: 2, playersNeeded: 0 })
   // 退室した人は数えない。
   await b.leave()
@@ -610,14 +610,15 @@ test('F13: 予約の時刻を過ぎても人数が足りなければ待ち、2 �
   await host.setReady(true)
   await host.schedule(1)
   const scheduledAt = host.getState().scheduledAt!
-  expect(host.getState()).toMatchObject({ scheduleWaiting: false, playersNeeded: 1, secondsToScheduled: 60 })
+  expect(host.getState()).toMatchObject({ scheduleWaiting: false, scheduleWaitingMessage: null, playersNeeded: 1, secondsToScheduled: 60 })
 
   await vi.advanceTimersByTimeAsync(60_250)
   expect(host.getState()).toMatchObject({
     phase: 'ready', scheduledAt, secondsToScheduled: 0, scheduleWaiting: true, playersNeeded: 1,
+    scheduleWaitingMessage: '開始の時刻になりました。あと1人集まると始まります。', playersNeededMessage: 'あと1人で始められます',
     lastSchedule: null, scheduleNotice: null, canSchedule: true,
   })
-  expect(a.getState()).toMatchObject({ scheduleWaiting: true, playersNeeded: 1 })
+  expect(a.getState()).toMatchObject({ scheduleWaiting: true, playersNeeded: 1, scheduleWaitingMessage: '開始の時刻になりました。あと1人集まると始まります。' })
   const polled = snapshots.mock.calls.length
   await vi.advanceTimersByTimeAsync(10_000)
   expect(snapshots.mock.calls.length - polled).toBeLessThanOrEqual(1)
@@ -629,7 +630,7 @@ test('F13: 予約の時刻を過ぎても人数が足りなければ待ち、2 �
   expect(b.getState()).toMatchObject({ phase: 'countdown', scheduleWaiting: false, lastSchedule: { status: 'started', scheduledAt, roundNo: 1 } })
   await vi.advanceTimersByTimeAsync(0)
   expect(host.getState()).toMatchObject({
-    phase: 'countdown', balance: 2500, scheduledAt: null, scheduleWaiting: false, playersNeeded: 0,
+    phase: 'countdown', balance: 2500, scheduledAt: null, scheduleWaiting: false, scheduleWaitingMessage: null, playersNeeded: 0,
     lastSchedule: { status: 'started', scheduledAt, roundNo: 1 },
   })
   expect(b.getState().balance).toBe(3000)

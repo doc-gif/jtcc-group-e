@@ -1,5 +1,5 @@
 {
-  "uiDigest": "2f82d2a57deabd43fefce8e3b40c369eec1609229c307b046e2f76b811c9746a",
+  "uiDigest": "1522a9b545bb3eb838e54f4c9f78694c7e8c6d8d16a23ec0a06058257b5f4806",
   "reviewer": "Claude (F13: at least 2 guests besides the host)",
   "reviewedAt": "2026-09-26",
   "summary": "担当者の決定「ガチャはホスト以外に2人以上じゃないと引けないようにしたい」を、共有ルームの SQL・模擬サーバー・状態層（src/realtime/）とテスト・文書に追加した。画面・CSS・遷移は変更していない（src/realtime はどの画面からも import していない。ひとりで回すガチャと「友達と回す（デモ）」の useSimulatedRoom は変更なし）。今すぐ開始はホスト以外の active メンバーが 2 人未満なら need-more-players、予約は時刻を過ぎても足りなければ待ち、2 人目の入室で始まる。状態層は guestCount・playersNeeded・scheduleWaiting を出し、canStart と startBlockedBy に人数を含める。ロビーの開始ボタンと案内は F05 の画面でつなぐ。",

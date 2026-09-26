@@ -1,7 +1,7 @@
 import { browserHostKeyStore, HOST_KEY_PATTERN, type HostKeyStore } from './hostKey'
 import {
-  errorMessage, guestCount as countGuests, nameSuggestion, playersNeeded as needed, RoomContractError, SHARED_CAPACITY, SHARED_PRICE, SHARED_SCHEDULE_EXPIRY_MARGIN_MS, SHARED_SCHEDULE_MINUTES,
-  scheduleMessage, secondsUntil, serverOffset,
+  errorMessage, guestCount as countGuests, nameSuggestion, playersNeeded as needed, playersNeededMessage as neededText, RoomContractError, SHARED_CAPACITY, SHARED_PRICE, SHARED_SCHEDULE_EXPIRY_MARGIN_MS, SHARED_SCHEDULE_MINUTES,
+  scheduleMessage, scheduleWaitingMessage as waitingText, secondsUntil, serverOffset,
   type Member, type RoomErrorCode, type RoomTransport, type Round, type ScheduleMinutes, type ScheduleOutcome,
   type SharedPrize, type Snapshot,
 } from './protocol'
@@ -101,11 +101,15 @@ export interface RoomState {
   guestCount: number
   /**
    * 始めるのにあと何人必要か（F13: ホストのほかに 2 人以上）。足りていれば 0。
-   * 画面は「あと N 人で始められます」（playersNeededMessage）に使う。参加前（snapshot なし）は 0。
+   * 参加前（snapshot なし）は 0。
    */
   playersNeeded: number
+  /** 人数が足りないときの案内「あと N 人で始められます」。足りていれば null。ホスト・参加者の両方に出す。 */
+  playersNeededMessage: string | null
   /** 予約の時刻を過ぎたが人数が足りず、開始を待っている。2 人目が入った時点でサーバーが始める。 */
   scheduleWaiting: boolean
+  /** scheduleWaiting のときの案内「開始の時刻になりました。あと N 人集まると始まります。」。それ以外は null。 */
+  scheduleWaitingMessage: string | null
   /** 契約の開始条件に数える人数（ホストを含む、オンラインで準備済み）。 */
   readyOnline: number
   /** ホスト以外のオンライン準備済み人数（デザイン T10 の表示用）。 */
@@ -265,6 +269,7 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       : readyOnline < 1 ? 'nobody-ready' : null
     const balance = snap?.balance ?? null
     const scheduledAt = snap?.scheduledAt ?? null
+    const scheduleWaiting = scheduledAt !== null && missing > 0 && serverNow >= Date.parse(scheduledAt)
     const lastSchedule = snap?.lastSchedule ?? null
     const expiresAt = snap ? Date.parse(snap.expiresAt) : 0
     // 開始できなかった理由はホストにだけ出す。閉じた後、次の予約・開始の後（古い理由）は出さない。
@@ -278,8 +283,8 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       nameSuggestion: error?.code === 'name-taken' ? error.suggestion ?? null : null,
       canRename: live && busy === null && self !== null && (phase === 'lobby' || phase === 'ready'),
       seats: { taken: members.length, capacity: SHARED_CAPACITY, full: members.length >= SHARED_CAPACITY },
-      guestCount: guests, playersNeeded: missing,
-      scheduleWaiting: scheduledAt !== null && missing > 0 && serverNow >= Date.parse(scheduledAt),
+      guestCount: guests, playersNeeded: missing, playersNeededMessage: neededText(missing),
+      scheduleWaiting, scheduleWaitingMessage: scheduleWaiting ? waitingText(missing) : null,
       readyOnline, readyOthers, balance,
       canReady: live && self !== null && !locked && busy === null && (self.ready || (balance ?? 0) >= SHARED_PRICE),
       canStart: live && busy === null && startBlockedBy === null,
