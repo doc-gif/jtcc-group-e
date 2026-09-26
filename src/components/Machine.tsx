@@ -30,6 +30,14 @@ export function Machine({ className = '', label = 'ガチャガチャ。右の�
       <circle cx="199" cy="201" r="30" fill="#DDA9B8" />
       <path d="M109 171h46M154 168h46M199 168h45M127 201h46M177 201h45" stroke="#FFF9FA" strokeWidth="4" opacity="0.8" />
       <path d="M85 109C85.7 73.7 101.7 49 133 35" fill="none" stroke="#FFF9FA" strokeWidth="9" opacity="0.75" />
+      {/* F14: ドームの上の赤いリボン（マスターの筐体 267:10520 の飾り。Chrome.tsx の Bow と同じ形） */}
+      <g className="bow bow-red m-bow-top" transform="translate(145 4) scale(1.75)">
+        <path className="bow-tail" d="M12.5 10 8 17.5h5l3-5zM21.5 10l4.5 7.5h-5l-3-5z" />
+        <path className="bow-loop" d="M17 8.5C13 2.5 6.5.5 3.5 2.5.5 4.5 1 12.5 4 14.8c3 2.4 9-.8 13-6.3z" />
+        <path className="bow-loop" d="M17 8.5c4-6 10.5-8 13.5-6 3 2 2.5 10-.5 12.3-3 2.4-9-.8-13-6.3z" />
+        <circle className="bow-knot" cx="17" cy="8.5" r="3.6" />
+        <circle className="bow-shine" cx="16" cy="7.4" r="1.1" />
+      </g>
       <path d="M69 221h214" stroke="#B7818C" strokeWidth="11" />
       <rect x="88" y="232" width="102" height="62" rx="18" fill="#FFF9FA" stroke="#C28E9E" strokeWidth="2" />
       <path d="M107 257h64" stroke="#B5CBBF" strokeWidth="5" />

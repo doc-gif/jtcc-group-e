@@ -1,9 +1,10 @@
 /* ===== 棚・フレンド（T09・F04／F11 でマスターに合わせた） ===== */
 /* 色は src/index.css のトークンだけを使う。木の棚板・枠の線・絵のミントは絵の色のトークン（--shelf-wood・--shelf-slot-line・--art-mint）。 */
 
+/* F14: 白地に melody-pink の点線（267:8482 collection summary） */
 .shelf-summary {
   display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem;
-  background: var(--surface); border-radius: 18px; padding: 0.75rem 0.9rem;
+  background: var(--surface); border: 2.5px dashed var(--lp-v2-sanrio-melody-pink); border-radius: 18px; padding: 0.75rem 0.9rem;
 }
 .shelf-summary-text { flex: 1 1 10rem; min-width: 0; display: grid; gap: 0.2rem; }
 /* 狭いときや文字が大きいときは、ボタンが下の行へ回る */
@@ -62,7 +63,7 @@ a.shelf-row:hover { box-shadow: 0 0 0 3px var(--line); }
 .item-eyebrow { color: var(--deep); font-weight: 700; font-size: 0.9375rem; }
 .item-card {
   display: flex; flex-direction: column; align-items: flex-start; gap: 0.3rem;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 1rem;
+  background: var(--surface); border: 2.5px dashed var(--lp-v2-sanrio-melody-pink); border-radius: 20px; padding: 1rem;
 }
 .item-card .goods { align-self: center; width: min(100%, 13rem); height: auto; aspect-ratio: 1; margin-bottom: 0.5rem; }
 .item-card h2 { font-size: 1.375rem; line-height: 1.4; color: var(--text); overflow-wrap: anywhere; }

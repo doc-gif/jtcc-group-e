@@ -9,3 +9,8 @@
 .page-header-back { flex: none; min-width: 5.5rem; }
 .page-header h1 { flex: 1 1 8rem; min-width: 0; font-size: 1.375rem; font-weight: 800; line-height: 1.4; color: var(--text); overflow-wrap: anywhere; outline-offset: 4px; }
 .page-header-sub { font-size: 0.8125rem; font-weight: 700; color: var(--deep); }
+
+/* F14: 見出しは Zen Maru Gothic Bold 24px（マスターの見出し、文字スタイルなし）。右上に白い雲 */
+.page-header { position: relative; }
+.page-header > :not(.deco-cloud) { position: relative; z-index: 1; }
+.page-header h1 { font-family: var(--font-heading); font-weight: 700; font-size: 1.5rem; line-height: 1.35; }

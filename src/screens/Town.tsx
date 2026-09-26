@@ -4,7 +4,7 @@ import { OPENING_TIMING, shouldShowOpening } from '../app/opening'
 import { LOADING_DELAY, useAssetStatus, useDelayed, type AssetGate } from '../app/assets'
 import { paths } from '../app/router'
 import { townFeature } from '../app/townAssets'
-import { CoinPill, ExampleNotice, SaveWarning, ServiceNotice, TabBar } from '../components/Chrome'
+import { Bow, CoinPill, ExampleNotice, SaveWarning, ServiceNotice, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { TownMapLayer, TownViewport } from '../components/TownMap'
 
@@ -136,19 +136,22 @@ function TownHome() {
   return (
     <div className="screen town-screen">
       <header className="town-header">
-        <h1 id="page-title" tabIndex={-1}>ラストピース</h1>
+        <h1 id="page-title" tabIndex={-1}>ラストピース<Bow /></h1>
         <CoinPill demo />
         <ServiceNotice className="town-disclaimer" />
       </header>
       <main className="town-main">
+        {/* お店の日よけ（マスター 360:994）。飾りで、地図の窓の上に重ねる */}
+        <div className="town-awning" aria-hidden="true" />
         <div className="town-area">
           <h2 className="visually-hidden">街の地図</h2>
           <TownViewport winCount={count} />
-          <p className="town-hint" aria-hidden="true">街をドラッグして探索</p>
+          <p className="town-hint" aria-hidden="true"><b className="town-hint-title">ようこそ、ラストピースの街へ！</b>街をドラッグして探索</p>
         </div>
         <div className="content town-content">
           {!state.welcomed && <a className="welcome-card" href={paths.welcome}><b>はじめての方へ</b><span>ラストピースの遊び方とニックネーム ›</span></a>}
-          <a className="feature-card" href={paths.gacha(gacha.id)}>
+          <a className="feature-card has-bow" href={paths.gacha(gacha.id)}>
+            <Bow className="card-bow" />
             <GoodsImage art={prize.art} glow={prize.glow} size="lg" />
             <span className="feature-copy">
               <span className="feature-kicker">注目のピース</span>

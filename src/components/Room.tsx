@@ -46,7 +46,11 @@ export function RoomStage({ caption, variant = 'gift', faces = [], countdown, pr
   const shown = photo && failedUrl !== photo.url ? photo : null
   return (
     <figure className={`room-stage stage-${variant}${compact ? ' is-compact' : ''}`}>
-      <figcaption className="room-stage-caption">{caption}</figcaption>
+      <figcaption className="room-stage-caption">
+        <span className="stage-flower is-left" aria-hidden="true" />
+        {caption}
+        <span className="stage-flower is-right" aria-hidden="true" />
+      </figcaption>
       <div className="room-stage-body">
         <svg className="room-stage-art" viewBox="0 0 340 170" aria-hidden="true" focusable="false">
           <ellipse cx="170" cy="150" rx="120" ry="14" className="stage-shadow" />

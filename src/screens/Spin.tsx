@@ -7,7 +7,7 @@ import { spin, spinCheck, spinQuote, type SpinOutcome } from '../domain/game'
 import { coinText, OPEN_TAPS } from '../domain/odds'
 import { TIMING, TURNS } from '../domain/spinScript'
 import type { Gacha } from '../domain/types'
-import { ExampleNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
+import { Bow, ExampleNotice, PageHeader, SaveWarning, Sparkles, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { Machine } from '../components/Machine'
 import { NotFound } from './NotFound'
@@ -87,7 +87,7 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
   const quote = spinQuote(state, gacha)
 
   return (
-    <div className={`screen spin-screen${confirming ? ' is-confirm' : ''}`}>
+    <div className={`screen spin-screen ${phase === 'revealed' ? 'world-sky' : 'world-lavender'}${confirming ? ' is-confirm' : ''}`}>
       {won && opened ? (
         <OpenScene won={won} gacha={gacha} balance={state.coins} onReveal={onReveal} onTap={() => ring(CHIMES.tap, 30)} revealed={phase !== 'opening'} />
       ) : (
@@ -184,7 +184,9 @@ function OpenScene({ won, gacha, balance, revealed, onReveal, onTap }: OpenProps
       <PageHeader title="今回の結果" back={paths.gacha(gacha.id)} />
       <main className="content result-content">
         <p className="fine result-kicker">デモ・結果は抽選ごとに変わります</p>
-        <article className="result-card" aria-labelledby="result-name">
+        <article className="result-card has-bow" aria-labelledby="result-name">
+          <Bow className="card-bow bow-top" />
+          <Sparkles />
           <GoodsImage art={won.prize.art} glow={won.prize.glow} size="lg" />
           <h2 id="result-name" className="reveal-name">{won.prize.name}</h2>
           <p className="result-sub">{gacha.title}で獲得</p>
@@ -204,7 +206,7 @@ function SpinProblem({ gacha, problem }: { gacha: Gacha; problem: NonNullable<Re
   const quote = spinQuote(state, gacha)
   const soldOut = problem !== 'insufficient-coins'
   return (
-    <div className="screen">
+    <div className="screen world-lavender">
       <PageHeader title={soldOut ? '売り切れ' : 'コイン不足'} back={paths.gacha(gacha.id)} />
       <main className="content problem-content">
         {soldOut ? (
