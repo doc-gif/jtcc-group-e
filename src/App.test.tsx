@@ -449,24 +449,139 @@ describe('ガチャの流れ（T08）', () => {
     expect(nav()).toBeNull()
     expect(screen.getByText(/ラストピースは開発中のサービスです/, { selector: '.page-header-notice' })).toBeVisible()
     expect(screen.getByText('回転 0 / 3')).toBeInTheDocument()
-    expect(screen.getByText('右のハンドルをタップして進めます')).toBeVisible()
+    expect(screen.getByText('つまみを右にくるっと回そう')).toBeVisible()
+    expect(screen.getByText('右回りに一周で 1 回転。ボタンでも回せます。')).toBeVisible()
     expect(screen.getByText('500コイン使用済み・残高29,500')).toBeVisible()
+    // なぞる前は、つまみの上に右回りの矢印（マスター turn1）
+    expect(document.querySelector('.m-hint')).not.toBeNull()
     fireEvent.click(button('1タップで1回転'))
     expect(screen.getByText('回転 1 / 3')).toBeInTheDocument()
-    // 右のハンドルを押しても1回転進む
-    fireEvent.click(document.querySelector('.m-handle-hit')!)
+    // 1 周した瞬間は「カチッ」（click1）: 線と札、本文、点灯したバー。0.4 秒で消えて次の案内（turn2）に戻る
+    expect(document.querySelector('.m-click')).not.toBeNull()
+    expect(document.querySelector('.m-hint')).toBeNull()
+    expect(screen.getByText('1 回転、できた！')).toBeVisible()
+    expect(screen.getByText('つづけて右に回そう。')).toBeVisible()
+    expect(document.querySelectorAll('.turn-bars span')[0]).toHaveClass('on', 'is-new')
+    tick(400)
+    expect(document.querySelector('.m-click')).toBeNull()
+    expect(document.querySelector('.m-hint')).not.toBeNull()
+    expect(screen.getByText('つまみを右にくるっと回そう')).toBeVisible()
+    expect(document.querySelectorAll('.turn-bars span')[0]).not.toHaveClass('is-new')
+    // つまみを押しても1回転進む
+    fireEvent.click(document.querySelector('.m-knob-hit')!)
     expect(screen.getByText('回転 2 / 3')).toBeInTheDocument()
+    expect(screen.getByText('2 回転、できた！')).toBeVisible()
   })
 
-  test('筐体は静止の絵で、回しても飾りや背景は増えない（マスター 267:10520）', () => {
+  test('筐体は静止の絵で、回しても飾りや背景は増えない。つまみだけが 1 回転 = 360° 回る（部品 419:10377）', () => {
     start('#/gacha/sanrio-capsule/spin')
     const machine = () => screen.getByRole('img', { name: /ガチャガチャ/ })
-    const art = machine().innerHTML.replace(/style="[^"]*"/g, '')
+    const art = () => machine().querySelector('.m-art')!.innerHTML
+    const knob = () => machine().querySelector<SVGGElement>('.m-knob')!
+    const before = art()
+    expect(knob().style.transform).toBe('rotate(0deg)')
     fireEvent.click(button(/使って1回引く/))
     fireEvent.click(button('1タップで1回転'))
+    expect(knob().style.transform).toBe('rotate(360deg)')
     fireEvent.click(button('1タップで1回転'))
-    expect(machine().innerHTML.replace(/style="[^"]*"/g, '').replace(/<circle class="m-handle-hit"[^>]*><\/circle>/, '')).toBe(art)
+    expect(knob().style.transform).toBe('rotate(720deg)')
+    expect(art()).toBe(before)
     expect(document.querySelector('.lux, .pipi, .big-banner, .turn-chip')).toBeNull()
+  })
+
+  describe('つまみを指で丸くなぞって回す（#115、Pointer Events）', () => {
+    // jsdom では要素の位置がすべて 0 なので、つまみの中心は (0, 0)。半径 40 の円周上の点を作る
+    const at = (degrees: number) => ({ clientX: 40 * Math.cos((degrees * Math.PI) / 180), clientY: 40 * Math.sin((degrees * Math.PI) / 180) })
+    const hit = () => document.querySelector('.m-knob-hit')!
+    const down = (degrees: number, pointerId = 1) => fireEvent.pointerDown(hit(), { pointerId, pointerType: 'touch', button: 0, isPrimary: true, ...at(degrees) })
+    const move = (degrees: number, pointerId = 1) => fireEvent.pointerMove(hit(), { pointerId, pointerType: 'touch', ...at(degrees) })
+    const up = (degrees: number, pointerId = 1) => fireEvent.pointerUp(hit(), { pointerId, pointerType: 'touch', ...at(degrees) })
+    /** from から step 度ずつ count 回なぞる */
+    const sweep = (from: number, step: number, count: number) => { for (let i = 1; i <= count; i += 1) move(from + step * i) }
+    const knobAngle = () => document.querySelector<SVGGElement>('.m-knob')!.style.transform
+
+    test('右回りに 1 周なぞると 1 回転。途中はつまみが指に追従し、矢印が消えて「そのまま右にぐるっと一周！」。半周では進まない', () => {
+      start('#/gacha/sanrio-capsule/spin')
+      fireEvent.click(button(/使って1回引く/))
+      expect(document.querySelector('.m-hint')).not.toBeNull()
+      down(0)
+      expect(screen.getByRole('img', { name: /ガチャガチャ/ })).toHaveClass('is-dragging')
+      expect(screen.getByText('そのまま右にぐるっと一周！')).toBeVisible()
+      expect(document.querySelector('.m-hint')).toBeNull()
+      sweep(0, 10, 18)
+      expect(screen.getByText('回転 0 / 3')).toBeInTheDocument()
+      expect(knobAngle()).toBe('rotate(180deg)')
+      sweep(180, 10, 17)
+      expect(screen.getByText('回転 0 / 3')).toBeInTheDocument()
+      move(360)
+      expect(screen.getByText('回転 1 / 3')).toBeInTheDocument()
+      expect(screen.getByText('1 回転、できた！')).toBeVisible()
+      expect(document.querySelector('.m-click')).not.toBeNull()
+      expect(knobAngle()).toBe('rotate(360deg)')
+      up(0)
+      expect(screen.getByRole('img', { name: /ガチャガチャ/ })).not.toHaveClass('is-dragging')
+      // なぞって離したあとの click ではもう 1 回転しない
+      fireEvent.click(hit())
+      expect(screen.getByText('回転 1 / 3')).toBeInTheDocument()
+      // 動かさずに離した（タップ）ときは click で 1 回転
+      down(90); up(90); fireEvent.click(hit())
+      expect(screen.getByText('回転 2 / 3')).toBeInTheDocument()
+    })
+
+    test('左回りでは進まず、つまみも戻らない。左に 1 周してから右に 1 周すると 1 回転', () => {
+      start('#/gacha/sanrio-capsule/spin')
+      fireEvent.click(button(/使って1回引く/))
+      down(0)
+      sweep(0, 10, 9)
+      expect(knobAngle()).toBe('rotate(90deg)')
+      sweep(90, -10, 36)
+      expect(screen.getByText('回転 0 / 3')).toBeInTheDocument()
+      expect(knobAngle()).toBe('rotate(90deg)')
+      sweep(90, 10, 27)
+      expect(screen.getByText('回転 1 / 3')).toBeInTheDocument()
+      up(0)
+    })
+
+    test('速すぎても 1 回に 1 回転まで。3 周で 3 回転してカプセルが出る（指を離しても途中の角度は残る）', () => {
+      start('#/gacha/sanrio-capsule/spin')
+      fireEvent.click(button(/使って1回引く/))
+      down(0)
+      // 170° ずつの飛びでも 1 回の move で進むのは 1 回転まで
+      move(170); move(340); move(150)
+      expect(screen.getByText('回転 1 / 3')).toBeInTheDocument()
+      up(150)
+      // 離れている間に反対側へ指を移しても数えない。残り 210° をなぞると 2 回転目
+      down(330)
+      sweep(330, 10, 20)
+      expect(screen.getByText('回転 1 / 3')).toBeInTheDocument()
+      move(540)
+      expect(screen.getByText('回転 2 / 3')).toBeInTheDocument()
+      sweep(180, 10, 36)
+      expect(screen.getByText('回転 3 / 3')).toBeInTheDocument()
+      expect(screen.getByText(/カプセルが出てきました/)).toBeVisible()
+      // 3 回転目は「カチッ」ではなくカプセルが出る（#116 の click3）。回し終わったら押せる範囲も消え、それ以上は進まない
+      expect(document.querySelector('.m-click')).toBeNull()
+      expect(document.querySelector('.m-knob-hit')).toBeNull()
+      expect(screen.getByText('回転 3 / 3')).toBeInTheDocument()
+      tick(TIMING.drop)
+      expect(button(/カプセルをタップ/)).toBeVisible()
+    })
+
+    test('2 本目の指と、回せない場面（回す前）のなぞりは無視する', () => {
+      start('#/gacha/sanrio-capsule/spin')
+      expect(document.querySelector('.m-knob-hit')).toBeNull()
+      fireEvent.click(button(/使って1回引く/))
+      down(0)
+      down(180, 2)
+      sweep(0, 10, 36)
+      expect(screen.getByText('回転 1 / 3')).toBeInTheDocument()
+      // 2 本目の指の動き・離しは数えない
+      for (let i = 1; i <= 36; i += 1) move(180 + 10 * i, 2)
+      up(180, 2)
+      expect(screen.getByText('回転 1 / 3')).toBeInTheDocument()
+      expect(screen.getByRole('img', { name: /ガチャガチャ/ })).toHaveClass('is-dragging')
+      up(0)
+    })
   })
 
   test('開封は光り方にかかわらず3段階。段階ごとに「開封 N / 3」が進み、途中は戻る・タブを出さない', () => {
