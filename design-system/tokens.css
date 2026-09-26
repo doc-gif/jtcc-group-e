@@ -1,16 +1,18 @@
-/* ラストピース「さくらミルク」デザイントークン v0.4 — Figma スナップショット（2026-09-26）。
+/* ラストピース「さくらミルク」デザイントークン v0.5 — Figma スナップショット（2026-09-27、#122 の DS 追加を #125 で反映）。
  * 出典: Figma yeDF1BwhrxpXI57Daainle の変数コレクション
  *   「Lastpiece v2 / Primitives」(177:15)・「Lastpiece v2 / Tokens」(177:16)・「Lastpiece v2 / Sanrio World (F14)」(323:3784)。
  *   デザインマスター Lastpiece / Master · T11 (267:8198) の画面と部品が参照する変数。
- * CSS 名は Figma 変数の WEB code syntax と同じ。--bg / --surface / --soft / --main / --deep は
+ * CSS 名は Figma 変数の WEB code syntax と同じ。--bg / --surface / --soft / --main / --deep と、
+ *   v0.5 で DS に入ったアプリ由来の名前（--primary・--line・--head・--shelf-*・--art-mint・--lux-text・--disabled-soft*）は
  *   src/index.css と同じ名前・同じ値。それ以外は --lp-v2-*。詳細は docs/DESIGN.md と figma-manifest.json。
- * アプリはこのファイルを import せず、同じ値を src/index.css に持つ（--primary・--mint・--text・--sub など。F06）。
+ * アプリはこのファイルを import せず、同じ値を src/index.css に持つ（F06）。同じ名前の値が一致することは
+ *   scripts/design-tokens.test.mjs が CI で検査する。
  * ピンクの文字の使い分け（担当者の判断、2026-09-26。Figma を先に修正）:
  *   --lp-v2-action-primary (#be6482) の文字は、文字スタイル Lastpiece v2/Button（19px 太字）以上だけ。
  *     白との比 3.94:1 は WCAG の大きい文字（18.66px 以上の太字）の 3:1 を満たすが、小さい文字の 4.5:1 には届かない。
  *   それより小さいピンクの文字は --deep（color/accent/wine #a94a68、白と 5.43:1）。下のタブの選択中の文字もワイン。
- * Figma の action/pressed と primitive/forest-deep (#0e4b39) は濃い緑で、マスターは参照していない。
- *   主操作を緑にしない決定に反するため、ここには定義しない。
+ * Figma の color/action/pressed は #122（2026-09-27）で緑 #0e4b39 から primitive/wine の alias に変わった。
+ *   primitive/forest-deep は削除された。押している間の塗りは --deep（ワイン）。
  * 文字寸法は 16px 基準の rem。ブラウザの文字拡大を維持する。 */
 :root {
   /* Lastpiece v2 / Primitives (177:15) */
@@ -22,10 +24,10 @@
   --deep: #a94a68;                 /* primitive/wine */
   --lp-v2-ink: #172324;            /* primitive/ink */
   --lp-v2-muted: #52615a;          /* primitive/muted */
-  --lp-v2-forest: #be6482;         /* primitive/forest（名前は旧版の名残。値はピンク） */
+  --lp-v2-forest: #be6482;         /* primitive/primary（#122 で forest から改名。WEB code syntax は旧名のまま） */
   --lp-v2-disabled-bg: #d4dcd7;    /* primitive/disabled-bg */
   --lp-v2-line: #d8c9cf;           /* primitive/line */
-  --lp-v2-mint: #e3f1e7;           /* primitive/mint（選択中のタブ・コイン札。Web でも使う） */
+  --lp-v2-mint: #e3f1e7;           /* primitive/mint（下のタブの選択中だけ。コイン札は白地＋melody-pink の枠に変更、#120 B1） */
   --lp-v2-warm-white: #fffdfa;     /* primitive/warm-white */
 
   /* Lastpiece v2 / Tokens (177:16), mode Light。
@@ -37,12 +39,14 @@
   --lp-v2-text-inverse: var(--surface);
   --lp-v2-text-disabled: var(--lp-v2-muted);
   --lp-v2-action-primary: var(--lp-v2-forest);
+  --lp-v2-action-pressed: var(--deep);            /* color/action/pressed → primitive/wine（#122 で緑から変更） */
   --lp-v2-action-secondary: var(--surface);
   --lp-v2-action-disabled: var(--lp-v2-disabled-bg);
   --lp-v2-border-default: var(--lp-v2-line);
   --lp-v2-border-focus: var(--lp-v2-forest);
   --lp-v2-border-focus-inner: var(--surface);
-  --lp-v2-nav-selected: var(--lp-v2-mint);
+  --lp-v2-nav-selected: var(--lp-v2-mint);       /* 下のタブの選択中だけ */
+  --primary: var(--lp-v2-forest);                 /* color/border/action（枠ボタン・Chip・入力欄の枠。値は action/primary と同じ） */
   --lp-v2-space-1: 4px;
   --lp-v2-space-2: 8px;
   --lp-v2-space-3: 12px;
@@ -50,10 +54,34 @@
   --lp-v2-space-6: 24px;
   --lp-v2-space-8: 32px;
   --lp-v2-radius-control: 12px;
+  --lp-v2-radius-tile: 16px;       /* radius/tile（棚の枠・一覧の行） */
+  --lp-v2-radius-panel: 18px;      /* radius/panel（集計カード） */
   --lp-v2-radius-card: 20px;
   --lp-v2-radius-full: 999px;
   --lp-v2-touch-min: 44px;
   --lp-v2-touch-primary: 48px;
+
+  /* Tokens (177:16) に #122（2026-09-27）で追加した、アプリ由来の色。名前はアプリの CSS 変数に合わせてある。
+   * 絵の色（棚・カプセル・絵のミント）は文字に使わない。 */
+  --shelf-wood: #c99c87;                        /* color/shelf/wood（木の棚板） */
+  --shelf-slot-line: #cfbfba;                   /* color/shelf/slot-line（棚の空き枠の線） */
+  --shelf-slot-line-owned: #cfa194;             /* color/shelf/slot-line-owned（持っている枠の線） */
+  --lp-v2-capsule-sparkle-bg: #fbeff6;          /* color/capsule/sparkle-bg */
+  --lp-v2-capsule-featured-glow-in: #fffbef;    /* color/capsule/featured-glow-in */
+  --lp-v2-capsule-featured-glow-out: #fbebc4;   /* color/capsule/featured-glow-out */
+  --line: #f5dde4;                              /* color/border/divider（飾りの区切り線。入力欄やボタンの境界には使わない） */
+  --head: #f2a7bc;                              /* color/bg/band（ピンクの帯・吹き出しの枠） */
+  --art-mint: #d3e8dd;                          /* color/art/mint */
+  --lux-text: #6b2b45;                          /* color/text/lux（.btn-lux の文字） */
+  --disabled-soft: #efe3e7;                     /* color/state/disabled-soft（ルームの無効チップの地） */
+  --disabled-soft-text: #6e5a61;                /* color/text/disabled-soft（無効チップの文字。地で 5.10:1） */
+
+  /* 色スタイル「Lastpiece v2/Gradient/*」と効果スタイル「Lastpiece v2/Card Shadow」（#122 で追加。Figma 変数ではない） */
+  --rg: linear-gradient(120deg, #fbe3d9, #edb3a3, #fff1ec, #d98c86);     /* Gradient/Rose gold */
+  --rg-soft: linear-gradient(120deg, #fbe3d9, #f4cbbe, #fff1ec);         /* Gradient/Rose gold soft */
+  --pearl: linear-gradient(120deg, #ffffff, #f9d4e0, #fff6f9);           /* Gradient/Pearl */
+  --kakutei: linear-gradient(160deg, #c77a96, #8e3f5e 55%, #5e2540);     /* Gradient/Kakutei */
+  --shadow: 0 2px 12px rgba(222, 127, 156, 0.18);                        /* Card Shadow */
 
   /* Lastpiece v2 / Sanrio World (F14) (323:3784), mode Value。2026-09-26 にマスターへ反映（担当者承認）。
    * 空色・クリーム・ラベンダーの地、リボンの赤、キャラクターの色。文字に使えるのは kuromi-ink と cocoa だけ（TEXT_FILL）。
@@ -72,7 +100,8 @@
 
   /* 文字スタイル「Lastpiece v2/*」由来（Figma 変数ではない。CSS 側で付けた名前）。
    * Display は Shippori Mincho Bold、他は Noto Sans JP（Title・Label・Button は Bold、Body・Caption は Regular）。
-   * F14 で画面の見出しは Zen Maru Gothic Bold 24px（文字スタイルなし）になった（アプリは --font-heading、src/fonts/ に OFL の woff2 を同梱）。 */
+   * Heading / Heading S は Zen Maru Gothic Bold（アプリは --font-heading、src/fonts/ に OFL の woff2 を同梱）。
+   * Heading・Heading S・Subtitle・Numeral・Overline は #122（2026-09-27）で追加。字間は 0。 */
   --lp-v2-type-display-size: 2rem;        /* 32px */
   --lp-v2-type-display-line: 2.75rem;     /* 44px */
   --lp-v2-type-title-size: 1.5rem;        /* 24px */
@@ -85,6 +114,16 @@
   --lp-v2-type-button-line: 1.75rem;      /* 28px */
   --lp-v2-type-caption-size: 0.875rem;    /* 14px */
   --lp-v2-type-caption-line: 1.375rem;    /* 22px */
+  --lp-v2-type-heading-size: 1.5rem;      /* 24px。Zen Maru Gothic Bold。画面の見出し */
+  --lp-v2-type-heading-line: 2rem;        /* 32px */
+  --lp-v2-type-heading-s-size: 0.875rem;  /* 14px。Zen Maru Gothic Bold。吹き出し */
+  --lp-v2-type-heading-s-line: 1.25rem;   /* 20px */
+  --lp-v2-type-subtitle-size: 1.125rem;   /* 18px。Bold。カードの品名 */
+  --lp-v2-type-subtitle-line: 1.6875rem;  /* 27px */
+  --lp-v2-type-numeral-size: 1.625rem;    /* 26px。Bold。ルームの人数・時計（tabular-nums を推奨） */
+  --lp-v2-type-numeral-line: 2rem;        /* 32px */
+  --lp-v2-type-overline-size: 0.8125rem;  /* 13px。Bold。eyebrow（色は --deep か --lp-v2-text-secondary） */
+  --lp-v2-type-overline-line: 1rem;       /* 16px */
 
   /* LP v2 / Button の Focus 状態（179:24）: 内側 4px の白線 + 外側 3px の accent/wine（DROP_SHADOW spread 3, blur 0）。 */
   --lp-v2-focus-ring: inset 0 0 0 4px var(--lp-v2-border-focus-inner), 0 0 0 3px var(--deep);

@@ -158,10 +158,10 @@
   --spark-in: #fff; --spark-out: #E58FB0; --grain: #F2A7BC; --grain-2: #C6B2E4;
   position: relative; align-self: center; width: min(18rem, 76vw); aspect-ratio: 1; margin: 1rem 0; cursor: pointer;
 }
-.capsule-art.glow-sparkle { --cap-top: linear-gradient(135deg, #FFFFFF, #F6C4D8 55%, #EFE7F9); --cap-bottom: #F3E8F6; --cap-back: #FBEFF6; }
+.capsule-art.glow-sparkle { --cap-top: linear-gradient(135deg, #FFFFFF, #F6C4D8 55%, #EFE7F9); --cap-bottom: #F3E8F6; --cap-back: var(--lp-v2-capsule-sparkle-bg); }
 .capsule-art.glow-featured {
   --cap-edge: #B0803F; --cap-top: linear-gradient(135deg, #FFF6DE, #F9DFA8 50%, #F0C27C); --cap-bottom: #FFF7E6;
-  --cap-back: radial-gradient(circle, #FFFBEF 55%, #FBEBC4); --cap-shadow: 0 0 var(--cap-halo) 2px rgba(242, 204, 128, 0.7);
+  --cap-back: radial-gradient(circle, var(--lp-v2-capsule-featured-glow-in) 55%, var(--lp-v2-capsule-featured-glow-out)); --cap-shadow: 0 0 var(--cap-halo) 2px rgba(242, 204, 128, 0.7);
   --spark-out: #E2A94F; --grain: #F4B6C8; --grain-2: #F4B6C8;
 }
 .capsule-glow { position: absolute; inset: -6%; border-radius: 50%; background: var(--cap-back); }

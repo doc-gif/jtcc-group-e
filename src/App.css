@@ -109,7 +109,7 @@ img { max-width: 100%; }
 .btn-main { background: var(--primary); color: #fff; }
 .btn-outline { background: var(--surface); color: var(--primary); border: 1.5px solid var(--primary); }
 .btn-outline small, .btn-line small { color: var(--deep); }
-.btn-lux { background: var(--rg-soft); color: #6B2B45; box-shadow: 0 2px 10px rgba(237, 179, 163, 0.55); }
+.btn-lux { background: var(--rg-soft); color: var(--lux-text); box-shadow: 0 2px 10px rgba(237, 179, 163, 0.55); }
 .btn-line { background: #FFFFFF; color: var(--primary); border: 1.5px solid var(--primary); }
 .btn-text { background: transparent; color: var(--deep); }
 /* 無効（マスターの Disabled）: 塗りのボタンは灰緑の地、枠のボタンは白地に薄い枠。文字は補助文の色 */
@@ -143,7 +143,7 @@ img { max-width: 100%; }
 .cat[aria-pressed='true'] { color: var(--text); border-bottom-color: var(--main); }
 .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .card-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--lp-v2-radius-panel); overflow: hidden; display: flex; flex-direction: column; }
 .tags { display: flex; flex-wrap: wrap; gap: 0.3rem; padding: 0.6rem 0.75rem 0.4rem; }
 .tag { font-size: 0.75rem; font-weight: 700; padding: 0.1rem 0.6rem; border-radius: 999px; background: var(--soft); color: var(--deep); }
 .banner { position: relative; display: grid; background-size: cover; background-position: center; }
@@ -179,7 +179,7 @@ img { max-width: 100%; }
 .goods.glow-featured { background: linear-gradient(#fff, #fff) padding-box, var(--rg) border-box; border: 2px solid transparent; box-shadow: 0 0 10px rgba(237, 179, 163, 0.7); }
 .goods.glow-sparkle { background: linear-gradient(#fff, #fff) padding-box, var(--pearl) border-box; border: 2px solid transparent; box-shadow: 0 0 8px rgba(240, 181, 201, 0.6); }
 .goods.glow-featured::after, .goods.glow-sparkle::after { content: ''; position: absolute; top: -40%; left: -60%; width: 40%; height: 180%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent); transform: rotate(20deg); animation: sweep 2.8s ease-in-out infinite; }
-.goods-badge { position: absolute; left: 0.15rem; bottom: 0.15rem; font-size: 0.625rem; font-weight: 700; color: #6B2B45; background: rgba(255, 255, 255, 0.92); border-radius: 999px; padding: 0 0.35rem; line-height: 1.5; }
+.goods-badge { position: absolute; left: 0.15rem; bottom: 0.15rem; font-size: 0.625rem; font-weight: 700; color: var(--lux-text); background: rgba(255, 255, 255, 0.92); border-radius: 999px; padding: 0 0.35rem; line-height: 1.5; }
 @keyframes sweep { to { left: 130%; } }
 
 /* ===== ガチャ詳細 ===== */
@@ -187,7 +187,7 @@ img { max-width: 100%; }
 .notice-box h2 { font-size: 1rem; color: var(--deep); }
 .notice-box ul { margin: 0; padding-left: 1.2rem; }
 .detail-lead { font-size: 0.9375rem; display: grid; gap: 0.25rem; }
-.featured-head { margin-top: 0.5rem; align-self: flex-start; font-family: var(--mincho); font-weight: 800; color: #6B2B45; background: var(--rg-soft); border-radius: 999px; padding: 0.1rem 1rem; letter-spacing: 0.14em; }
+.featured-head { margin-top: 0.5rem; align-self: flex-start; font-family: var(--mincho); font-weight: 800; color: var(--lux-text); background: var(--rg-soft); border-radius: 999px; padding: 0.1rem 1rem; letter-spacing: 0.14em; }
 section { display: flex; flex-direction: column; gap: 0.5rem; }
 .prize-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
 .prize { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.5rem 0.75rem 0.5rem 0.5rem; }
@@ -244,7 +244,7 @@ section { display: flex; flex-direction: column; gap: 0.5rem; }
 .win-with { font-size: 0.8125rem; color: var(--deep); }
 .win-meta { font-size: 0.75rem; color: var(--sub); }
 .win-status { font-size: 0.75rem; font-weight: 700; border-radius: 999px; padding: 0 0.5rem; background: var(--soft); color: var(--deep); }
-.win-status.st-exchanged { background: #EFE3E7; color: #6E5A61; }
+.win-status.st-exchanged { background: var(--disabled-soft); color: var(--disabled-soft-text); }
 .win-check { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.875rem; font-weight: 700; color: var(--deep); cursor: pointer; }
 .win-check input { appearance: none; width: 2.75rem; height: 2.75rem; margin: 0; border: 2px solid var(--main); border-radius: 10px; background: var(--surface); display: grid; place-items: center; cursor: pointer; }
 .win-check input:checked { background: var(--deep); border-color: var(--deep); }
@@ -272,7 +272,7 @@ details { border-top: 1px solid var(--line); }
 summary { min-height: 2.75rem; display: flex; align-items: center; cursor: pointer; font-weight: 700; }
 details p { font-size: 0.9375rem; padding-bottom: 0.5rem; }
 .switch-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; width: 100%; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 0.5rem 0.75rem; cursor: pointer; text-align: left; font-weight: 700; }
-.switch-row b { border-radius: 999px; padding: 0 0.7rem; background: #EFE3E7; color: #6E5A61; }
+.switch-row b { border-radius: 999px; padding: 0 0.7rem; background: var(--disabled-soft); color: var(--disabled-soft-text); }
 .switch-row[aria-pressed='true'] b { background: var(--deep); color: #fff; }
 .confirm-box { border: 1.5px solid var(--main); border-radius: 12px; padding: 0.75rem; display: grid; gap: 0.5rem; }
 .welcome-screen .content { padding-top: calc(1.5rem + env(safe-area-inset-top, 0px)); }
@@ -281,7 +281,7 @@ details p { font-size: 0.9375rem; padding-bottom: 0.5rem; }
 .welcome-screen h1 small { display: block; font-family: inherit; font-size: 0.8125rem; letter-spacing: 0.3em; color: var(--sub); }
 .steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 0.5rem; }
 .steps li { counter-increment: step; display: grid; grid-template-columns: 2.25rem 1fr; gap: 0 0.6rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.6rem 0.75rem; }
-.steps li::before { content: counter(step); grid-row: span 2; width: 2.25rem; height: 2.25rem; border-radius: 50%; background: var(--rg-soft); color: #6B2B45; display: grid; place-items: center; font-weight: 800; }
+.steps li::before { content: counter(step); grid-row: span 2; width: 2.25rem; height: 2.25rem; border-radius: 50%; background: var(--rg-soft); color: var(--lux-text); display: grid; place-items: center; font-weight: 800; }
 .steps span { font-size: 0.875rem; color: var(--sub); }
 .pick-list, .memory-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
 .pick { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.25rem 0.75rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.6rem 0.9rem; color: var(--text); text-decoration: none; font-weight: 700; }
@@ -331,7 +331,7 @@ details p { font-size: 0.9375rem; padding-bottom: 0.5rem; }
 @keyframes shake1 { 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
 @keyframes shake2 { 25% { transform: rotate(10deg) scale(1.04); } 75% { transform: rotate(-10deg) scale(1.04); } }
 .prize-reveal { width: min(100%, 24rem); background: var(--surface); border-radius: 22px; padding: 1.25rem 1rem; display: flex; flex-direction: column; align-items: center; gap: 0.6rem; text-align: center; animation: pop-in 0.45s cubic-bezier(0.3, 1.5, 0.5, 1); }
-.congrats { font-family: var(--mincho); font-weight: 800; font-size: 1.5rem; color: #6B2B45; background: var(--rg-soft); border-radius: 999px; padding: 0.1rem 1rem; }
+.congrats { font-family: var(--mincho); font-weight: 800; font-size: 1.5rem; color: var(--lux-text); background: var(--rg-soft); border-radius: 999px; padding: 0.1rem 1rem; }
 .reveal-name { font-family: var(--mincho); font-size: 1.375rem; color: var(--text); }
 .versus { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0.5rem; font-size: 0.8125rem; color: var(--sub); }
 .versus span { display: flex; flex-direction: column; }
