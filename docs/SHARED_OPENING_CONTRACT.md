@@ -27,7 +27,7 @@ T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で�
 | `setPitchMode(room, on)` | 現在のホストだけ。部屋のピッチモードを切り替え、次に始まるラウンドから効く。 | `room-unavailable`、`host-required`、真偽値でなければ `invalid-request`。 |
 | ~~`claim(room)`~~（**廃止**、F10） | 参加者によるホスト交代はなくなった。SQL の `lp_claim_host` は削除し、transport・状態層からも外した。ホストが不在でも予約した開始は時刻に始まる。ホストは `resumeHost` で戻る。 | 呼び出せない（関数がない）。旧コード `host-online` も廃止。 |
 | `leave(room)` | active メンバー本人。席を空け ready を解除する。残高・結果台帳は残す。ホストが退室しても交代はなく、ホストは `join`（同じ端末）か `resumeHost` で戻る。 | 非メンバー・失効は `room-unavailable`。 |
-| `subscribe(room, refresh)` | メンバー向けの更新ヒント。通知の内容で結果・権限を決めず、受信時に `snapshot` を再取得する。購読失敗時もポーリングを続ける。 | 非メンバーは購読できない。Realtime の認可失敗をゲーム結果の失敗に変換しない。 |
+| `subscribe(room, refresh, onStatus?)` | メンバー向けの更新ヒント。通知の内容で結果・権限を決めず、受信時に `snapshot` を再取得する。購読失敗時もポーリングを続ける。`onStatus` は購読の状態（`live`／`down`）を知らせ、状態層の `realtime`（`live`／`polling`）になる。サーバーは入室・準備・退室・開始・予約・ピッチモード・名前の変更・ホストの再開ごとに 1 回送る（#68）。 | 非メンバーは購読できない。Realtime の認可失敗をゲーム結果の失敗に変換しない。 |
 
 エラーのコードは UI にそのまま出さず、`errorMessage` の日本語で回復操作を案内する。想定外の SQL・通信エラーの詳細は画面に出さない。
 
@@ -38,7 +38,7 @@ T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で�
 - `start` の成功時点で対象者を固定し、各人から 500 デモコインを引き、在庫を減らし、結果を保存する。残数が参加人数未満なら **全員の抽選を取り消し** `sold-out`。ラウンド識別子は部屋 ID と `number` の組で安定する。
 - 結果は `startsAt`（コミットから約 8 秒後）まで **全員に非公開**。その間 `round.results` と賞品別 `stock` は `null`、`myResults` に新結果を加えない。Realtime の通知には賞品を載せない。`startsAt` 以後、同じ保存済み結果を全員に返す。次の ready/start は `nextReadyAt`（`startsAt` から 15 秒後）まで拒否する。
 - `snapshot` は最新ラウンドだけを開封演出用に返す。`myResults` は本人の公開済み結果を過去ラウンドから返し、長時間オフラインでも当たりを見失わない。同じ request を再送しても追加コインや追加結果は作らない。
-- Supabase の 4 テーブルは Data API の直接読み書きを許さず RLS を有効にし、RPC 内で本人と active membership を確認する。Private Broadcast は起床通知のみ。公式の [Realtime Authorization](https://supabase.com/docs/guides/realtime/authorization) に従い受信ポリシーを再実行可能な別 SQL 草案に置き、Realtime 未初期化なら明示的に失敗させる。接続時の認可キャッシュがあるため、退室後の通知にも秘密を載せない。
+- Supabase の 4 テーブルは Data API の直接読み書きを許さず RLS を有効にし、RPC 内で本人と active membership を確認する。Private Broadcast は起床通知のみ。公式の [Realtime Authorization](https://supabase.com/docs/guides/realtime/authorization) に従い、受信ポリシー `lp_receive_round`（参加中の人だけ SELECT、INSERT なし）を migration `lp_realtime_wake`（#68）で適用した。Realtime のない DB（テスト）ではポリシーを作らず、台帳はポーリングで動く。通知の内容は `{roomId, roundNo, reason}` だけ。接続時の認可キャッシュがあるため、退室後の通知にも秘密を載せない。
 
 ## ホスト用リンク（F10）
 

@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { RoomContractError, type RoomTransport, type Snapshot } from './protocol'
+import { RoomContractError, type LiveStatus, type RoomTransport, type Snapshot } from './protocol'
 
 export function supabaseTransport(client: SupabaseClient): RoomTransport {
   let auth: Promise<void> | undefined
@@ -40,17 +40,24 @@ export function supabaseTransport(client: SupabaseClient): RoomTransport {
     resumeHost: (hostKey, room) => rpc('lp_resume_host', { p_key: hostKey, p_room: room }),
     rename: (room, name) => rpc('lp_rename', { p_room: room, p_name: name }),
     leave: async room => { await rpc('lp_leave', { p_room: room }) },
-    subscribe: (room, refresh) => {
+    subscribe: (room, refresh, onStatus) => {
       // Broadcast is an optional wake-up hint. Auth and every result still come from RPC snapshots.
+      // Channel and event match lp_wake: private topic lp:<roomId>, event 'round'.
       let disposed = false
       let channel: ReturnType<SupabaseClient['channel']> | null = null
+      const report = (status: LiveStatus) => { if (!disposed) onStatus?.(status) }
       void accessToken().then(async token => {
         // Private channels authorize with the user's JWT (Realtime RLS), never with the publishable key.
         await client.realtime.setAuth(token)
         if (disposed) return
         channel = client.channel(`lp:${room}`, { config: { private: true } })
-          .on('broadcast', { event: 'round' }, refresh).subscribe()
-      }).catch(() => { /* Polling remains authoritative if Realtime is unavailable. */ })
+          .on('broadcast', { event: 'round' }, refresh)
+          .subscribe(status => {
+            // supabase-js rejoins by itself after an error; each SUBSCRIBED reports live again.
+            if (status === 'SUBSCRIBED') report('live')
+            else report('down')
+          })
+      }).catch(() => { report('down') /* Polling remains authoritative if Realtime is unavailable. */ })
       return () => { disposed = true; if (channel) void client.removeChannel(channel) }
     },
   }
