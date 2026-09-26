@@ -15,6 +15,10 @@ export const SEED_STORAGE_KEY = 'lastpiece_app_v1'
 /** ガチャの流れ（F03）用：売り切れ・コイン不足を再現する状態 */
 const gachaState = (extra: Record<string, unknown> = {}) => JSON.stringify({ version: 1, coins: 30000, nickname: 'あなた', stock: {}, wins: [], forceFeaturedNext: false, nextWinSeq: 1, ...extra })
 const soldOutStock = { 'sanrio-capsule': Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`sanrio-capsule-${i + 1}`, 0])) }
+/** 回転ごとの演出（#116）: 在庫をその光り方の 1 品だけにして、抽選の結果（glow）を決める（1 目玉・2 キラキラ・9 ふつう。ほかは 0。足りない分は保存の復元で初期値に戻るので全部書く） */
+const onlyPrize = (id: string, remaining: number) => gachaState({ stock: { 'sanrio-capsule': Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`sanrio-capsule-${i + 1}`, `sanrio-capsule-${i + 1}` === id ? remaining : 0])) } })
+const spinPath = './#/gacha/sanrio-capsule/spin'
+const confirmThenTurn = (turns: number): RoomStep[] => [{ click: /使って1回引く/ }, ...Array.from({ length: turns }, () => ({ click: '1タップで1回転' }))]
 
 // room: 共有ルーム（T10）の端末内デモの保存データと端末の時刻（e2e/room-seeds.ts）。steps: 開いたあとの操作。heading: 確かめる見出し。
 import type { Page } from '@playwright/test'
@@ -79,7 +83,14 @@ export const uxScenarios: Array<{
   { name: 'room-host-link-invalid', path: './#/host/old-key', scalableText: '.room-body', heading: 'ホスト用リンクが無効です' },
   { name: 'spin-solo-confirm', path: './#/gacha/melody-anniv/spin', scalableText: '.confirm-lead' },
   // 回転 1（なぞる前、マスター 267:8348）: つまみの上に右回りの矢印。なぞる操作そのものは e2e/app.spec.ts で確かめる
-  { name: 'spin-turning', path: './#/gacha/sanrio-capsule/spin', scalableText: '.spin-lead', steps: [{ click: /使って1回引く/ }], heading: 'ハンドルを回す' },
+  { name: 'spin-turning', path: spinPath, scalableText: '.spin-lead', steps: [{ click: /使って1回引く/ }], heading: 'ハンドルを回す' },
+  // 回転ごとの演出（#116、マスター turn2 267:8361 / 421:9346 / 421:9365、turn3 267:8374 / 421:9384 / 421:9403）: glow 別に 1 周の後と 2 周の後
+  { name: 'spin-turn-2-normal', path: spinPath, scalableText: '.spin-lead', seed: onlyPrize('sanrio-capsule-9', 16), steps: confirmThenTurn(1), heading: 'ハンドルを回す' },
+  { name: 'spin-turn-3-normal', path: spinPath, scalableText: '.spin-lead', seed: onlyPrize('sanrio-capsule-9', 16), steps: confirmThenTurn(2), heading: 'ハンドルを回す' },
+  { name: 'spin-turn-2-sparkle', path: spinPath, scalableText: '.spin-lead', seed: onlyPrize('sanrio-capsule-2', 4), steps: confirmThenTurn(1), heading: 'ハンドルを回す' },
+  { name: 'spin-turn-3-sparkle', path: spinPath, scalableText: '.spin-lead', seed: onlyPrize('sanrio-capsule-2', 4), steps: confirmThenTurn(2), heading: 'ハンドルを回す' },
+  { name: 'spin-turn-2-featured', path: spinPath, scalableText: '.spin-lead', seed: onlyPrize('sanrio-capsule-1', 2), steps: confirmThenTurn(1), heading: 'ハンドルを回す' },
+  { name: 'spin-turn-3-featured', path: spinPath, scalableText: '.turn-tag', seed: onlyPrize('sanrio-capsule-1', 2), steps: confirmThenTurn(2), heading: 'ハンドルを回す' },
   { name: 'spin-sold-out', path: './#/gacha/sanrio-capsule/spin', scalableText: '.problem-lead', seed: gachaState({ stock: soldOutStock }) },
   { name: 'spin-insufficient-coins', path: './#/gacha/sanrio-capsule/spin', scalableText: '.problem-lead', seed: gachaState({ coins: 100 }) },
   { name: 'gacha-detail-insufficient-coins', path: './#/gacha/sanrio-capsule', scalableText: '.detail-lead', seed: gachaState({ coins: 100 }) },

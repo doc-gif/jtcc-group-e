@@ -4,8 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: New immutable version (e.g. v0.1.0)
-        required: true
+        description: Optional new immutable version (e.g. v0.5.0). Empty = latest tag + patch. Publishes main as of this request.
+        required: false
+        default: ''
         type: string
 
 permissions:
@@ -16,26 +17,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # 公開のキュー（docs/DEPLOYMENT.md）: concurrency で1本ずつ動き、前の公開の後のタグで版を決める。
+  # 同じ SHA が公開済みなら何もしない（続けて来た依頼・置き換わった依頼を1回にまとめる）。古い SHA への巻き戻しは止める。
   validate:
     runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.plan.outputs.publish }}
+      version: ${{ steps.plan.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Validate release request
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Plan the version and skip duplicate releases
+        id: plan
         env:
-          RELEASE_VERSION: ${{ inputs.version }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          RELEASE_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           test "$GITHUB_REF" = refs/heads/main
-          node --input-type=module -e "import {validateVersion} from './scripts/release-lib.mjs'; validateVersion(process.env.RELEASE_VERSION)"
+          node scripts/release-plan.mjs
   verify:
+    if: needs.validate.outputs.publish == 'true'
     permissions:
       contents: read
       actions: read
     needs: validate
     uses: ./.github/workflows/ci.yml
   publish:
-    needs: verify
+    needs: [validate, verify]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -45,8 +59,10 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      site_url: ${{ steps.pages.outputs.base_url }}
     env:
-      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_VERSION: ${{ needs.validate.outputs.version }}
       RELEASE_SHA: ${{ github.sha }}
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -113,3 +129,39 @@ jobs:
           zip -qr ../web-app.zip .
           cd ..
           node source/scripts/publish-release.mjs
+
+  # 公開後の確認を自動で行う: Pages の反映を待ち、最新 URL の deployment.json・固定 URL・タグの SHA を照合して、URL と QR を出す。
+  confirm:
+    name: Confirm published release
+    needs: [validate, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+      RELEASE_SHA: ${{ github.sha }}
+      SITE_URL: ${{ needs.publish.outputs.site_url }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Read the commit of the release tag
+        run: echo "TAG_SHA=$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_VERSION" -q .sha)" >> "$GITHUB_ENV"
+      - name: Wait for Pages and confirm version, SHA and fixed URL
+        id: confirm
+        run: node scripts/release-confirm.mjs
+      - name: QR code of the fixed URL
+        env:
+          FIXED_URL: ${{ steps.confirm.outputs.fixed }}
+        run: node scripts/create-qr.mjs "$FIXED_URL" release-qr.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-qr
+          path: release-qr.png
+          retention-days: 30
+          if-no-files-found: error

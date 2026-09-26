@@ -80,7 +80,7 @@
 
 ## 本番公開を指示されたとき
 
-`docs/DEPLOYMENT.md` の手順を実行する。公開の前に `node scripts/live-state.mjs` で「本番公開の実行（待機中・実行中）」を確かめ、実行中があれば新しく依頼せずその実行を追う（同じ SHA の二重公開・版番号の重なりを防ぐ）。公開指示がある場合は、新しい版番号を決めて `scripts/request-release.ps1` または GitHub Actions の `Release GitHub Pages` を実行し、完了と固定 URL の実動作まで確認する。PR のマージ自体は公開指示ではない。既存の版・タグ・Release を上書きしない。
+`docs/DEPLOYMENT.md` の手順を実行する。公開の前に `node scripts/live-state.mjs` で「本番公開の実行（待機中・実行中）」を確かめ、実行中があれば新しく依頼せずその実行を追う（同じ SHA の二重公開・版番号の重なりを防ぐ）。公開指示がある場合は、版を省いて `scripts/request-release.ps1` または GitHub Actions の `Release GitHub Pages` を実行する（版は workflow が最新のタグの patch + 1 に決め、公開済みの SHA なら何もしない。担当者が版を指定したときだけ付ける）。最後の `Confirm published release` の成功と、固定 URL の実動作まで確認する。PR のマージ自体は公開指示ではない。既存の版・タグ・Release を上書きしない。
 
 ## 確認用プレビュー
 
