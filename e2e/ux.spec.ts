@@ -5,6 +5,7 @@ import { uxScenarios } from './ux-scenarios.ts'
 for (const scenario of uxScenarios) {
   test(`${scenario.name}: HIG を Web に適用した UI/UX 基準`, async ({ page }, testInfo) => {
     if (scenario.pauseTimers) await page.clock.install()
+    if (scenario.saved) await page.addInitScript((value) => { localStorage.setItem('lastpiece_app_v1', value) }, JSON.stringify(scenario.saved))
     await page.goto(scenario.path)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([])

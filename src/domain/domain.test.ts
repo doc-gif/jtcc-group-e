@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { catalog, categoryList, daysSinceRelease, findGacha, findPrize, MIN_DAYS_SINCE_RELEASE, seriesList } from './catalog'
-import { addDemoCoins, completeWelcome, createInitialState, exchange, exchangeQuote, requestDelivery, setForceFeatured, setNickname, shouldShowKakutei, spin, spinCheck, STARTER_COINS, summarize, toggleSetting } from './game'
+import { addDemoCoins, completeWelcome, createInitialState, exchange, exchangeQuote, featuredCandidate, requestDelivery, setForceFeatured, setNickname, shouldShowKakutei, spin, spinCheck, spinQuote, STARTER_COINS, summarize, toggleSetting } from './game'
 import { EXCHANGE_RATE, exchangeCoins, formatPercent, oddsOf, pickPrize, remainingRatio, remainLevel, tapsToOpen, totalRemaining } from './odds'
 import { revealLine, tapMessage, turnEffect } from './spinScript'
 import { loadState, parseState, saveState, STORAGE_KEY } from './storage'
@@ -298,5 +298,24 @@ describe('保存', () => {
     expect(saveState(undefined, createInitialState())).toBe(false)
     expect(loadState(undefined)).toEqual(createInitialState())
     expect(STORAGE_KEY).toBe('lastpiece_app_v1')
+  })
+})
+
+describe('回す前の確認（T08）', () => {
+  test('支払う前に、1回のコイン・引いた後の残高・足りない分を出す', () => {
+    const state = createInitialState()
+    expect(spinQuote(state, melody)).toEqual({ price: 1500, balance: STARTER_COINS, after: STARTER_COINS - 1500, shortBy: 0 })
+    expect(spinQuote({ ...state, coins: 1500 }, melody)).toEqual({ price: 1500, balance: 1500, after: 0, shortBy: 0 })
+    expect(spinQuote({ ...state, coins: 100 }, melody)).toEqual({ price: 1500, balance: 100, after: 0, shortBy: 1400 })
+  })
+
+  test('目玉の候補は、残っている目玉のうち参考価格がいちばん高いもの', () => {
+    const stock = createInitialState().stock
+    expect(featuredCandidate(melody, stock)?.name).toBe('会場限定ドレスマスコット')
+    const gone = { ...stock, [melody.id]: { ...stock[melody.id], [melody.prizes[0].id]: 0 } }
+    expect(featuredCandidate(melody, gone)?.name).toBe('周年限定ぬいぐるみ')
+    const none = { ...stock, [melody.id]: Object.fromEntries(melody.prizes.map((prize) => [prize.id, 0])) }
+    expect(featuredCandidate(melody, none)?.name).toBe('会場限定ドレスマスコット')
+    expect(featuredCandidate({ ...melody, prizes: melody.prizes.filter((prize) => prize.glow !== 'featured') }, stock)).toBeNull()
   })
 })

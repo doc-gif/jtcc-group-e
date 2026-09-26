@@ -5,6 +5,7 @@ export type Route =
   | { name: 'gachaList' }
   | { name: 'welcome' }
   | { name: 'gacha'; id: string; room: boolean }
+  | { name: 'odds'; id: string }
   | { name: 'spin'; id: string }
   | { name: 'room'; code: string; spin: boolean }
   | { name: 'collection' }
@@ -25,6 +26,7 @@ export function parseHash(hash: string): Route {
   if (!id || !ID.test(id)) return { name: 'notfound' }
   if (head === 'gacha' && parts.length === 2) return { name: 'gacha', id, room: false }
   if (head === 'gacha' && parts.length === 3 && extra === 'room') return { name: 'gacha', id, room: true }
+  if (head === 'gacha' && parts.length === 3 && extra === 'odds') return { name: 'odds', id }
   if (head === 'gacha' && parts.length === 3 && extra === 'spin') return { name: 'spin', id }
   if (head === 'room' && parts.length === 2) return { name: 'room', code: id, spin: false }
   if (head === 'room' && parts.length === 3 && extra === 'spin') return { name: 'room', code: id, spin: true }
@@ -38,6 +40,8 @@ export const paths = {
   gachaList: '#/gacha',
   welcome: '#/welcome',
   gacha: (id: string) => `#/gacha/${id}`,
+  /** 中身と確率（確率一覧） */
+  odds: (id: string) => `#/gacha/${id}/odds`,
   createRoom: (id: string) => `#/gacha/${id}/room`,
   soloSpin: (id: string) => `#/gacha/${id}/spin`,
   /** 招待リンクの行き先。デモではルームのコード＝ガチャの ID。 */

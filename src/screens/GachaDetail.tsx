@@ -1,15 +1,17 @@
 import { useApp } from '../app/appContext'
 import { navigate, paths } from '../app/router'
 import { findGacha } from '../domain/catalog'
-import { ROOM_CAPACITY, spinCheck } from '../domain/game'
+import { featuredCandidate, ROOM_CAPACITY, spinCheck, spinQuote } from '../domain/game'
 import { coinText, EXCHANGE_RATE, formatPercent, oddsOf, yen } from '../domain/odds'
 import type { Gacha } from '../domain/types'
-import { BackBar, MockNotice } from '../components/Chrome'
+import { BackBar, MockNotice, TabBar } from '../components/Chrome'
 import { Banner, GoodsImage, RemainBar } from '../components/Goods'
 import { InviteActions, WaitingRoom } from '../components/Room'
 import { Sheet } from '../components/Sheet'
 import { NotFound } from './NotFound'
+import './gacha.css'
 
+/** ガチャ詳細（マスター 267:8279）。目玉の候補・支払う金額を先に見せ、確率一覧と回す前の確認へ進む。 */
 export function GachaDetail({ id, room }: { id: string; room: boolean }) {
   const { state } = useApp()
   const gacha = findGacha(id)
@@ -17,6 +19,9 @@ export function GachaDetail({ id, room }: { id: string; room: boolean }) {
   const rows = oddsOf(gacha, state.stock)
   const featured = rows.filter((row) => row.prize.glow === 'featured')
   const others = rows.filter((row) => row.prize.glow !== 'featured')
+  const candidate = featuredCandidate(gacha, state.stock)
+  const candidateOdds = rows.find((row) => row.prize.id === candidate?.id)
+  const quote = spinQuote(state, gacha)
   const problem = spinCheck(state, gacha.id)
 
   return (
@@ -24,9 +29,39 @@ export function GachaDetail({ id, room }: { id: string; room: boolean }) {
       <BackBar title="ガチャ詳細" back={paths.gachaList} backLabel="一覧へ" />
       <main className="content">
         <Banner gacha={gacha} as="h2" />
-        <div className="price-row">
-          <p className="price"><b>{coinText(gacha.price)}</b> コイン／1回</p>
+        {candidate && (
+          <div className="feature-card">
+            <GoodsImage art={candidate.art} glow={candidate.glow} size="lg" />
+            <div className="feature-text">
+              <p className="feature-kicker">目玉の候補</p>
+              <p className="feature-name">{candidate.name}</p>
+              <p className="feature-odds">いまの確率<b>{formatPercent(candidateOdds?.probability ?? 0)}</b></p>
+              <p className="fine">絵は商品のイメージです。</p>
+            </div>
+          </div>
+        )}
+        <section className="pay-card" aria-labelledby="pay-title">
+          <h2 id="pay-title" className="pay-kicker">1回だけ引く</h2>
+          <p className="pay-price"><b>{coinText(quote.price)}</b> コイン</p>
+          <p className="pay-balance">
+            {quote.shortBy > 0
+              ? <>所持 {coinText(quote.balance)}・あと {coinText(quote.shortBy)} コイン足りません</>
+              : <>所持 {coinText(quote.balance)} <span aria-hidden="true">→</span><span className="visually-hidden">から</span> 引いた後 {coinText(quote.after)}</>}
+          </p>
           <RemainBar gacha={gacha} stock={state.stock} />
+        </section>
+        <p className="fine">確率は、回す直前の残りで計算し直します。目玉が当たることを約束するものではありません。</p>
+        {problem === 'sold-out' ? (
+          <p className="detail-note" role="status">このガチャは売り切れました。</p>
+        ) : problem === 'insufficient-coins' ? (
+          <p className="detail-note" role="status">コインが足りません。<a href={paths.me}>マイページでコインを追加</a></p>
+        ) : null}
+        <div className="detail-actions">
+          <a className="btn btn-outline" href={paths.odds(gacha.id)}>中身{gacha.prizes.length}種と確率を見る</a>
+          <a className="btn btn-main" href={paths.soloSpin(gacha.id)}>1回引く準備へ</a>
+          <a className={`btn btn-lux${problem ? ' is-disabled' : ''}`} href={problem ? undefined : paths.createRoom(gacha.id)} aria-disabled={problem ? true : undefined} role={problem ? 'link' : undefined}>
+            ♡ 友達と回す<small>リンクで招待</small>
+          </a>
         </div>
         <section className="notice-box" aria-labelledby="notice-title">
           <h2 id="notice-title">大事なお知らせ</h2>
@@ -52,21 +87,7 @@ export function GachaDetail({ id, room }: { id: string; room: boolean }) {
         </section>
         <MockNotice />
       </main>
-      <div className="sticky-actions">
-        {problem === 'sold-out' ? (
-          <p className="sticky-note" role="status">このガチャは売り切れました。</p>
-        ) : problem === 'insufficient-coins' ? (
-          <p className="sticky-note" role="status">コインが足りません。<a href={paths.me}>マイページでコインを追加</a></p>
-        ) : null}
-        <div className="sticky-row">
-          <a className={`btn btn-outline${problem ? ' is-disabled' : ''}`} href={problem ? undefined : paths.soloSpin(gacha.id)} aria-disabled={problem ? true : undefined} role={problem ? 'link' : undefined}>
-            ひとりで回す<small>{coinText(gacha.price)}コイン</small>
-          </a>
-          <a className={`btn btn-lux${problem ? ' is-disabled' : ''}`} href={problem ? undefined : paths.createRoom(gacha.id)} aria-disabled={problem ? true : undefined} role={problem ? 'link' : undefined}>
-            ♡ 友達と回す<small>リンクで招待</small>
-          </a>
-        </div>
-      </div>
+      <TabBar active="gacha" />
       {room && !problem && <RoomSheet gacha={gacha} />}
     </div>
   )
