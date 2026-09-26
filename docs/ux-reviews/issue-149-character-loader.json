@@ -1,0 +1,58 @@
+{
+  "uiDigest": "7aafc00a32be63bf7e565e7ec44f5a886dcec926b92176990a83a951f0a198d3",
+  "reviewer": "Claude (implementation agent, #149 character loader)",
+  "reviewedAt": "2026-09-27",
+  "summary": "#149（#144 案 D の土台）。限定公開アプリのキャラクターの絵を非公開バケット pitch-characters から本人のログインで読む CharacterProvider・useCharacter と、絵が無いときは何も描かない CharacterArt を加え、App.tsx に Provider を置いた。CharacterArt はまだどの画面にも置いていない（配置は #146）ので、画面の見た目・操作・文言は変わらない。本番と同じ Supabase の設定のビルド（vite preview、375×812）で街・回す画面・ルームを作る画面を開き、見た目が前と同じこと、キャラクターの img が 0 個、ルームの記録もホスト用キーも無い端末では Supabase への通信が 0 件、コンソールのエラーが 0 件を確認した。",
+  "criteria": [
+    {
+      "id": "HIG-01",
+      "result": "pass",
+      "evidence": "色・文字・部品は変えていない。375×812 の実画面（街・回す・ルームを作る）で前と同じ見た目を確認した。キャラクターの絵は未配置で出ない。"
+    },
+    {
+      "id": "HIG-02",
+      "result": "pass",
+      "evidence": "操作は増減していない。CharacterArt は配置後も pointer-events: none・aria-hidden・alt 空で、タップと読み上げの対象にならない（単体テストで属性を確認）。"
+    },
+    {
+      "id": "HIG-03",
+      "result": "pass",
+      "evidence": "レイアウトは変えていない。CharacterArt は position: absolute で、絵が無い・読めないときは null を返すので、配置後も要素の流れに影響しない。"
+    },
+    {
+      "id": "HIG-04",
+      "result": "pass",
+      "evidence": "読み込み中・失敗の表示は出さない決定（#144 の 2-5: 何も出さない）。取得の失敗・壊れた画像では何も描かないことを単体テストで確認した。"
+    },
+    {
+      "id": "HIG-05",
+      "result": "pass",
+      "evidence": "新しい動きは読めた絵の 0.2 秒のフェードだけで、prefers-reduced-motion では transition を止める（characterArt.css）。画面にはまだ出ない。"
+    },
+    {
+      "id": "GAME-01",
+      "result": "pass",
+      "evidence": "マスター 267:8198 の画面と状態の対応（ADOPTED_DESIGN.md）は変えていない。キャラクターの配置は #145 の Figma に合わせて #146 で実装する。"
+    },
+    {
+      "id": "GAME-02",
+      "result": "not-applicable",
+      "evidence": "抽選・確率・結果・在庫の処理は変えていない。キャラクターの絵は飾りで、当たりの表示や確率に関係しない。"
+    },
+    {
+      "id": "GAME-03",
+      "result": "pass",
+      "evidence": "通知・バッジ・引き止めは増やしていない。取得は最大 2 回で、画面には何も知らせない。"
+    },
+    {
+      "id": "GAME-04",
+      "result": "pass",
+      "evidence": "絵は開いているルームのホストと参加者だけが本人のログインで読む（公開 URL・署名付き URL を作らない）。ルームの記録もホスト用キーも無い端末は取得しない（単体テストと実画面の通信 0 件で確認）。メモリの object URL だけで端末に保存しない。"
+    },
+    {
+      "id": "GAME-05",
+      "result": "not-applicable",
+      "evidence": "画面の文言・用語は増やしていない。担当者向けの手順は docs/PITCH_CHARACTERS.md、決定は PRODUCT.md に書いた。"
+    }
+  ]
+}
