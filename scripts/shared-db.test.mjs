@@ -9,7 +9,7 @@ const KEY=createHostKey()
 const users=Array.from({length:102},()=>randomUUID())
 const room=randomUUID()
 let invite
-const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql','supabase/migrations/20260926025335_lp_name_chars_create_retry.sql','supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql','supabase/migrations/20260926033821_lp_min_guests.sql','supabase/migrations/20260926080000_lp_realtime_wake.sql']
+const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql','supabase/migrations/20260926025335_lp_name_chars_create_retry.sql','supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql','supabase/migrations/20260926033821_lp_min_guests.sql','supabase/migrations/20260926075123_lp_realtime_wake.sql']
 const call=async(user,sql,args=[])=>{
  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user])
  return (await db.query(sql,args)).rows[0]?.result
@@ -102,7 +102,7 @@ test('#68: only room members may receive, and the receive policy is created once
  const rows=(await db.query("select cmd,roles::text roles from pg_policies where schemaname='realtime' and tablename='messages'")).rows
  // SELECT for signed-in users only. No INSERT policy: clients cannot send on lp:<roomId>.
  expect(rows).toEqual([{cmd:'SELECT',roles:'{authenticated}'}])
- await db.exec(await readFile('supabase/migrations/20260926080000_lp_realtime_wake.sql','utf8'))
+ await db.exec(await readFile('supabase/migrations/20260926075123_lp_realtime_wake.sql','utf8'))
  expect((await db.query("select count(*)::int count from pg_policies where schemaname='realtime' and tablename='messages'")).rows[0].count).toBe(1)
  const id=randomUUID()
  const {invite:inv}=await call(users[0],'select public.lp_create($1,$3,$2) result',[id,'ホスト',KEY])
