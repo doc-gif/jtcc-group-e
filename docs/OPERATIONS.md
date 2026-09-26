@@ -20,6 +20,13 @@
 
 状態の流れ: `todo` → `in-progress` → `review` → （マージで Issue が閉じる）→ 公開待ちは**開いているリリース Issue**（`[release]` で始まる1つ）に `ready-to-release` を付けて集める → 担当者が「公開して」と指示 → 公開でラベルを外す。**マージは公開の指示ではない**（AGENTS.md・DEPLOYMENT.md）。
 
+## Milestone と Project（進捗の見える化）
+
+- **Milestone は 4 つ**（https://github.com/doc-gif/jtcc-group-e/milestones）: `ピッチ前（必須）` / `計測（デモ）` / `運用・自動化` / `ピッチ後・磨き込み`。**Issue を作るときに必ず 1 つ付ける**。ロックの Issue は親の Issue と同じ Milestone。期日は担当者が入れる（ピッチの日付）。
+- **Project**「ラストピース タスクボード」（URL はリポジトリの変数 `PROJECT_URL`）に、開いている Issue が自動で並ぶ。Status は `Todo` / `In progress` / `In review` / `Blocked` / `Done`。
+- **Status は手で動かさない**。ラベルから `.github/workflows/project-status.yml` が映す: `in-progress`→In progress、`review`→In review、`blocked`・`needs-owner`→Blocked、閉じた→Done、それ以外→Todo。Project 側の作り方と PAT の設定は #80。
+- 進捗を見るときは Milestone の一覧（残り件数と割合）と Project のボード。文書には書き写さない。
+
 ## Issue と PR の結びつき
 
 - PR 本文の**1行目**に **`Closes #N`**（その PR で Issue が終わる）か **`Refs #N`**（続きがある）。このリポジトリの Issue だけ。CI `PR links an Issue` が1行目に無いと落とす。
@@ -30,7 +37,7 @@
 
 1. `gh issue view N` で本文と最新コメントを読む。`in-progress` が付いていたら手を出さない。
 2. 着手コメント（`[チャット名] 着手します。ブランチ: …、触るファイル・資源: …`）→ `in-progress` を付け、`todo` を外す。
-3. `origin/main` から専用ブランチ・worktree。Draft PR を開き、本文の**1行目**に `Closes #N`。
+3. Issue に Milestone が無ければ付ける。`origin/main` から専用ブランチ・worktree。Draft PR を開き、本文の**1行目**に `Closes #N`。
 4. 共有資源は `lock:*` の Issue を立ててから。開いているロックがあれば待ち、他の部分を先に進める。
 5. 区切りごとに1行の途中経過。質問は `needs-owner` を付けて @doc-gif に。
 6. Ready にしたら `review`。Bot のマージまで見届け、マージされたら Issue に結果を1行、親 Issue（#53）の表を更新する。公開したい変更なら、**開いているリリース Issue**（`[release]` で始まる。なければ作る）に「#N をマージ（内容1行）」とコメントし `ready-to-release` を付ける。**本番公開はしない。**
@@ -40,6 +47,7 @@
 マネージャーは実装しない。1時間ごとに次を行い、結果を **#53 に1コメント**（`[manager] HH:MM UTC` で始める。変化がなければコメントしない）。
 
 1. **実態を見る**: `node scripts/live-state.mjs`、`gh issue list --state open`、`gh issue list --label ready-to-release --state all`、`gh pr list --state open`、ラベル。
+   - **Milestone の漏れ**: `gh issue list --state open --json number,title,milestone --jq '.[] | select(.milestone == null) | .number'` で無いものを見つけ、内容から 4 つのどれかを付ける（迷えば `ピッチ前（必須）` にして #53 のコメントに書く）。
 2. **止まっているものを見つける**
    - `in-progress` なのに 2 時間以上コメントも push もない → Issue に `[manager] 進捗を教えてください。止まっていれば in-progress を外します` とコメント。さらに 2 時間動かなければ `in-progress` を外して `todo` に戻す（作業者のブランチは消さない）。
    - `review` なのに CI が赤・Copilot の指摘が未解決・main の取り込み待ち → Issue にコメントして作業者へ。
