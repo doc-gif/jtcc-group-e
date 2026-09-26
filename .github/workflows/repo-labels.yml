@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths: ['.github/workflows/repo-labels.yml']
   workflow_dispatch:
+  # Bot（GITHUB_TOKEN）のマージは push の workflow を起こさないので、毎日 1 回も同期する
+  schedule:
+    - cron: '17 0 * * *'
 permissions:
   issues: write
 jobs:
