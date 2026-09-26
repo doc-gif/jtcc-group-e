@@ -8,7 +8,7 @@
 | --- | --- |
 | 設定 | リポジトリの [`.env.production`](../.env.production) に `VITE_SUPABASE_URL`（`https://vfwlulahhjtuqnrjjohd.supabase.co`）と `VITE_SUPABASE_PUBLISHABLE_KEY`（`sb_publishable_…`）だけを置いた。どちらもブラウザに公開する前提の値（Supabase MCP の `get_project_url`・`get_publishable_keys` で取得）。`vite build`（`pnpm check`・`pnpm build`）が読むので、CI・確認用プレビュー・本番（CI の成果物をそのまま公開）のビルドがすべてつながる。ワークフローは変えていない |
 | 秘密の鍵 | secret キー・旧形式の管理者キーは使わない・置かない。`scripts/governance.test.mjs` が `.env.production` のキーの種類と形、`src/` と `.env.production` に秘密の鍵の形がないことを確かめる |
-| 使う場所 | `src/realtime/supabase.ts` の `configuredClient()`・`configuredTransport()`（URL が `https://`、キーが `sb_publishable_` のときだけ）。`src/app/sharedRoom.ts` の `defaultRoomSession()` がルームの画面に渡す |
+| 使う場所 | `src/realtime/supabase.ts` の `configuredClient()`・`configuredTransport()`（`supabaseConfig` が URL は `https://<ホスト>` だけ、キーは `sb_publishable_` の形と確かめたときだけ。壊れた値は例外を出さず端末内デモ）。`src/app/sharedRoom.ts` の `defaultRoomSession()` がルームの画面に渡す |
 | 設定がないとき | 開発サーバー（`pnpm dev`）・単体テスト（vitest）は `.env.production` を読まないので、従来どおり同じブラウザのタブの間だけで動く端末内デモ（画面に「デモ」と明記） |
 | E2E | ビルドは実 Supabase を指すが、`playwright.config.ts` が全ページの `localStorage` に `lastpiece_room_force_demo=1` を入れ、端末内デモにする。`e2e/room.spec.ts` が「テストしている成果物に実 Supabase の URL が入っている」ことと「`*.supabase.co` への要求が 0 件」を確かめる。テストは減らしていない |
 | 本人の識別 | 各端末は Supabase Auth の匿名ログイン（最初の RPC の前に1回だけ。`src/realtime/supabase.ts`）。セッションはその端末のブラウザの `localStorage` に、公開先の URL のパスごとに置く（本番と確認用プレビューは別の人になる） |

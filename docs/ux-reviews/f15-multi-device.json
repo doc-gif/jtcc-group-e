@@ -1,8 +1,8 @@
 {
-  "uiDigest": "6e883ca50b62bbbd57172f6943c3bbf8a877bd19b7e9a6987f7f0454bc5a228b",
+  "uiDigest": "5194a62f827be59f9045809be1c5294875c81af1f37a6cdc2fc24c09807ae74c",
   "reviewer": "Claude (implementation agent, F15 multi-device)",
   "reviewedAt": "2026-09-26",
-  "summary": "共有ルームを専用の Supabase（lastpiece-pitch）につなぎ、本番・確認用プレビュー・CI のビルドで別々のスマホが同じルームに入れるようにした（.env.production の URL と publishable キー）。画面の部品・文言・レイアウトは変えていない。実 transport のときは F05 から条件付きだったデモの注記（「デモ：この端末のブラウザの中だけのルームです」、共有シートのデモの説明、ルームを作る画面の「この端末をデモのホストにして作ります」、「デモのルームが見つかりません」）が出ず、マスター T10 の文言だけになる（src/app/roomSession.test.ts と Room.test.tsx の実 transport のセッション）。E2E・UI/UX 検査は playwright.config.ts の lastpiece_room_force_demo=1 で端末内デモのまま、Chromium（small-mobile・android・desktop）で app・room・ux・colors の 438 件中 435 件成功。失敗の 3 件は main でも同じ、この環境の古い Chromium の console 404 によるプレビュー確認の既知の失敗（F11 の記録と同じ）で、CI に任せる。room.spec は *.supabase.co への要求 0 件と成果物に URL が入っていることを確認。実 Supabase の画面はこの環境から HTTP で接続できず見ていない（実機2台の確認手順は docs/MULTI_DEVICE.md）。WebKit は CI。",
+  "summary": "共有ルームを専用の Supabase（lastpiece-pitch）につなぎ、本番・確認用プレビュー・CI のビルドで別々のスマホが同じルームに入れるようにした（.env.production の URL と publishable キー）。画面の部品・文言・レイアウトは変えていない。実 transport のときは F05 から条件付きだったデモの注記（「デモ：この端末のブラウザの中だけのルームです」、共有シートのデモの説明、ルームを作る画面の「この端末をデモのホストにして作ります」、「デモのルームが見つかりません」）が出ず、マスター T10 の文言だけになる（src/app/roomSession.test.ts と Room.test.tsx の実 transport のセッション）。E2E・UI/UX 検査は playwright.config.ts の lastpiece_room_force_demo=1 で端末内デモのまま、Chromium（small-mobile・android・desktop）で app・room・ux・colors の 438 件中 435 件成功。失敗の 3 件は main でも同じ、この環境の古い Chromium の console 404 によるプレビュー確認の既知の失敗（F11 の記録と同じ）で、CI に任せる。room.spec は *.supabase.co への要求 0 件と成果物に URL が入っていることを確認。実 Supabase の画面はこの環境から HTTP で接続できず見ていない（実機2台の確認手順は docs/MULTI_DEVICE.md）。WebKit は CI。Copilot の指摘2件（Realtime に本人の JWT を明示して渡す、壊れた設定値で new URL が例外を出さず端末内デモに戻す）を直した後も、画面の文言・部品は同じで、単体テストで確認した。",
   "criteria": [
     {
       "id": "HIG-01",

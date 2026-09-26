@@ -1,8 +1,9 @@
+import envFile from '../../.env.production?raw'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { expect, test, vi } from 'vitest'
 import { errorMessage, nameSuggestion, RoomContractError } from './protocol'
 import { roomErrorCode } from './roomController'
-import { supabaseTransport } from './supabase'
+import { supabaseConfig, supabaseTransport } from './supabase'
 
 test('F13: 人数不足の開始は need-more-players のコードで状態層へ渡る', async () => {
   const rpc = vi.fn(async () => ({ data: null, error: { message: 'need-more-players' } }))
@@ -94,10 +95,12 @@ test('F15: 購読は本人の JWT を Realtime に渡してから非公開チャ
   const on = vi.fn()
   const channel = { on: (...args: unknown[]) => { on(...args); return channel }, subscribe: vi.fn(() => channel) }
   const removeChannel = vi.fn(async () => 'ok')
-  const setAuth = vi.fn(async () => {})
+  const setAuth = vi.fn(async (_token?: string | null) => {})
   const makeChannel = vi.fn(() => channel)
+  // 2回目の読み取りでは更新後のトークン（キャッシュした古いトークンを渡さない）
+  const tokens = ['jwt-at-sign-in', 'jwt-current']
   const client = {
-    auth: { getSession: async () => ({ data: { session: {} }, error: null }) },
+    auth: { getSession: async () => ({ data: { session: { access_token: tokens.shift() ?? 'jwt-later' } }, error: null }) },
     realtime: { setAuth },
     channel: makeChannel,
     removeChannel,
@@ -105,6 +108,8 @@ test('F15: 購読は本人の JWT を Realtime に渡してから非公開チャ
   const refresh = vi.fn()
   const stop = supabaseTransport(client).subscribe('room-1', refresh)
   await vi.waitFor(() => expect(channel.subscribe).toHaveBeenCalled())
+  expect(setAuth).toHaveBeenCalledTimes(1)
+  expect(setAuth).toHaveBeenCalledWith('jwt-current')
   expect(setAuth.mock.invocationCallOrder[0]).toBeLessThan(channel.subscribe.mock.invocationCallOrder[0])
   expect(makeChannel).toHaveBeenCalledWith('lp:room-1', { config: { private: true } })
   expect(on).toHaveBeenCalledWith('broadcast', { event: 'round' }, refresh)
@@ -114,7 +119,7 @@ test('F15: 購読は本人の JWT を Realtime に渡してから非公開チャ
   // Realtime に入れなくても例外を外に出さない（ポーリングが正）
   const brokenChannel = vi.fn()
   const broken = {
-    auth: { getSession: async () => ({ data: { session: {} }, error: null }) },
+    auth: { getSession: async () => ({ data: { session: { access_token: 'jwt' } }, error: null }) },
     realtime: { setAuth: async () => { throw new Error('realtime unavailable') } },
     channel: brokenChannel,
     removeChannel,
@@ -123,4 +128,37 @@ test('F15: 購読は本人の JWT を Realtime に渡してから非公開チャ
   await new Promise((resolve) => setTimeout(resolve, 0))
   expect(brokenChannel).not.toHaveBeenCalled()
   stopBroken()
+})
+
+test('F15: トークンのないセッションでは Realtime に入らない（公開キーで購読しない）', async () => {
+  const setAuth = vi.fn(async () => {})
+  const makeChannel = vi.fn()
+  const client = {
+    auth: { getSession: async () => ({ data: { session: {} }, error: null }) },
+    realtime: { setAuth },
+    channel: makeChannel,
+    removeChannel: vi.fn(),
+  } as unknown as SupabaseClient
+  const stop = supabaseTransport(client).subscribe('room-1', () => {})
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  expect(setAuth).not.toHaveBeenCalled()
+  expect(makeChannel).not.toHaveBeenCalled()
+  stop()
+})
+
+test('F15: ビルドの設定は完全な形のときだけ使う（壊れた値は端末内デモに戻し、画面を落とさない）', () => {
+  const key = 'sb_publishable_8fQRFgFgQ8mu4vvYYvjIzQ_2M0Yi-MR'
+  expect(supabaseConfig('https://abcdefghijklmnopqrst.supabase.co', key)).toEqual({ url: 'https://abcdefghijklmnopqrst.supabase.co', key, host: 'abcdefghijklmnopqrst.supabase.co' })
+  expect(supabaseConfig('https://abcdefghijklmnopqrst.supabase.co/', key)?.url).toBe('https://abcdefghijklmnopqrst.supabase.co')
+  for (const url of ['https://', 'https:', 'https:///', 'https://ex ample.co', 'http://abcdefghijklmnopqrst.supabase.co', 'https://user:pass@abcdefghijklmnopqrst.supabase.co',
+    'https://abcdefghijklmnopqrst.supabase.co:8443', 'https://abcdefghijklmnopqrst.supabase.co/rest/v1', 'https://abcdefghijklmnopqrst.supabase.co?x=1', 'https://abcdefghijklmnopqrst.supabase.co#a',
+    ' https://abcdefghijklmnopqrst.supabase.co', '', undefined, 1]) {
+    expect(supabaseConfig(url, key), String(url)).toBeNull()
+  }
+  // リポジトリの .env.production（本番・プレビューのビルドが読む値）は、この確かめを通る（黙って端末内デモにならない）
+  const env = Object.fromEntries(envFile.split('\n').filter((line) => /^VITE_/.test(line)).map((line) => line.split(/=(.*)/s).slice(0, 2)))
+  expect(supabaseConfig(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_PUBLISHABLE_KEY)?.host).toBe('vfwlulahhjtuqnrjjohd.supabase.co')
+  for (const bad of ['sb_publishable_', 'sb_publishable_short', 'sb_publishable_ has spaces here', `sb_secret_${'x'.repeat(31)}`, 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.x', '', undefined]) {
+    expect(supabaseConfig('https://abcdefghijklmnopqrst.supabase.co', bad), String(bad)).toBeNull()
+  }
 })
