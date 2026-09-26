@@ -1,13 +1,13 @@
 {
-  "uiDigest": "c3db2a082c626fb66c90d853a0c47c9dc20fb1bc8f96096a82704a95c2cfcfb8",
+  "uiDigest": "1d165a8ea11f11092c458d37e3ab8e52eeb386b903bcfc15bb79812b8f61fb53",
   "reviewer": "Claude (implementation agent, F11)",
   "reviewedAt": "2026-09-26",
-  "summary": "担当者の指示（2026-09-26「基本的にマスターを正として」）で、T08（F03）と T09（F04）の画面を Figma マスターに合わせた。マスター T08 セクション 267:8264 と T09 セクション 267:8474 の全画面・筐体部品 267:10520 を Figma で読み取り（編集なし）、320px・390px・文字200%の実画面と並べて照合した。内部写真・デモ表記・確率の正直さ・ガセの確定演出なしは例外として残し、既存の決定を守るために残す状態は ADOPTED_DESIGN.md に理由とともに列挙。Chromium（small-mobile・android・desktop・横向き）で E2E と UI/UX 検査が成功（プレビュー確認の1件はこの環境の古い Chromium の console 404 で失敗、main でも同じ）。WebKit は CI で確認する。実機のノッチ・対象ユーザー評価は未実施。",
+  "summary": "担当者の指示（2026-09-26「基本的にマスターを正として」）で、T08（F03）と T09（F04）の画面を Figma マスターに合わせた。マスター T08 セクション 267:8264 と T09 セクション 267:8474 の全画面・筐体部品 267:10520 を Figma で読み取り（編集なし）、320px・390px・文字200%の実画面と並べて照合した。内部写真・デモ表記・確率の正直さ・ガセの確定演出なしは例外として残し、既存の決定を守るために残す状態は ADOPTED_DESIGN.md に理由とともに列挙。F06（色）のマージ後に main を取り込み、棚板・枠の線・絵のミントを src/index.css の絵の色のトークンへ移した。Chromium（small-mobile・android・desktop・横向き）で E2E・UI/UX 検査・主操作色の文字の大きさ検査（colors.spec）が成功（プレビュー確認の1件はこの環境の古い Chromium の console 404 で失敗、main でも同じ）。WebKit は CI で確認する。実機のノッチ・対象ユーザー評価は未実施。",
   "criteria": [
     {
       "id": "HIG-01",
       "result": "pass",
-      "evidence": "gacha-detail・gacha-odds・spin-solo-confirm・spin-sold-out・spin-insufficient-coins・shelf-empty・shelf-owned・shelf-other-set（新規）・collection-list・friends-none・friend-shelf-unavailable ほか31シナリオ×4構成で axe WCAG AA 違反0。回転1・開封1〜3・結果・回す前も e2e の checkState で axe 違反0。文字とボタンの色は共通トークンだけ。棚の持っている枠は絵＋「持っている」、空き枠は「＋」＋「未入手」＋中身の名前で、色だけに頼らない。"
+      "evidence": "gacha-detail・gacha-odds・spin-solo-confirm・spin-sold-out・spin-insufficient-coins・shelf-empty・shelf-owned・shelf-other-set（新規）・collection-list・friends-none・friend-shelf-unavailable ほか31シナリオ×4構成で axe WCAG AA 違反0。回転1・開封1〜3・結果・回す前も e2e の checkState で axe 違反0。文字とボタンの色は共通トークンだけで、F06 の colors.spec（#be6482 の文字は大きい文字だけ）も全シナリオで成功。棚の持っている枠は絵＋「持っている」、空き枠は「＋」＋「未入手」＋中身の名前で、色だけに頼らない。"
     },
     {
       "id": "HIG-02",
