@@ -1,10 +1,104 @@
-# 希望時だけの引き継ぎ
+# 引き継ぎ・タスク指示書（クラウド → ローカル Claude Code）
 
-この手順は、担当者が「引き継ぎたい」「この作業を別の AI に引き継いで」などと**明示した場合だけ**使います。通常の実装・修正依頼、進捗の閲覧、Codex が使えないという推測だけでは引き継ぎを開始しません。依頼された通常作業を優先し、未完了タスクの自動割当や自動実行はしません。
+2026-09-26 時点。作業が進んだら、このファイルを更新する（終わった項目は消すか「完了」にする）。ホスト用キーの本体など秘密は書かない。
 
-1. [進捗](STATUS.md)の更新時刻、未完了の候補、前提、残課題を読む。GitHub の最新 PR・ブランチ・CI と Figma の現況を照合し、記録が古ければその差を先に伝える。
-2. 担当者が指定したタスクがあればそれを引き受ける。指定がなければ、前提がそろった最新の候補と選ぶ理由を短く示し、担当者が選んだ後に始める。`DONE` や進行中の他担当の範囲を勝手に取り直さない。
-3. [AGENTS.md](../AGENTS.md) と [開発フロー](DEVELOPMENT.md)に従い、原則 1 タスク・1 ブランチ・1 worktree。既存の未コミット変更を保全し、同じ作業領域や Figma 領域を上書きしない。プレビューは [PREVIEW.md](PREVIEW.md)、本番公開は明示指示時だけ [DEPLOYMENT.md](DEPLOYMENT.md)に従う。
-4. 完了後は [STATUS.md](STATUS.md) に成果、実測・テスト、証拠 URL/node/commit、残課題、ブランチ、更新時刻、次候補を記す。同じ PR でコミット・push し、通常の必須 CI・レビュー・マージを通す。証拠が欠ける場合は未確認と書く。
+ローカルの作業フォルダ: `C:\Users\IshitobiHyo\IdeaProjects\jtcc-group-e`（repo `doc-gif/jtcc-group-e`）
+最初に `git fetch origin && git checkout main && git pull` し、**AGENTS.md と CLAUDE.md を読んで従う**こと。
+クラウド側のエージェントはすべて停止済み。以後はローカルだけで進める。
 
-引き継ぎメッセージ例: 「`STATUS.md` の T07 を引き継ぎたい。Town Home の Figma 修正からお願いします」。
+**進める順番（おすすめ）**: 1. 本番 v0.3.1（#41 はマージ済み） ／ 6. マージ・リリースのキュー（並列作業の前に） ／ 5. 全画面表示とジェスチャーの抑制 ／ 3. ピッチ用の写真 ／ 4. サンリオの世界観（マスター反映）。
+並列にするときは、6 の「共有資源のロック」と「担当の宣言」の規則が入るまで、Supabase・Figma のマスター・同じ文書の表を触る作業を同時に走らせない。
+
+## 現在の main と本番
+- main: `f5ba9b5`（#41 まで。本番のビルドはこの時点から Supabase につながる）
+- 本番: **v0.3.0**（commit `09237ac`、ルーム画面入り。ルームは同じブラウザのタブ間デモのまま）https://doc-gif.github.io/jtcc-group-e/
+- 公開手順: docs/DEPLOYMENT.md（`release-pages.yml` を main で workflow_dispatch、version は未使用の vX.Y.Z）。担当者から「本番まで出す」指示あり。公開後は Release の SHA と pages-history の `site/deployment.json` を確かめ、URL と QR（`pnpm qr <URL> <png>`）を担当者に渡す。
+
+## 1. 複数端末対応（PR #41、マージ済み `f5ba9b5`）→ 本番 v0.3.1
+- https://github.com/doc-gif/jtcc-group-e/pull/41 。本番・プレビューのビルドのルームは Supabase `lastpiece-pitch` につながる（`.env.production` の URL と publishable キー。secret キーは使わない）。テストは端末内デモに固定。
+- **やること**: 本番 v0.3.1 を公開 → 本番 URL で実機（別々のスマホ）確認 → 担当者に URL と QR。
+- ローカルで実通信を確認済み（Playwright の別コンテキスト4つで ホスト用リンク → 作成 → 2人参加 → 開始 → 同時開封 → 結果 → 別端末でホスト再開）。
+- 後片付け: ローカル検証用のキー（担当者のキーとは別）は、本番確認後に `update public.lp_host_keys set revoked_at = now() where id = '<検証用キーの id>'` で無効にする。**担当者のキー（label `owner 2026-09`, id `0e61b081-eb69-4860-9909-3df411dec211`）は触らない。**
+- 後続（別 PR）:
+  - 別端末でホストを再開したあと、元の端末が「ルームは終了しました」と出る → 実態は「ホストが別の端末に移った」。文言と状態を分ける（マスターにない状態なので Figma を先に）。
+  - ロビーの反映がポーリングで最大 15〜30 秒。
+
+## 2. 担当者の返事待ち
+- **Realtime を有効にするか**（今はポーリング15秒。有効にすると即時。「今すぐ開始」の遅れが消える）。ピッチでは当面「予約開始（1分後など）」を使うよう案内済み。
+- **会場の人数**: 匿名ログインの上限が 60件/時/IP。同じ Wi‑Fi だと61人目以降が入れない可能性。Supabase Dashboard → Authentication → Rate Limits で上げる。
+
+## 3. F15 ピッチ用の実物グッズ写真（途中・要注意）
+- **本番 DB にはすでに migration `20260926052120 lp_pitch_goods_photos` を適用済み**（非公開バケット `pitch-goods`：1 MiB・JPEG のみ・0 枚、関数 `public.lp_can_view_photos()`（開いているルームの参加者・ホストだけ true、authenticated のみ実行可）、`storage.objects` の読み取りだけのポリシー `lp_pitch_goods_read`。書き込みのポリシーはなく、アップロードは Dashboard だけ）。
+- **その migration ファイルと途中のコードは、ブランチ `claude/f15-pitch-photos`（`636add7`、WIP・未検証、#41 の最初のコミット `e9a283c` の上）にだけある。** main にはまだない＝DB がリポジトリより先に進んでいる。このブランチに `origin/main`（#41 マージ済み）を merge して続けるか、同じ migration ファイルを新しいブランチに入れる（ファイル名・中身を変えない）。
+- 入っているもの: `src/realtime/photos.ts`・`src/app/pitchPhotos.ts`（読み込みと対応表）、ルームの結果画面の写真・フォールバック・© 表記（`src/components/Room.tsx`・`src/screens/Room.tsx`・`room.css`）、`glowLabel` を `src/domain/odds.ts` へ移動、`sharedRoom.ts` の写真の配線、DB テスト3件（Storage の小さな代役、27/27 成功）。
+- 足りないもの: 写真の画面テスト、担当者向け `docs/PITCH_PHOTOS.md`、`docs/SQL_MIGRATION_F15.md`、文書の更新、UX レビュー記録、実 DB での「参加者は読める・部外者は読めない」の取り消す取引での確認と advisors。
+- ローカル検証でキー（label `local test 2026-09-26`）とルームが増えている。本番確認後にキーを `revoked_at` で無効にする。
+- 許諾の範囲（担当者、2026-09-26）: **ピッチ・関係者だけ**、**実物グッズの写真だけ**（キャラクターの絵はアプリに入れない）。写真はリポジトリ・`public/`・プレビュー・本番ビルドに入れない。governance の画像の許可リストのテストは緩めない。ASSET_LIBRARY.md に許諾と範囲を記録する。
+
+## 4. F14 サンリオの世界観（Figma）— マスターへの反映が止まっている
+- 担当者は方向・文言（「ようこそ、ラストピースの街へ！」「やったね！」）・見出しの Zen Maru Gothic Bold・小さな変更をすべて承認済み（2026-09-26「両方OK」）。
+- **全64画面・街の地図・筐体のサンリオ版は、Town v2（`134:2`）のセクション `task/claude/f14-sanrio-world`（`323:3796`）に複製として完成済み。** 画面名の末尾 ` · src <マスター id>` が元の画面。地図 `339:4802`、筐体 `339:5258`。
+- **マスター `267:8198` は未変更**（クラウドでは共有リソースの変更が権限で止められた）。ローカルで担当者の承認のもと、複製と同じ装飾をマスターの frame に**置き換えずに**当てる（node ID と遷移を保つ）。そのあと文書だけの PR（ADOPTED_DESIGN・DESIGN・STATUS、ブランチ `claude/f14-sanrio-world`）。
+- 新しい変数のまとまり `Lastpiece v2 / Sanrio World (F14 draft)`（`VariableCollectionId:323:3784`、11色 `323:3785`〜`323:3795`）。既存の 177:15・177:16 は未変更。採用時に名前から draft を外す。
+- 実装時の境界: **キャラクターの絵はアプリに入れない**（Figma だけ）。アプリには色・リボン・丸い見出し・レイアウトだけを、マスター更新のあとに別タスクで実装する。
+- 気づいた点:
+  - T10 の 16px の主操作色のリンク文字（292/298/312 の画面）は空色の背景で 3.38:1 になるため、複製ではワイン `color/accent/wine`（4.67:1）にした。マスターの淡いピンクの上でも約 3.8:1 で基準未満。
+  - `298:2709`/`2790`/`2867` が `312:6410`/`6486`/`6562` と重なっていて、番号 22–24 が重複している。
+
+## 5. 【新規】ネイティブアプリのような操作感（方法1: 全画面表示とジェスチャーの抑制）— **これだけを進める**
+担当者の決定（2026-09-26）: Capacitor（ネイティブ化）は**まだやらない**。Web のまま、次の範囲だけ直す。
+
+**困りごと**: ブラウザのタブで動くので、リンクバーが出る。ピンチで画面が拡大・縮小し、ブラウザのタブ操作・端スワイプ（戻る／進む）・引っぱって再読み込みとぶつかり、ネイティブアプリの触り心地と違う。
+
+**やること**（ブランチ例 `claude/f16-standalone`、1つの PR）
+1. **ホーム画面から全画面で開く（PWA の standalone）**
+   - `public/manifest.json`: `display: "standalone"`、`start_url`・`scope` を公開パス（`/jtcc-group-e/`、固定版 `/versions/vX.Y.Z/` でも壊れない相対指定）に。`theme_color`・`background_color` をマスターの色に。アイコンは既存（`icon-192.png`・`icon-512.png`・`icon-maskable-512.png`）。
+   - `index.html`: `apple-mobile-web-app-capable`／`mobile-web-app-capable`、`apple-mobile-web-app-status-bar-style`、`apple-touch-icon`、`viewport-fit=cover`（セーフエリアは既存の `env(safe-area-inset-*)` を確認）。
+   - 固定版（`/versions/`）とプレビューのパスで manifest とアイコンが正しく読める・保存データが混ざらない（既存の分離のテストを壊さない）。
+   - Service Worker は**入れない**（版ごとのキャッシュ設計が必要なため別タスク。DEPLOYMENT.md の注意どおり）。
+2. **ジェスチャーの抑制**
+   - ピンチで画面全体が拡大・縮小しない: アプリの外枠に `touch-action: pan-x pan-y`（地図のドラッグなど独自の操作がある要素は必要な値に）、iOS Safari の `gesturestart`／`gesturechange` を `preventDefault`。ダブルタップ拡大も止める（`touch-action: manipulation`）。
+   - 引っぱって再読み込み・端のバウンドを止める: `html, body { overscroll-behavior: none; }`（スクロールする中身は `contain`）。
+   - 長押しメニュー・文字選択・タップの色: ボタンや画像に `-webkit-touch-callout: none`、`user-select: none`、`-webkit-tap-highlight-color: transparent`（入力欄・本文の説明は選べるままにしてよい）。
+   - **アクセシビリティを守る**: `viewport` で `maximum-scale=1`／`user-scalable=no` を**使わない**（iOS は無視する・Android では拡大を奪う）。OS の文字サイズ設定（rem、文字200%）には必ず従う。docs/UI_UX_STANDARDS.md の全項目と既存の文字200%の UX テストを通す。
+3. **「ホーム画面に追加」の案内**（ピッチで来場者に案内する）
+   - 新しい画面・部品なので **Figma が先**: マスター（`267:8198`）に案内の状態（iPhone: 共有 →「ホーム画面に追加」、Android: メニュー／インストール）を追加し、ADOPTED_DESIGN に記録してから実装。担当者の確認を取る。
+   - ブラウザのタブで開いているときだけ出す（`display-mode: standalone`・`navigator.standalone` で判定）。閉じられる、何度も出さない（保存はその端末だけ）。Android は `beforeinstallprompt` があればボタンで出す。
+   - 招待リンクから来た人にも出せるようにする（ルームに入る前に邪魔しない位置）。
+4. **テスト**: manifest の中身（display・start_url・scope・アイコン）、`index.html` のメタ、CSS（`overscroll-behavior`・`touch-action`）、ジェスチャーの抑制（Chromium で pinch 相当のイベントが既定動作にならない）、standalone のときは案内を出さない・タブのときは出す、閉じたら出ない。既存の UX・文字200%・WebKit の構成を通す。`docs/ux-reviews/<task>.json` を `pnpm ux:digest` で作る。
+5. **文書**: PRODUCT.md（ホーム画面に追加・ジェスチャー）、TESTING.md、STATUS.md（行を追加）、ピッチの案内（2台での確認手順の docs/MULTI_DEVICE.md に「ホーム画面に追加してから入る」を追記）。
+6. **実機の確認は担当者**: iPhone（Safari → ホーム画面に追加 → リンクバーなし、ピンチで拡大しない、端スワイプで戻らない）と Android（Chrome → インストール）。確認用 URL と QR を渡す。
+
+**やらないこと**: Capacitor、ネイティブアプリの配布（APK・TestFlight）、Service Worker・オフライン対応、プッシュ通知。
+
+## 6. 【新規】複数エージェントの競合を防ぐ（マージ・リリースのキュー）
+いくつものエージェントが同時に PR を出すと、次のことが起きている。
+- 1つマージされるたびに、ほかの PR が `main` の取り込みと UI digest（`docs/ux-reviews/*.json` の `uiDigest`）の作り直しを求められ、CI をやり直す（auto-merge は最新の main を必須にしている）。
+- STATUS.md・PRODUCT.md・ADOPTED_DESIGN.md の同じ表で衝突し、手で直す。
+- 本番公開（`release-pages.yml`）は `concurrency: pages-release`（`cancel-in-progress: false`）だが、GitHub は**待機中の実行を新しい実行で置き換える**ことがあり、同時に頼むと消える。バージョン番号も手で決めるので重なりうる。
+- 共有の Supabase（migration の順番）と Figma のマスターも、同時に触ると壊れる。
+
+**やること**（ブランチ例 `claude/ops-queue`。CI の設定変更なので小さく分けて PR にする。main の保護設定の変更は担当者の確認を取る）
+1. **マージのキュー**
+   - 候補A: GitHub の **merge queue**（main の保護で「Require merge queue」、ci.yml に `merge_group` を追加、auto-merge.yml はキューに入れる方式へ）。各 PR が main を取り込み直す必要がなくなる。
+   - 課題: UI digest はマージ後の中身で変わるため、キューの中で `check-ux-review` が落ちる。PR の head で記録した digest と、マージ後の digest の扱いを決める（例: キューの実行ではマージ結果で digest を再計算し、PR のレビュー記録は「PR の head の digest」と照合、UI の変更がほかの PR と重なったら差し戻す）。品質の門（Quality gate・UI/UX gate・全5構成）は弱めない。
+   - 候補B（A ができない場合）: auto-merge を「1本ずつ、古い順」にし、Bot が自分で main を取り込んで digest を作り直して CI を回す（エージェントが手でやっていた作業を Bot に移す）。
+   - どちらにするかは、GitHub のプラン・設定で使えるかを確かめてから決め、担当者に一言報告する。
+2. **リリースのキュー**
+   - バージョンを自動で決める（入力なしなら最新タグの patch を +1。入力があれば従来どおり検証）。
+   - 同時の依頼が消えないようにする（例: 公開の依頼を Issue のラベルやファイルで積み、1本ずつ処理する。または公開する側を1人（取りまとめ役）だけにする規則を AGENTS.md に書く）。
+   - 公開後の確認（Release の SHA・`deployment.json`・URL と QR）を workflow の最後で自動で出す。
+3. **共有資源のロック**（規則として AGENTS.md・docs に書く。必要なら軽い仕組みを足す）
+   - **Supabase の migration**: 同時に1本だけ。着手前に Issue（例: ラベル `lock:supabase`）で宣言し、適用・ファイル名合わせ・PR のマージまで持つ。CI で migration のファイル名（version）の重複・順番を検査するテストを足す。
+   - **Figma のマスター**: 同時に1つの作業だけが編集する（ラベル `lock:figma-master`）。それ以外は Town v2 の自分の作業領域で作る。
+   - **STATUS.md などの共通の表**: 衝突しにくい形に（例: 各タスクの記録を `docs/status/<task>.md` に分け、STATUS.md は一覧だけにする）。
+4. **担当の宣言**: 着手時に Draft PR（または Issue）で担当ファイル・Figma の node・DB を書く（DESIGN.md の手順1を全タスクに広げる）。ぶつかる相手がいたら先に調整する。
+5. 文書: AGENTS.md・docs/DEVELOPMENT.md・docs/DEPLOYMENT.md・docs/FAST_FEEDBACK.md を新しい流れに合わせる。
+
+## 大事な情報
+- Figma: ファイル `yeDF1BwhrxpXI57Daainle`。マスター `267:8198`（64画面: T07 6・T08 14・T09 16・T10 28）。作業領域 Town v2 `134:2`。デモ画面のアーカイブ `331:8041`。素材ライブラリ `MYYMoB2wL7LvA2oXZ2gxpT`（内部検討用）。
+- 「Figma が先、アプリが後」。マスターと違う実装は PR に「Figma 修正待ち」と書く。
+- Supabase `lastpiece-pitch`（ref `vfwlulahhjtuqnrjjohd`）。migration は `supabase/migrations/`。適用済みは編集しない。新しい migration は適用後、記録された version にファイル名をそろえる。
+- ホスト用キーの本体は担当者に渡したファイル `host-key.md` にだけある。**チャット・PR・Issue に貼らない**。
+- フレンド: 担当者の答えは「このままでよい」（新しい人のフレンドは空）。
+- ローカルの Playwright はポート 4173 固定（`scripts/serve-test-site.mjs`）。
