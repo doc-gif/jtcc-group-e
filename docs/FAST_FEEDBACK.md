@@ -22,6 +22,17 @@
 - Copilot は PR #6 で自動起動・レビュー完了。指摘は公式仕様に照合し、判定根拠を PR に記録。利用残量や超過課金設定は取得・変更していない。
 - 初回導入時は main に workflow が必要なため手動起動を使用。以降は PR の Preview build 完了で自動起動する。運用確認では Bot コメントの URL・QR・対象 SHA を確認してから利用者へ案内する。
 
+## 文書だけの PR は軽い CI
+
+文書だけの PR でも、ブラウザのテスト8本とプレビューのビルドが毎回回っていた（担当者の要望、2026-09-26）。CI の最初の `Change scope` が PR の差分（マージ用のコミットの `HEAD^1..HEAD`）を [`scripts/change-scope.mjs`](../scripts/change-scope.mjs) で判定する。
+
+- **文書だけ**: 変更したファイルがすべて `docs/**` か、コードの場所の外の `*.md`。
+- **文書だけに含めない**（`.md` でも全部の検査）: `AGENTS.md`・`CLAUDE.md`、`.github/**`・`.claude/**`・`scripts/**`・`src/**`・`public/**`・`e2e/**`・`supabase/**`・`design-system/**`、`.env*`、UI の digest に入る `docs/UI_UX_STANDARDS.md`。コードと文書が混ざった PR、差分が取れない・空・多すぎる PR も全部の検査。
+- 文書だけのとき: `Docs-only checks`（`scripts/` のテスト。文書の秘密の検査 `governance.test.mjs` を含む）と `UI/UX review record`（`check-ux-review.mjs`）だけを回し、`Quality gate`・`UI/UX gate` はその結果で成功を報告する。ビルド・単体テスト・ブラウザのテスト・Preview build・プレビュー公開は飛ばす。
+- `paths-ignore` は使わない。CI 自体を止めると必須の2つのゲートが「未報告」のまま残り、Bot がマージできない。
+- 判定は **main 側**のスクリプトで行う（PR が判定スクリプトを書き換えても、その PR は main の規則で全部の検査）。マージの Bot（main のコード）も、軽い CI で通った PR の変更ファイルを GitHub の一覧で同じ関数にかけ直し、文書だけでなければマージしない。
+- 誤判定のテストは `scripts/change-scope.test.mjs`（文書だけ／コードが混ざる／`AGENTS.md`／`.github`・スクリプト・DB など）と `scripts/auto-merge.test.mjs`（コード・規則・コードからの名前変更・判定スクリプトの変更を承認しない）。
+
 ## 品質の境界
 
 プレビューは型・lint・単体テスト・ビルド後に出すが、全画面検証の合格を意味しない。画面とコメントで CI の確認を案内する。マージ条件の `Quality gate`・`UI/UX gate`、カバレッジ、全5構成、レビュー記録、main 保護は維持する。
