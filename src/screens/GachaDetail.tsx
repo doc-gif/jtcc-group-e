@@ -3,7 +3,7 @@ import { paths } from '../app/router'
 import { findGacha } from '../domain/catalog'
 import { featuredCandidate, spinCheck, spinQuote } from '../domain/game'
 import { coinText, oddsOf, percentLabels } from '../domain/odds'
-import { ExampleNotice, PageHeader, TabBar } from '../components/Chrome'
+import { Bow, ExampleNotice, PageHeader, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { NotFound } from './NotFound'
 import './gacha.css'
@@ -23,12 +23,13 @@ export function GachaDetail({ id }: { id: string }) {
   const problem = spinCheck(state, gacha.id)
 
   return (
-    <div className="screen">
+    <div className="screen world-lavender">
       <PageHeader title="ガチャ詳細" back={paths.gachaList} />
       <main className="content">
         <h2 className="detail-title">{gacha.title}</h2>
         {candidate && (
           <div className="gacha-feature">
+            <Bow className="card-bow" tone="lavender" />
             <GoodsImage art={candidate.art} glow={candidate.glow} size="lg" />
             <div className="gacha-feature-text">
               <p className="gacha-feature-kicker">目玉の候補</p>
