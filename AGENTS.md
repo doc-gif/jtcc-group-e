@@ -32,7 +32,7 @@
 
 ## デザインの管理先
 
-- 指定 Figma ファイル `yeDF1BwhrxpXI57Daainle` をアプリのデザイン管理先とする。ラストピースの画面の正は [デザインマスター `267:8198`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-8198)。45画面・状態と node の対応は [`docs/ADOPTED_DESIGN.md`](docs/ADOPTED_DESIGN.md)。緑アクセントの `252:2` は不採用なので元にしない。詳細・各部品のリンクは `docs/DESIGN.md`。
+- 指定 Figma ファイル `yeDF1BwhrxpXI57Daainle` をアプリのデザイン管理先とする。ラストピースの画面の正は [デザインマスター `267:8198`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-8198)。51画面・状態と node の対応は [`docs/ADOPTED_DESIGN.md`](docs/ADOPTED_DESIGN.md)。緑アクセントの `252:2` は不採用なので元にしない。詳細・各部品のリンクは `docs/DESIGN.md`。
 - **デザインは Figma が先、アプリが後。** 見た目・画面構成・状態の変更は、まず Figma のマスターを直し、その Figma に合わせてアプリを実装する（担当者の指示、2026-09-26）。実装中に Figma と違う形にしたくなったら（色のコントラスト不足などの基準違反を含む）、アプリだけで変えずに、Figma の修正案を担当者に確認して Figma を先に直す。アプリだけの「許容差分」を新しく作らない。Figma の修正待ちの差分は PR に「Figma 修正待ち」と明記し、完了扱いにしない。
 - 新しい UI は Figma に画面と状態を記録してから実装する。配色はピンク基調の「さくらミルク」とし、主操作を緑にしない。マスターと同じ部品インスタンスを使う。既存のピッチ資料をアプリ仕様として確定扱いしない。
 - Figma の作業領域も `task/<branch>` ごとに分け、担当・関連 PR・状態を記載する。共通変数と本体部品は変更前に他の Draft PR と調整し、別の作業領域を上書きしない。

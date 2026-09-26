@@ -22,7 +22,7 @@ T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で�
 | `start(room, request, expected)` | 現在のホストだけ。現在の roundNo と expected が一致し、オンラインで準備済みの人が 1 人以上なら全員分を単一トランザクションで抽選・減算・記録。同じ request の再試行は二重処理しない。予約があれば「今すぐ開始」として置き換える（`scheduledAt`・`lastSchedule` を消す）。 | `room-unavailable`、`host-required`、`invalid-request`、`invalid-round`、`stale-round`、`round-active`、`nobody-ready`、`sold-out`、`insufficient-coins`。失敗時はコイン・在庫・roundNo・ready を変えない。 |
 | `schedule(room, minutes)` | 現在のホストだけ。`minutes` は 1・3・5・10 で、サーバー時刻の `minutes` 分後を `scheduledAt` にする。予約中の再指定は変更、`null` は取り消し（`lastSchedule.status = 'cancelled'`）。予約はルームの期限の 1 分前まで。 | `room-unavailable`、`host-required`、許されない分数・期限の 1 分前を過ぎる時刻は `invalid-schedule`、開封中・次の準備までの間は `round-active`。 |
 | `setPitchMode(room, on)` | 現在のホストだけ。部屋のピッチモードを切り替え、次に始まるラウンドから効く。 | `room-unavailable`、`host-required`、真偽値でなければ `invalid-request`。 |
-| `claim(room)` | active メンバー。現在のホストが退室済み、または最終接続から 45 秒を超えた場合だけホストに交代。競合は部屋ロックで一人に決める。 | `room-unavailable`、現ホストがオンラインなら `host-online`。 |
+| `claim(room)`（**廃止予定**：担当者の判断でホストは担当者だけにする。F10 でホスト用リンクの再開に置き換える） | active メンバー。現在のホストが退室済み、または最終接続から 45 秒を超えた場合だけホストに交代。競合は部屋ロックで一人に決める。 | `room-unavailable`、現ホストがオンラインなら `host-online`。 |
 | `leave(room)` | active メンバー本人。席を空け ready を解除する。残高・結果台帳は残す。ホストの退室後は他の active メンバーが `claim` できる。 | 非メンバー・失効は `room-unavailable`。 |
 | `subscribe(room, refresh)` | メンバー向けの更新ヒント。通知の内容で結果・権限を決めず、受信時に `snapshot` を再取得する。購読失敗時もポーリングを続ける。 | 非メンバーは購読できない。Realtime の認可失敗をゲーム結果の失敗に変換しない。 |
 
