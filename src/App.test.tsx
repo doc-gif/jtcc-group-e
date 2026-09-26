@@ -114,6 +114,10 @@ describe('街（ホーム）と下のタブ', () => {
     expect(heading()).toHaveTextContent('好きが集まる、あなたの街へ。')
     expect(screen.getByText('提案モック・公式サービスではありません')).toBeVisible()
     expect(screen.queryByRole('navigation', { name: 'メイン' })).toBeNull()
+    // 導入の地図は飾りなので、読み上げと焦点の対象から外す
+    const preview = document.querySelector('.opening-town')
+    expect(preview).toHaveAttribute('aria-hidden', 'true')
+    expect(preview).toHaveAttribute('inert')
     tick(1200)
     expect(heading()).toHaveTextContent('いっしょに、わくわくを開けよう。')
     tick(1799)

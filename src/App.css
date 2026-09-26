@@ -450,7 +450,7 @@ details p { font-size: 0.9375rem; padding-bottom: 0.5rem; }
 .town-main { display: flex; flex-direction: column; }
 .town-area { position: relative; }
 .town-viewport {
-  container-type: inline-size;
+  container-type: size;
   width: 100%; aspect-ratio: 1; max-height: 70dvh; overflow: auto; overscroll-behavior: contain;
   background: var(--soft); cursor: grab; scrollbar-width: none; -webkit-overflow-scrolling: touch;
 }
@@ -458,10 +458,10 @@ details p { font-size: 0.9375rem; padding-bottom: 0.5rem; }
 .town-viewport.is-dragging { cursor: grabbing; user-select: none; }
 .town-viewport:focus-visible { outline-offset: -4px; }
 /*
- * 地図は窓の幅の 3.5 倍（390px 幅で広場の3つの名前が収まる）。ただし 70rem より小さくしない。
+ * 地図は窓の短い辺の 3.5 倍（390px 幅や横向きの低い窓でも、広場の3つの名前が最初から収まる）。ただし 70rem より小さくしない。
  * 文字を大きくすると地図も大きくなり、場所の名前どうしが重ならない。
  */
-.town-map { position: relative; width: max(350cqw, 70rem); aspect-ratio: 1; }
+.town-map { position: relative; width: max(350cqmin, 70rem); aspect-ratio: 1; }
 .town-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .town-map > .town-spot, .town-pipi { position: absolute; transform: translate(-50%, -50%); }
 .town-stack { position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
@@ -513,3 +513,16 @@ details p { font-size: 0.9375rem; padding-bottom: 0.5rem; }
 .opening-fade { display: block; animation: opening-fade 0.5s ease-out both; }
 @keyframes opening-fade { from { transform: translateY(0.5rem); } }
 .opening-notice { font-size: 0.875rem; color: var(--sub); }
+/* 動きを減らす設定では、導入の地図の寄りと文の動きを止める（全体の短縮だけに頼らない） */
+@media (prefers-reduced-motion: reduce) {
+  .opening-town .town-map, .opening-fade { animation: none; }
+}
+/*
+ * 横向きなど高さの低い画面：下のタブを1行に詰め、地図の窓を画面に収めて、
+ * 最初から広場の3つの場所がタブに隠れずに見えるようにする。
+ */
+@media (max-height: 30rem) {
+  .tabbar { padding-top: 0.25rem; padding-bottom: calc(0.25rem + env(safe-area-inset-bottom, 0px)); }
+  .tab { flex-direction: row; gap: 0.35rem; min-height: 2.75rem; }
+  .town-viewport { max-height: max(10rem, calc(100dvh - 9.5rem)); }
+}
