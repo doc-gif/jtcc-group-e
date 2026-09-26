@@ -14,7 +14,7 @@
 | [12 Card](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=79-2) | Standard / Subtle |
 | [90 Screens（旧版）](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-10) | 初期画面の履歴 |
 | [Lastpiece / Town v2（作業領域）](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=134-2) | T07–T10 の編集元。`task/<branch>` ごとの領域 |
-| [Lastpiece / Master · T11](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-8198) | **ラストピースの画面の正**。ピンク基調の64画面と部品2点。実装対応は [node/状態一覧](ADOPTED_DESIGN.md) |
+| [Lastpiece / Master · T11](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-8198) | **ラストピースの画面の正**。ピンク基調の69画面と部品3点。実装対応は [node/状態一覧](ADOPTED_DESIGN.md) |
 | [Archive / Adopted Snapshot v1 · T11 (rejected: green accent)](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=252-2) | 不採用。主操作を緑に塗り替えた版。元にしない |
 | [320px 幅の部品確認](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=80-2) | 長文・エラー説明・折返しのインスタンス見本 |
 
@@ -69,7 +69,7 @@ Figma だけの変更を Web 側の UI 変更として偽装してレビュー d
 
 ## 過去版を振り返る
 
-Figma の node URL は編集後も同じ URL になり得る。各採用 PR に画像と node ID を残し、デザインのトークン・manifest は Git の commit で固定する。T11 ではマスターページへ複製し、[64画面と部品の node 対応](ADOPTED_DESIGN.md)を Git commit で固定した。デザインの大きな改訂では旧版を残し、担当範囲を決めて新版を作る。
+Figma の node URL は編集後も同じ URL になり得る。各採用 PR に画像と node ID を残し、デザインのトークン・manifest は Git の commit で固定する。T11 ではマスターページへ複製し、[画面と部品の node 対応](ADOPTED_DESIGN.md)を Git commit で固定した。デザインの大きな改訂では旧版を残し、担当範囲を決めて新版を作る。
 
 公開時には Release に採用 PR とデザイン記録の Git commit permalink を含める。実際に触れる過去 Web アプリは `/versions/vX.Y.Z/` と Release の ZIP で保持する。Figma のライブリンクだけを過去版保存の代わりにしない。
 
