@@ -9,7 +9,7 @@ const KEY=createHostKey()
 const users=Array.from({length:102},()=>randomUUID())
 const room=randomUUID()
 let invite
-const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql']
+const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql','supabase/migrations/20260926025335_lp_name_chars_create_retry.sql']
 const call=async(user,sql,args=[])=>{
  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user])
  return (await db.query(sql,args)).rows[0]?.result
@@ -464,6 +464,34 @@ describe('F10: owner-only host key and unique names', () => {
   await call(a,'select public.lp_leave($1)',[id])
   expect((await join(a,invite,null)).members.find(member=>member.id===a).nickname).toBe('もも2')
  },30000)
+
+ test('names reject control and invisible format characters and fold every Unicode space', async()=>{
+  const cp=String.fromCodePoint
+  const [owner,a]=[randomUUID(),randomUUID()]
+  const id=randomUUID()
+  const {invite}=await create(owner,id,'もも')
+  for(const name of [`もも${cp(0x200b)}`,`${cp(0x202e)}もも`,`${cp(0xfeff)}ゆず`,`ゆ${cp(0xad)}ず`,`ゆ${cp(0x85)}ず`,`ゆ${cp(0x2066)}ず`]) {
+   expect((await failure(join(a,invite,name))).message).toBe('invalid-name')
+  }
+  expect((await failure(join(a,invite,`も${cp(0xa0)}も`))).message).toBe('name-taken')
+  expect((await join(a,invite,`${cp(0x3000)}ゆ${cp(0x2003)}${cp(0x9)}ず${cp(0xa0)}`)).members.find(member=>member.id===a).nickname).toBe('ゆ ず')
+ })
+
+ test('a retry of a created room returns it even after the key is revoked or the user is limited', async()=>{
+  const other=createHostKey()
+  const inserted=(await db.query(hostKeySql('retry',hostKeyRecord(other)))).rows[0].id
+  const owner=randomUUID()
+  const id=randomUUID()
+  const created=await create(owner,id,'オーナー',other)
+  await db.query("update public.lp_host_keys set revoked_at=now() where id=$1",[inserted])
+  expect(await create(owner,id,'オーナー',other)).toMatchObject({id,host:owner,invite:created.invite})
+  for(let i=0;i<5;i++) await create(owner,randomUUID(),null,other)
+  expect(await create(owner,randomUUID(),null,other)).toEqual({error:'too-many-attempts'})
+  expect(await create(owner,id,null,null)).toMatchObject({id,host:owner})
+  // Someone else's request id still needs a valid key and never returns their room.
+  expect(await create(randomUUID(),id,null,createHostKey())).toEqual({error:'host-key-invalid'})
+  await expect(create(randomUUID(),id,null,KEY)).rejects.toThrow('room-unavailable')
+ })
 
  test('joining without a name gives unique friendly names, even in a full room', async()=>{
   const owner=randomUUID()

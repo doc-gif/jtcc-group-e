@@ -230,6 +230,18 @@ test('ホスト用キー: 成功したキーだけを保存し、無効なら消
   expect(owner.getState().hostKey).toBeNull()
   expect(keys.value).toBeNull()
 
+  // 応答を待つ間に別のタブが新しいキーを保存したら、無効だった古いキーの失敗でそれを消さない。
+  const shared = memoryKeys('old_key_rotated_away_000000000000000001')
+  const tab = controller('tab', undefined, { hostKeys: shared })
+  const pending = tab.createAsHost()
+  shared.value = KEY
+  expect((await pending).error?.code).toBe('host-key-invalid')
+  expect(shared.value).toBe(KEY)
+  expect(tab.getState().hostKey).toBe(KEY)
+  // 保存を省いた呼び出しは、いま保存されているキーを使う（ここでは owner のルームのホストに戻る）。
+  expect((await tab.resumeHost()).ok).toBe(true)
+  expect(tab.getState()).toMatchObject({ isHost: true, hostKey: KEY })
+
   // 失敗が続いた利用者は、正しいキーでも 1 分待つ。保存済みのキーは消さない。
   const guestKeys = memoryKeys(KEY)
   const guest = controller('guest', undefined, { hostKeys: guestKeys })
@@ -265,6 +277,13 @@ test('名前を選ばずに入ると重ならない名前が付き、使われ�
   expect((await quiet.rename(quiet.getState().nameSuggestion!)).ok).toBe(true)
   expect(quiet.getState()).toMatchObject({ nameSuggestion: null, self: { nickname: 'momo2' } })
   expect((await quiet.rename('   ')).error?.code).toBe('invalid-name')
+  // 名前はロビー（準備中を含む）でだけ変えられる。
+  expect(quiet.getState()).toMatchObject({ phase: 'lobby', canRename: true })
+  await quiet.setReady(true)
+  expect(quiet.getState()).toMatchObject({ phase: 'ready', canRename: true })
+  await host.start()
+  await quiet.refresh()
+  expect(quiet.getState()).toMatchObject({ phase: 'countdown', canRename: false })
   await host.refresh()
   expect(host.getState().members.map(member => member.nickname)).toEqual(['もも', 'ＭＯＭＯ', 'momo2'])
   const idle = controller('idle')

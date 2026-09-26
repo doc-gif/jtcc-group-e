@@ -264,6 +264,10 @@ test('names: display form, comparison across width, case and spaces, and Japanes
  expect(cleanName('  もも　 ちゃん ')).toBe('もも ちゃん')
  for (const name of ['', '   ', 'あ'.repeat(13), 'a\u0007b', null, undefined]) expect(cleanName(name)).toBeNull()
  expect(cleanName('あ'.repeat(12))).toBe('あ'.repeat(12))
+ const cp = String.fromCodePoint
+ for (const code of [0x200b, 0x202e, 0xfeff, 0xad, 0x85, 0x2066]) expect(cleanName(`ゆ${cp(code)}ず`)).toBeNull()
+ expect(cleanName(`${cp(0x3000)}ゆ${cp(0x2003)}${cp(0x9)}ず${cp(0xa0)}`)).toBe('ゆ ず')
+ expect(nameKey(`も${cp(0xa0)}も`)).toBe(nameKey('もも'))
  expect(nameKey('Ｍｏｍｏ　２')).toBe(nameKey('momo2'))
  expect(nameKey('ｱｲ')).toBe(nameKey('アイ'))
  const taken = new RoomContractError('name-taken', 'もも2')
@@ -292,6 +296,9 @@ test('mock host key: only the key holder creates; wrong keys are limited per use
  now += 61_000
  expect((await guest.create('room-x', KEY, 'ゲスト')).host).toBe('guest')
  server.revokeHostKey(KEY)
+ // A retry of an already created room returns it; anything new needs a valid key.
+ expect((await server.asUser('owner').create('room-o', KEY, null)).id).toBe('room-o')
+ await expect(guest.create('room-o', KEY, null)).rejects.toThrow('host-key-invalid')
  await expect(server.asUser('owner').create('room-y', KEY, 'オーナー')).rejects.toThrow('host-key-invalid')
  await expect(server.asUser('owner').resumeHost(KEY, null)).rejects.toThrow('host-key-invalid')
 })

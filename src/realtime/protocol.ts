@@ -42,13 +42,23 @@ export class RoomContractError extends Error {
     super(code); this.code = code; this.suggestion = suggestion; this.name = 'RoomContractError'
   }
 }
-/** 表示用の名前: 空白の連続を 1 つにして前後を除く。1〜12 文字でなければ null（SQL の lp_clean_name と同じ）。 */
+/** 名前の中で 1 つの空白にまとめる文字（SQL の lp_clean_name と同じ集合）。 */
+const NAME_SPACES = /[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u202f\u205f\u3000]+/g
+/** 名前に使えない制御文字と見えない書式文字（ゼロ幅・双方向の上書き・BOM など）。SQL と同じ範囲。 */
+const NAME_FORBIDDEN: readonly (readonly [number, number])[] = [
+  [0x01, 0x1f], [0x7f, 0x9f], [0xad, 0xad], [0x61c, 0x61c], [0x180e, 0x180e], [0x200b, 0x200f],
+  [0x2028, 0x202e], [0x2060, 0x206f], [0xfeff, 0xfeff], [0xfff9, 0xfffb],
+]
+/** 表示用の名前: 空白の連続を 1 つにして前後を除く。1〜12 文字で、制御・書式文字がなければその名前、違えば null（SQL の lp_clean_name と同じ）。 */
 export function cleanName(name: string | null | undefined): string | null {
   if (typeof name !== 'string') return null
-  const clean = name.replace(/\s+/g, ' ').trim()
+  const clean = name.replace(NAME_SPACES, ' ').replace(/^ +| +$/g, '')
   const chars = [...clean]
-  const control = chars.some(char => { const code = char.codePointAt(0) ?? 0; return code < 0x20 || (code >= 0x7f && code < 0xa0) })
-  return chars.length >= 1 && chars.length <= SHARED_NAME_MAX && !control ? clean : null
+  const forbidden = chars.some(char => {
+    const code = char.codePointAt(0) ?? 0
+    return code === 0 || NAME_FORBIDDEN.some(([from, to]) => code >= from && code <= to)
+  })
+  return chars.length >= 1 && chars.length <= SHARED_NAME_MAX && !forbidden ? clean : null
 }
 /** 同じ名前とみなす比較用の形: NFKC（全角・半角）、空白なし、小文字（SQL の lp_name_key と同じ）。 */
 export function nameKey(name: string) {

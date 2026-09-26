@@ -187,6 +187,8 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
   const hostKeys = options.hostKeys ?? browserHostKeyStore()
   let storedKey = hostKeys.get()
   const saveKey = (key: string | null) => { storedKey = key; hostKeys.set(key) }
+  /** 別のタブが保存・削除したかもしれないので、使う直前に読み直す。 */
+  const currentKey = () => (storedKey = hostKeys.get())
   const listeners = new Set<() => void>()
   const timers = new Set<unknown>()
   const seenKey = (room: string, roundNo: number) => `${room}\u0000${roundNo}`
@@ -260,7 +262,7 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       phase, roomId, snapshot: snap, self, members, isHost, hostOnline,
       hostKey: storedKey,
       nameSuggestion: error?.code === 'name-taken' ? error.suggestion ?? null : null,
-      canRename: live && busy === null && self !== null,
+      canRename: live && busy === null && self !== null && (phase === 'lobby' || phase === 'ready'),
       seats: { taken: members.length, capacity: SHARED_CAPACITY, full: members.length >= SHARED_CAPACITY },
       readyOnline, readyOthers, balance,
       canReady: live && self !== null && !locked && busy === null && (self.ready || (balance ?? 0) >= SHARED_PRICE),
@@ -448,7 +450,8 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
   }
 
   function forgetKey(key: string) {
-    if (storedKey === key) saveKey(null)
+    // 応答を待つ間に別のタブが別のキーを保存していたら、それは消さない。
+    if (currentKey() === key) saveKey(null)
   }
 
   /** 形の違うキーはサーバーへ送らずに無効として返す（保存済みなら消す）。 */
@@ -488,7 +491,7 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     },
     serverNow: () => clock.now() + offset,
     createAsHost(key, name = null) {
-      const hostKey = key ?? storedKey
+      const hostKey = key ?? currentKey()
       if (hostKey === null || !HOST_KEY_PATTERN.test(hostKey)) return rejectKey(hostKey)
       const request = pendingCreate ??= requestId()
       return perform('create', () => transport.create(request, hostKey, name), {
@@ -501,7 +504,7 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       })
     },
     resumeHost(key, id = null) {
-      const hostKey = key ?? storedKey
+      const hostKey = key ?? currentKey()
       if (hostKey === null || !HOST_KEY_PATTERN.test(hostKey)) return rejectKey(hostKey)
       return perform('resume', () => transport.resumeHost(hostKey, id), {
         enter: true,
