@@ -29,6 +29,13 @@ test('禁止語（換金・必ず当たる・還元率100%・等級の文字）�
   }
 })
 
+test('内部素材の ID・Figma のファイルと URL をアプリのコードに入れない（コメントは除く。ビルドに残るため）', async () => {
+  for (const path of sources) {
+    const code = (await read(path)).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+    expect(code.match(/\b[WPL]0\d\d\b|figma\.com|yeDF1BwhrxpXI57Daainle|MYYMoB2wL7LvA2oXZ2gxpT/g), path).toBeNull()
+  }
+})
+
 test('「提案モック・公式サービスではありません」を表示する部品があり、各入口で使う', async () => {
   expect(await read('src/components/Chrome.tsx')).toContain('提案モック・公式サービスではありません')
   for (const screen of ['Town', 'GachaList', 'GachaDetail', 'GachaOdds', 'Welcome', 'Room', 'Spin', 'Collection', 'Me', 'Together', 'Shelf', 'Friend']) {
