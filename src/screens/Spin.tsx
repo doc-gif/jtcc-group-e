@@ -182,16 +182,17 @@ function SpinStage({ gacha, mode }: { gacha: Gacha; mode: Mode }) {
   const kakutei = Boolean(room && won && shouldShowKakutei(won.prize) && turns >= 2)
   const status = (index: number) => phase === 'confirm' ? '準備OK' : progress[index] >= 1 ? '出た！' : `${Math.floor(progress[index] * TURNS)} / ${TURNS} 回転`
   const confirming = phase === 'confirm'
-  const opened = phase === 'opening' || phase === 'revealed' || phase === 'board'
+  // みんなの結果（board）は重ねて出すので、その下に自分の結果や回す画面を残さない
+  const opened = phase === 'opening' || phase === 'revealed'
   const quote = spinQuote(state, gacha)
 
   return (
     <div className={`screen spin-screen${kakutei ? ' is-kakutei' : ''}${confirming ? ' is-confirm' : ''}`}>
-      {room && !opened && <LuxBackdrop level={turns} kakutei={kakutei} />}
+      {room && !opened && phase !== 'board' && <LuxBackdrop level={turns} kakutei={kakutei} />}
       {won && opened ? (
         <OpenScene key={round} won={won} gacha={gacha} mode={mode} balance={state.coins} onReveal={onReveal} onTap={() => ring(CHIMES.tap, 30)}
           onBoard={() => setPhase('board')} revealed={phase !== 'opening'} />
-      ) : (
+      ) : phase === 'board' ? null : (
         <>
           <PageHeader title={confirming ? '回す前に' : 'ハンドルを回す'} back={confirming ? paths.gacha(gacha.id) : undefined}>
             {room && <p className="page-header-sub">{`${gacha.title}・ROOM・${companions.length + 1}人でいっしょに（友達はデモ）`}</p>}

@@ -592,6 +592,9 @@ describe('友達と回す（デモ）', () => {
     expect(screen.getByText('おめでとうございます！', { selector: '.big-banner b' })).toBeVisible()
     fireEvent.click(button('みんなの結果を見る'))
     const board = screen.getByRole('dialog', { name: /みんなの結果/ })
+    // 回帰：みんなの結果の下に、自分の結果の画面（見出し・操作）を残さない
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'みんなの結果を見る' })).toBeNull()
     expect(within(board).getAllByText(/カプセルを開けています/)).toHaveLength(2)
     tick(TIMING.friendReveal)
     tick(TIMING.friendReveal)

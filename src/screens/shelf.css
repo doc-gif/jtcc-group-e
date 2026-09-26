@@ -1,12 +1,5 @@
 /* ===== 棚・フレンド（T09・F04／F11 でマスターに合わせた） ===== */
-/* 文字とボタンの色は src/index.css のトークンだけを使う。
- * マスターの木の棚板・枠の線・フレンドなしの絵の淡いミントは「さくらミルク」のトークンにないので、ここだけの変数にする
- * （F06 で共通トークンができたら src/index.css へ移す）。どれも飾りの色で、文字には使わない。 */
-.screen {
-  --shelf-wood: #C99C87;      /* マスター 267:8476 の棚板（shelf rail） */
-  --shelf-slot-line: #CFBFBA; /* 空き枠の線（slot / empty） */
-  --art-mint: #D3E8DD;        /* フレンドなしの絵の右の顔（267:8884） */
-}
+/* 色は src/index.css のトークンだけを使う。木の棚板・枠の線・絵のミントは絵の色のトークン（--shelf-wood・--shelf-slot-line・--art-mint）。 */
 
 .shelf-summary {
   display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem;
