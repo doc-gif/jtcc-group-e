@@ -93,7 +93,14 @@
    - **Figma のマスター**: 同時に1つの作業だけが編集する（ラベル `lock:figma-master`）。それ以外は Town v2 の自分の作業領域で作る。
    - **STATUS.md などの共通の表**: 衝突しにくい形に（例: 各タスクの記録を `docs/status/<task>.md` に分け、STATUS.md は一覧だけにする）。
 4. **担当の宣言**: 着手時に Draft PR（または Issue）で担当ファイル・Figma の node・DB を書く（DESIGN.md の手順1を全タスクに広げる）。ぶつかる相手がいたら先に調整する。
-5. 文書: AGENTS.md・docs/DEVELOPMENT.md・docs/DEPLOYMENT.md・docs/FAST_FEEDBACK.md を新しい流れに合わせる。
+5. **文書だけの PR は軽い CI で済ませる**（担当者の要望、2026-09-26）
+   - いまは文書だけの PR でもブラウザのテスト8本とプレビューのビルドが毎回回る。
+   - `paths-ignore` で CI 自体を止めてはいけない（必須チェックの Quality gate・UI/UX gate が「未報告」のままになり、Bot がマージできない）。
+   - ci.yml の最初のジョブで変更ファイルを調べ、**すべて `docs/**` または `.github/` 以外の `*.md`** なら「文書だけ」と判定する。`AGENTS.md`・`CLAUDE.md`・`.github/**`・`.env*`・`supabase/**` など動きや規則に関わるものは「文書だけ」に含めない。コードと文書が混ざった PR は今までどおり全部の検査。
+   - 文書だけのとき: 秘密の検査（`scripts/governance.test.mjs` など）・`node scripts/check-ux-review.mjs`・（必要なら）リンク切れの検査だけを回し、Quality gate と UI/UX gate を成功で報告する。ブラウザのテスト・Preview build・公開・単体テストとビルドは飛ばす。
+   - 判定を間違えて本来の検査を飛ばさないことをテストする（判定のスクリプトに単体テスト: 文書だけ／コードが混ざる／`AGENTS.md`／`.github` の変更）。品質の門は弱めない。
+6. 文書: AGENTS.md・docs/DEVELOPMENT.md・docs/DEPLOYMENT.md・docs/FAST_FEEDBACK.md を新しい流れに合わせる。
+
 
 ## 7. 【新規】デモ用リンク（LP）とピッチ用リンクを分ける
 担当者の決定（2026-09-26）。いまは「ホストが作らないとルームがない」設計だが、リンクの種類で仕様を変える。
