@@ -5,7 +5,7 @@
 ## 通常の公開手順
 
 1. 対象変更が PR で `main` に入り、Quality gate と UI/UX gate が成功していることを確認する。
-2. [Releases](https://github.com/doc-gif/jtcc-group-e/releases) を確認し、未使用の `vMAJOR.MINOR.PATCH` を決める。初回は `v0.1.0`。バージョンは以前より大きくする。
+2. `node scripts/live-state.mjs` で本番の版と「本番公開の実行（待機中・実行中）」を確認する。実行中があれば新しく依頼せず、その実行の完了を追って確認する（同じ SHA の二重公開・版番号の重なりを防ぐ）。[Releases](https://github.com/doc-gif/jtcc-group-e/releases) を確認し、未使用の `vMAJOR.MINOR.PATCH` を決める。初回は `v0.1.0`。バージョンは以前より大きくする。
 3. `main` から次を実行する（PowerShell、既存 Git Credential Manager または GH_TOKEN 認証）。
 
 ```powershell
