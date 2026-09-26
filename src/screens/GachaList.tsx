@@ -4,7 +4,7 @@ import { paths } from '../app/router'
 import { catalog, categoryList, seriesList } from '../domain/catalog'
 import { coinText, oddsOf, remainingRatio } from '../domain/odds'
 import type { CategoryId, Gacha, SeriesId } from '../domain/types'
-import { MockNotice, SaveWarning, TabBar, TopBar } from '../components/Chrome'
+import { ExampleNotice, SaveWarning, TabBar, TopBar } from '../components/Chrome'
 import { Banner, GoodsImage, RemainBar } from '../components/Goods'
 import './gacha.css'
 
@@ -65,7 +65,7 @@ export function GachaList() {
           </ul>
         )}
         <SaveWarning />
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <TabBar active="gacha" />
     </div>

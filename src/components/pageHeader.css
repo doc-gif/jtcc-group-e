@@ -1,4 +1,4 @@
-/* デザインマスター（T08・T09）の上部：提案モックの1行 → 枠付きの「戻る」と見出し。
+/* デザインマスター（T08・T09）の上部：「開発中のサービス」の1行 → 枠付きの「戻る」と見出し。
  * 色は src/index.css のトークンと共通のボタンクラス（btn-outline）だけを使う。 */
 .page-header {
   display: flex; flex-direction: column; gap: 0.4rem;

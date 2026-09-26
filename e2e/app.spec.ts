@@ -73,7 +73,7 @@ for (const path of ['./', './versions/v0.0.0/']) {
     await page.getByRole('button', { name: 'スキップ' }).click()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(/ラストピース/)
     await expect(page).toHaveTitle('ラストピース')
-    await expect(page.getByText('提案モック・公式サービスではありません', { exact: false }).first()).toBeVisible()
+    await expect(page.getByText('ラストピースは開発中のサービスです', { exact: false }).first()).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
     const accessibility = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()
     expect(accessibility.violations).toEqual([])

@@ -3,7 +3,7 @@ import { paths } from '../app/router'
 import { findGacha } from '../domain/catalog'
 import { featuredCandidate, spinCheck, spinQuote } from '../domain/game'
 import { coinText, oddsOf, percentLabels } from '../domain/odds'
-import { MockNotice, PageHeader, TabBar } from '../components/Chrome'
+import { ExampleNotice, PageHeader, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { NotFound } from './NotFound'
 import './gacha.css'
@@ -57,7 +57,7 @@ export function GachaDetail({ id }: { id: string }) {
             ♡ 友達と回す<small>リンクで招待</small>
           </a>
         </div>
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <TabBar active="gacha" />
     </div>

@@ -2,7 +2,7 @@ import { useApp } from '../app/appContext'
 import { paths } from '../app/router'
 import { findGacha } from '../domain/catalog'
 import { coinText, oddsOf, percentLabels } from '../domain/odds'
-import { MockNotice, PageHeader, TabBar } from '../components/Chrome'
+import { ExampleNotice, PageHeader, TabBar } from '../components/Chrome'
 import { NotFound } from './NotFound'
 import './gacha.css'
 
@@ -49,7 +49,7 @@ export function GachaOdds({ id }: { id: string }) {
         </table>
         <p className="fine">合計100.0%に端数調整（小数第1位）。</p>
         <a className="btn btn-main btn-block" href={paths.soloSpin(gacha.id)}>{coinText(gacha.price)}コインで1回引く準備へ</a>
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <TabBar active="gacha" />
     </div>

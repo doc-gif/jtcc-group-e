@@ -7,7 +7,7 @@ import {
   type RoomUi,
 } from '../app/roomView'
 import { forgetRecord, readRecords, useRoomSession, useRoomState, writeRecord } from '../app/sharedRoom'
-import { MockNotice, PageHeader } from '../components/Chrome'
+import { ExampleNotice, PageHeader } from '../components/Chrome'
 import {
   HostLinkPanel, InviteShare, PITCH_ROOM_TEXT, PITCH_ROUND_TEXT, PitchLabel, ResultRow, RoomCard, RoomNameForm, RoomStage,
   RoomStats, RoomSwitch, ScheduleChoices, type RoomStat, type StageVariant,
@@ -38,7 +38,7 @@ interface Layout {
   secondary?: ReactNode
 }
 
-/** 上部（マスターの提案モックの一行・戻る・題・補足）。共通の PageHeader を使う。 */
+/** 上部（マスターの「開発中のサービス」の1行・戻る・題・補足）。共通の PageHeader を使う。 */
 function RoomHeader({ title, sub, back }: { title: string; sub: string; back: Back }) {
   return (
     <PageHeader title={title} {...('href' in back ? { back: back.href } : { onBack: back.onClick })}>
@@ -64,7 +64,7 @@ function RoomFrame({ layout, demo, faces, children }: { layout: Layout; demo: bo
         {layout.note && <p className="room-line">{layout.note}</p>}
         {layout.card}
         {children}
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <div className="sticky-actions room-dock">
         {layout.primary}
@@ -818,7 +818,7 @@ export function RoomCreate({ hostKey = null }: { hostKey?: string | null }) {
           </RoomCard>
         )}
         {current && <a className="btn btn-outline btn-block" href={paths.room(current.invite)}>いまのルームに戻る</a>}
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <div className="sticky-actions room-dock">
         {canCreate
