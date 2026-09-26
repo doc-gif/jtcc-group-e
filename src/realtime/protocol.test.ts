@@ -265,7 +265,9 @@ test('names: display form, comparison across width, case and spaces, and Japanes
  for (const name of ['', '   ', 'あ'.repeat(13), 'a\u0007b', null, undefined]) expect(cleanName(name)).toBeNull()
  expect(cleanName('あ'.repeat(12))).toBe('あ'.repeat(12))
  const cp = String.fromCodePoint
- for (const code of [0x200b, 0x202e, 0xfeff, 0xad, 0x85, 0x2066]) expect(cleanName(`ゆ${cp(code)}ず`)).toBeNull()
+ for (const code of [0x600, 0x200b, 0x202e, 0xfeff, 0x2060, 0xe0001, 0xad, 0x85, 0x2066, 0x1d173]) expect(cleanName(`ゆ${cp(code)}ず`)).toBeNull()
+ expect(cleanName(`ゆ${cp(0x2028)}${cp(0x2029)}ず`)).toBe('ゆ ず')
+ expect(errorMessage(new Error('rename-locked'))).toBe('ニックネームは開封が終わってから、ロビーで変えられます。')
  expect(cleanName(`${cp(0x3000)}ゆ${cp(0x2003)}${cp(0x9)}ず${cp(0xa0)}`)).toBe('ゆ ず')
  expect(nameKey(`も${cp(0xa0)}も`)).toBe(nameKey('もも'))
  expect(nameKey('Ｍｏｍｏ　２')).toBe(nameKey('momo2'))
@@ -371,4 +373,29 @@ test('mock names: unique per room, suggestion, auto names and rename like the SQ
  const names = (await crowded.asUser('h').snapshot(full.id)).members.map(member => member.nickname)
  expect(new Set(names.map(nameKey)).size).toBe(100)
  expect(names.every(name => [...name].length <= 12)).toBe(true)
+})
+
+test('mock parity: rename is refused while a round is active, like lp_rename', async () => {
+ let now = 0
+ const server = new MockRoomServer(() => now, () => 'invite-l', () => 0)
+ server.addHostKey(KEY)
+ const owner = server.asUser('owner')
+ const friend = server.asUser('friend')
+ const room = await owner.create('room-l', KEY, 'オーナー')
+ await friend.join(room.invite, '友だち')
+ await friend.ready(room.id, true)
+ await owner.start(room.id, 'start-l', 0)
+ for (const user of [owner, friend]) await expect(user.rename(room.id, '新しい名前')).rejects.toThrow('rename-locked')
+ now += 23_000
+ const done = await friend.snapshot(room.id)
+ expect(done.round?.results?.find(result => result.userId === 'friend')?.nickname).toBe('友だち')
+ expect((await friend.rename(room.id, '新しい名前')).members.find(member => member.id === 'friend')?.nickname).toBe('新しい名前')
+ // A due schedule starts first, then the rename is refused (the mock keeps the start; SQL rolls it back and restarts it).
+ await friend.ready(room.id, true)
+ await owner.schedule(room.id, 1)
+ now += 40_000
+ await friend.snapshot(room.id)
+ now += 20_000
+ await expect(friend.rename(room.id, '予約中の名前')).rejects.toThrow('rename-locked')
+ expect(await owner.snapshot(room.id)).toMatchObject({ roundNo: 2, lastSchedule: { status: 'started' } })
 })

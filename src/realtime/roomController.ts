@@ -18,6 +18,7 @@ const ERROR_CODES = Object.keys({
   'room-full': true, 'room-unavailable': true, 'host-required': true,
   'round-active': true, 'nobody-ready': true, 'sold-out': true, 'insufficient-coins': true, 'stale-round': true,
   'invalid-schedule': true, 'host-key-invalid': true, 'too-many-attempts': true, 'no-room': true, 'name-taken': true,
+  'rename-locked': true,
 } satisfies Record<RoomErrorCode, true>) as RoomErrorCode[]
 
 /** 契約の失敗コードを取り出す。通信や SQL の想定外エラーは null（画面には一般的な文言だけを出す）。 */
@@ -449,6 +450,14 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     }
   }
 
+  /**
+   * 成功したキーを保存する。ただし応答を待つ間に別のタブが別のキーを保存・削除していたら、その値を残す
+   * （保存先が要求の開始時の値のままのときだけ書く compare-and-set）。
+   */
+  function keepKey(before: string | null, key: string) {
+    if (currentKey() === before) saveKey(key)
+  }
+
   function forgetKey(key: string) {
     // 応答を待つ間に別のタブが別のキーを保存していたら、それは消さない。
     if (currentKey() === key) saveKey(null)
@@ -491,12 +500,13 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     },
     serverNow: () => clock.now() + offset,
     createAsHost(key, name = null) {
-      const hostKey = key ?? currentKey()
+      const before = currentKey()
+      const hostKey = key ?? before
       if (hostKey === null || !HOST_KEY_PATTERN.test(hostKey)) return rejectKey(hostKey)
       const request = pendingCreate ??= requestId()
       return perform('create', () => transport.create(request, hostKey, name), {
         enter: true,
-        success: () => { pendingCreate = null; saveKey(hostKey) },
+        success: () => { pendingCreate = null; keepKey(before, hostKey) },
         failure: code => {
           if (code === 'room-unavailable') pendingCreate = null
           if (code === 'host-key-invalid') forgetKey(hostKey)
@@ -504,17 +514,25 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       })
     },
     resumeHost(key, id = null) {
-      const hostKey = key ?? currentKey()
+      const before = currentKey()
+      const hostKey = key ?? before
       if (hostKey === null || !HOST_KEY_PATTERN.test(hostKey)) return rejectKey(hostKey)
       return perform('resume', () => transport.resumeHost(hostKey, id), {
         enter: true,
-        success: () => { saveKey(hostKey) },
+        success: () => { keepKey(before, hostKey) },
         failure: code => { if (code === 'host-key-invalid') forgetKey(hostKey) },
       })
     },
     rename(name) {
       const room = requireRoom()
-      if (!room) return Promise.resolve({ ok: false, error: null })
+      if (!room || busy || connection !== 'ok') return Promise.resolve({ ok: false, error: null })
+      // 名前はロビー（準備中を含む）でだけ変える。開封中に変えると、保存済みの結果と名前が食い違う。
+      const { phase } = derive()
+      if (phase !== 'lobby' && phase !== 'ready') {
+        error = { code: 'rename-locked', message: errorMessage(new RoomContractError('rename-locked')) }
+        emit()
+        return Promise.resolve({ ok: false, error })
+      }
       return perform('rename', () => transport.rename(room, name))
     },
     forgetHostKey() {

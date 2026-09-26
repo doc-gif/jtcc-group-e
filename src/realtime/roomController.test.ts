@@ -238,6 +238,19 @@ test('ホスト用キー: 成功したキーだけを保存し、無効なら消
   expect((await pending).error?.code).toBe('host-key-invalid')
   expect(shared.value).toBe(KEY)
   expect(tab.getState().hostKey).toBe(KEY)
+  // 応答を待つ間に別のタブが別のキーを保存したら、古い成功で上書きしない（compare-and-set）。
+  const casKeys = memoryKeys(null)
+  const casTab = controller('cas', undefined, { hostKeys: casKeys })
+  const creating = casTab.createAsHost(KEY, 'CAS')
+  casKeys.value = 'newer_key_saved_by_another_tab_0000000001'
+  expect((await creating).ok).toBe(true)
+  expect(casKeys.value).toBe('newer_key_saved_by_another_tab_0000000001')
+  expect(casTab.getState().hostKey).toBe('newer_key_saved_by_another_tab_0000000001')
+  // 変わっていなければ保存する。
+  casKeys.value = null
+  expect((await controller('cas2', undefined, { hostKeys: casKeys }).resumeHost(KEY)).ok).toBe(true)
+  expect(casKeys.value).toBe(KEY)
+
   // 保存を省いた呼び出しは、いま保存されているキーを使う（ここでは owner のルームのホストに戻る）。
   expect((await tab.resumeHost()).ok).toBe(true)
   expect(tab.getState()).toMatchObject({ isHost: true, hostKey: KEY })
@@ -252,7 +265,7 @@ test('ホスト用キー: 成功したキーだけを保存し、無効なら消
 })
 
 test('名前を選ばずに入ると重ならない名前が付き、使われている名前には候補を出す。ロビーで変えられる', async () => {
-  const { controller } = setup()
+  const { server, controller } = setup()
   const host = controller('host')
   await host.createAsHost(KEY, 'もも')
   const invite = host.getState().snapshot!.invite
@@ -268,7 +281,8 @@ test('名前を選ばずに入ると重ならない名前が付き、使われ�
   expect(guest.getState()).toMatchObject({ phase: 'lobby', nameSuggestion: null, canRename: true, self: { nickname: 'ＭＯＭＯ' } })
 
   // 名前を選ばずに入った人は、入る前に付いた名前を見て、あとから変えられる。
-  const quiet = controller('quiet')
+  const quietTransport = server.asUser('quiet')
+  const quiet = controller('quiet', quietTransport)
   expect((await quiet.join(invite, null)).ok).toBe(true)
   const auto = quiet.getState().self!.nickname
   expect(auto).toMatch(/^ゲスト \S+\d+$/)
@@ -284,6 +298,14 @@ test('名前を選ばずに入ると重ならない名前が付き、使われ�
   await host.start()
   await quiet.refresh()
   expect(quiet.getState()).toMatchObject({ phase: 'countdown', canRename: false })
+  // 開封中はサーバーへ送らずに断る。古い状態のままの端末から送っても、サーバーが断る。
+  const renames = vi.spyOn(quietTransport, 'rename')
+  expect(await quiet.rename('開封中の名前')).toEqual({
+    ok: false, error: { code: 'rename-locked', message: 'ニックネームは開封が終わってから、ロビーで変えられます。' },
+  })
+  expect(renames).not.toHaveBeenCalled()
+  await expect(server.asUser('quiet').rename(quiet.getState().roomId!, '開封中の名前')).rejects.toThrow('rename-locked')
+  expect(quiet.getState().self?.nickname).toBe('momo2')
   await host.refresh()
   expect(host.getState().members.map(member => member.nickname)).toEqual(['もも', 'ＭＯＭＯ', 'momo2'])
   const idle = controller('idle')

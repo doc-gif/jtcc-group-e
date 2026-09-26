@@ -1,18 +1,58 @@
 {
-  "uiDigest": "98838b463da762e812820c274f07b9053adc75d518c5e04865b2257b9bb499a9",
+  "uiDigest": "91e93b6588f4857b59474672feeeabcb5deb4423b562f3f54cc32cd0b7478e81",
   "reviewer": "Claude (F10 follow-up: name characters and create retry)",
   "reviewedAt": "2026-09-26",
-  "summary": "PR #33（F10）のレビュー対応。共有ルームの SQL・模擬サーバー・状態層（src/realtime/）とテスト・文書だけの変更で、画面・CSS・遷移は変更していない（F06 の画面は main のまま）。src/realtime はどの画面からも import していない。名前に見えない書式文字を拒否し、Unicode の空白をまとめ、作成の再試行をキーの交換・回数制限に左右されないようにし、名前の変更をロビーだけにした。",
+  "summary": "PR #33（F10）のレビュー対応。共有ルームの SQL・模擬サーバー・状態層（src/realtime/）とテスト・文書だけの変更で、画面・CSS・遷移は変更していない（F06 の画面は main のまま）。src/realtime はどの画面からも import していない。名前に Unicode の Cc・Cf（見えない書式文字）を使えなくし、Unicode の空白をまとめ、作成の再試行をキーの交換・回数制限に左右されないようにし、名前の変更をロビーだけにした（SQL・模擬サーバー・状態層のすべてで開封中は rename-locked）。成功したキーの保存は compare-and-set にした。",
   "criteria": [
-    { "id": "HIG-01", "result": "not-applicable", "evidence": "画面を追加・変更していない。名前の表示は F05 の画面実装時に評価する。見えない書式文字（ゼロ幅・双方向の上書き）を名前に使えなくしたので、表示が崩れる名前は作れない（shared-db.test.mjs「names reject control and invisible format characters…」）。" },
-    { "id": "HIG-02", "result": "not-applicable", "evidence": "画面を追加・変更していない。名前の入力欄と候補のボタンの操作領域は F05 で評価する。" },
-    { "id": "HIG-03", "result": "not-applicable", "evidence": "画面を追加・変更していない。320px・文字200%・セーフエリアは F05 で評価する。全角・NBSP などの空白は 1 つにまとめ、12 文字の上限は変えていない（protocol.test.ts「names: display form…」）。" },
-    { "id": "HIG-04", "result": "pass", "evidence": "画面はないが、失敗からの回復を状態層が支える。応答を失った作成の再試行は、その間にキーを交換しても作れた部屋を返す（shared-db.test.mjs「a retry of a created room returns it…」、protocol.test.ts「mock host key…」）。別のタブが保存した新しいキーを古いキーの失敗で消さない（roomController.test.ts「ホスト用キー: 成功したキーだけを保存し…」）。" },
-    { "id": "HIG-05", "result": "not-applicable", "evidence": "画面・演出・音を追加していない。動きを減らす設定への対応は F05 で評価する。" },
-    { "id": "GAME-01", "result": "not-applicable", "evidence": "画面を追加・変更していないため、マスターの名前入力 298:2709・自動の名前 298:2790・名前の重複 298:2867・ホスト用リンクが無効 292:2703 との照合は F05 で行う。名前の変更はロビー（準備中を含む）でだけ canRename にし、マスターの「ロビーで名前を変える」に合わせた。" },
-    { "id": "GAME-02", "result": "pass", "evidence": "同じに見える名前（ゼロ幅の文字・NBSP の違いだけ）や向きが変わる名前を作れないので、ルームの中で人を取り違えにくい（shared-db.test.mjs「names reject control…」、実 DB でも「もも」+U+200B は invalid-name、「も」+NBSP+「も」は name-taken）。エラー文言は日本語で、コードや DB の詳細を出さない。" },
-    { "id": "GAME-03", "result": "not-applicable", "evidence": "通知・バッジ・再訪を促す仕組みは追加していない。ホスト不在の扱いは F10 のまま（交代はなく、予約した開始は時刻に始まる）。" },
-    { "id": "GAME-04", "result": "not-applicable", "evidence": "画面を追加・変更していない。開封中に名前を変えられないことの伝え方は F05 で評価する（状態層は canRename=false を渡す、roomController.test.ts「名前を選ばずに入ると…」）。" },
-    { "id": "GAME-05", "result": "not-applicable", "evidence": "画面・説明文・日本語の文言を追加していない。既存の invalid-name の案内（1〜12文字）で足りるかは F05 で評価する。" }
+    {
+      "id": "HIG-01",
+      "result": "not-applicable",
+      "evidence": "画面を追加・変更していない。名前の表示は F05 の画面実装時に評価する。見えない書式文字（ゼロ幅・双方向の上書き）を名前に使えなくしたので、表示が崩れる名前は作れない（shared-db.test.mjs「names reject control and invisible format characters…」）。"
+    },
+    {
+      "id": "HIG-02",
+      "result": "not-applicable",
+      "evidence": "画面を追加・変更していない。名前の入力欄と候補のボタンの操作領域は F05 で評価する。"
+    },
+    {
+      "id": "HIG-03",
+      "result": "not-applicable",
+      "evidence": "画面を追加・変更していない。320px・文字200%・セーフエリアは F05 で評価する。全角・NBSP などの空白は 1 つにまとめ、12 文字の上限は変えていない（protocol.test.ts「names: display form…」）。"
+    },
+    {
+      "id": "HIG-04",
+      "result": "pass",
+      "evidence": "画面はないが、失敗からの回復を状態層が支える。応答を失った作成の再試行は、その間にキーを交換しても作れた部屋を返す（shared-db.test.mjs「a retry of a created room returns it…」、protocol.test.ts「mock host key…」）。別のタブが保存した新しいキーを古いキーの失敗で消さない（roomController.test.ts「ホスト用キー: 成功したキーだけを保存し…」）。"
+    },
+    {
+      "id": "HIG-05",
+      "result": "not-applicable",
+      "evidence": "画面・演出・音を追加していない。動きを減らす設定への対応は F05 で評価する。"
+    },
+    {
+      "id": "GAME-01",
+      "result": "not-applicable",
+      "evidence": "画面を追加・変更していないため、マスターの名前入力 298:2709・自動の名前 298:2790・名前の重複 298:2867・ホスト用リンクが無効 292:2703 との照合は F05 で行う。名前の変更はロビー（準備中を含む）でだけ canRename にし、マスターの「ロビーで名前を変える」に合わせた。"
+    },
+    {
+      "id": "GAME-02",
+      "result": "pass",
+      "evidence": "同じに見える名前（ゼロ幅の文字・NBSP の違いだけ）や向きが変わる名前を作れないので、ルームの中で人を取り違えにくい（shared-db.test.mjs「names reject control…」、実 DB でも「もも」+U+200B は invalid-name、「も」+NBSP+「も」は name-taken）。エラー文言は日本語で、コードや DB の詳細を出さない。 Cc・Cf は全コードポイントで SQL と JS の集合が一致する（shared-db.test.mjs「the SQL forbidden set is exactly Unicode Cc and Cf…」）。開封中の名前の変更を断るので、結果の名前とメンバーの名前が食い違わない。"
+    },
+    {
+      "id": "GAME-03",
+      "result": "not-applicable",
+      "evidence": "通知・バッジ・再訪を促す仕組みは追加していない。ホスト不在の扱いは F10 のまま（交代はなく、予約した開始は時刻に始まる）。"
+    },
+    {
+      "id": "GAME-04",
+      "result": "not-applicable",
+      "evidence": "画面を追加・変更していない。開封中に名前を変えられないことの伝え方は F05 で評価する。状態層は canRename=false を渡し、rename はサーバーへ送らずに rename-locked を返す（roomController.test.ts「名前を選ばずに入ると…」）。サーバーと模擬サーバーも断る（shared-db.test.mjs「names cannot change while a round is active…」、protocol.test.ts「mock parity: rename is refused…」）。"
+    },
+    {
+      "id": "GAME-05",
+      "result": "not-applicable",
+      "evidence": "画面・説明文を追加していない。追加した日本語は errorMessage の rename-locked（「ニックネームは開封が終わってから、ロビーで変えられます。」）だけ。画面での説明は F05 で評価する。"
+    }
   ]
 }

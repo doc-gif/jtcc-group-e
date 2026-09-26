@@ -322,6 +322,8 @@ export class MockRoomServer {
       },
       rename: async (roomId, name) => {
         const room = locked(roomId)
+        // Like lp_rename: only in the lobby, not until the round's next ready time.
+        if (room.round && room.round.nextReadyAt > this.now()) throw new RoomContractError('rename-locked')
         const nickname = validName(typeof name === 'string' ? name : '')!
         const member = room.members.get(userId)!
         if (this.pickName(room, nickname, userId) !== member.nickname) { member.nickname = nickname; wake(roomId) }
