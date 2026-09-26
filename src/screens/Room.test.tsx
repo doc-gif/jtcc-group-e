@@ -525,7 +525,7 @@ describe('F15: ピッチ用の実物グッズ写真（Supabase につないだ�
     return session.controller.getState().myPrize!
   }
 
-  test('自分の賞品が決まるまで読まない。結果では写真（alt は賞品名）と権利表記を出し、ルームを離れると URL を取り消す', async () => {
+  test('自分の賞品が決まるまで読まない。結果では写真（alt は賞品名）と権利表記を出し、一覧を見ても読み直さず、ルームを離れると URL を取り消す', async () => {
     const load = vi.fn(async () => jpeg())
     const session = await hostWithPrize({ load })
     expect(load).not.toHaveBeenCalled()
@@ -535,6 +535,10 @@ describe('F15: ピッチ用の実物グッズ写真（Supabase につないだ�
     const photo = within(stage).getByRole('img', { name: /説明用/ })
     expect(photo).toHaveAttribute('src', created[0])
     expect(within(stage).getByText(`写真: ${PITCH_PHOTOS[prize].credit}`)).toBeVisible()
+    // みんなのピースへ行って戻っても読み直さない
+    await click('みんなの結果を見る')
+    expect(screen.queryByText(/^写真: ©/)).toBeNull()
+    expect(load).toHaveBeenCalledTimes(1)
     cleanup()
     expect(revoked).toContain(created[0])
   })

@@ -175,7 +175,8 @@ export function Room({ invite }: { invite: string }) {
   if (hostIsOnline && hostAwayAck) setHostAwayAck(false)
 
   // ピッチ用の実物グッズ写真（F15）: Supabase につないだルームの中で、自分の賞品が決まったときだけ読む。
-  // 端末内デモ（photos が null）・ルームの外・読めないときは元の絵のまま。
+  // 結果の公開（myPrize が決まる）の時点で先に読み、「結果を見る」の画面で絵から写真に切り替わって見えないようにする。
+  // 一覧などを行き来しても、賞品が同じなら読み直さない。端末内デモ（photos が null）・ルームの外・読めないときは元の絵のまま。
   const photo = usePitchPhoto(photos, state.myPrize, inRoom && state.phase !== 'unavailable')
 
   const ui: RoomUi = { inRoom, joinError, nameStep, autoNamed, watching, detail, scheduleSetup, resumed, watchedRounds, hostAwayAck, resumeAck }
