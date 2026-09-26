@@ -16,6 +16,8 @@ async function axeViolations(page: Page, paused: boolean) {
 for (const scenario of uxScenarios) {
   test(`${scenario.name}: HIG を Web に適用した UI/UX 基準`, async ({ page }, testInfo) => {
     if (scenario.pauseTimers) { await page.clock.install({ time: 0 }); await page.clock.pauseAt(1000) }
+    // 止めた読み込みは最後まで返さない（検査のあいだ読み込み中のまま）
+    if (scenario.goods) await page.route('**/assets/goods/**', (route) => (scenario.goods === 'fail' ? route.abort() : new Promise<void>(() => {})))
     if (scenario.seed) await page.addInitScript(([key, value]) => { localStorage.setItem(key, value) }, [SEED_STORAGE_KEY, scenario.seed])
     await page.goto(scenario.path)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
