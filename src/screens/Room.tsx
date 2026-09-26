@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { track } from '../app/analytics'
 import { useApp } from '../app/appContext'
 import { LOADING_DELAY, useDelayed } from '../app/assets'
 import { navigate, paths } from '../app/router'
@@ -170,6 +171,28 @@ export function Room({ invite }: { invite: string }) {
     setScheduleSetup(false)
   }
 
+  // 計測（#44）: 同じ状態は再描画で繰り返し来るので、ルーム ID＋回数ごとに 1 回だけ送る。人数・回数だけを送り、名前・招待コード・キー・賞品名は送らない。
+  const tracked = useRef(new Set<string>())
+  const trackOnceHere = (key: string, event: string, params: Record<string, string | number | boolean>) => {
+    if (tracked.current.has(key)) return
+    tracked.current.add(key)
+    track(event, params)
+  }
+  const roomId = snapshot?.id ?? null
+  const members = state.seats.taken
+  const roundResults = state.round?.results ?? null
+  useEffect(() => {
+    if (!inRoom || roomId === null) return
+    if (state.guestCount >= 2) trackOnceHere(`ready:${roomId}`, 'room_ready', { members })
+    if (state.phase === 'countdown' && roundNo !== null) trackOnceHere(`start:${roomId}:${roundNo}`, 'round_start', { members, round: roundNo })
+    if (state.phase === 'results' && roundNo !== null && roundResults !== null) {
+      // おそろい: 同じ賞品を 2 人以上が当てた（賞品名そのものは送らない）
+      const prizes = roundResults.map((result) => result.prize)
+      const osoroi = prizes.some((prize, index) => prizes.indexOf(prize) !== index)
+      trackOnceHere(`result:${roomId}:${roundNo}`, 'result_view', { members, osoroi })
+    }
+  }, [inRoom, roomId, state.guestCount, state.phase, roundNo, members, roundResults])
+
   // ホストが戻ったら「ロビーで待つ」の選択を戻す（次に離れたときにまた知らせる）
   const hostIsOnline = state.hostOnline
   if (hostIsOnline && hostAwayAck) setHostAwayAck(false)
@@ -230,6 +253,7 @@ export function Room({ invite }: { invite: string }) {
     if (result.ok) {
       const snap = controller.getState().snapshot
       if (!renaming && snap) writeRecord(records, invite, { roomId: snap.id, watching })
+      if (!renaming && snap) trackOnceHere(`join:${snap.id}`, 'room_join', { via: viaHostLink ? 'host-link' : 'invite', watching })
       setLastName(snap?.members.find((member) => member.id === snap.self)?.nickname ?? clean)
       setJoinError(null)
       setTaken(null)
@@ -799,6 +823,7 @@ export function RoomCreate({ hostKey = null }: { hostKey?: string | null }) {
     const snap = controller.getState().snapshot
     if (!result.ok || !snap) { setError(result.error?.message ?? ''); return }
     writeRecord(records, snap.invite, { roomId: snap.id })
+    track('room_create', { scheduled: snap.scheduledAt !== null })
     navigate(paths.room(snap.invite))
   }
   const current = state.snapshot && state.phase !== 'unavailable' ? state.snapshot : null

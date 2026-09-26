@@ -1,0 +1,58 @@
+{
+  "uiDigest": "b6e5154a7064da1e0587dae41d5949f7d4a87c6733dc68445f2078baa7f7b870",
+  "reviewer": "Claude (AN-3 / #44: room analytics events)",
+  "reviewedAt": "2026-09-26",
+  "summary": "#44 のルームの計測。src/screens/Room.tsx に、ルームを作った直後の room_create（scheduled）、招待リンクからの入室成功の room_join（via・watching）、ホスト以外に 2 人以上そろった時点の room_ready（members）、秒読みに入った round_start（members・round）、結果の公開の result_view（members・osoroi＝同じ賞品を 2 人以上が当てたか）を足した。同じ状態は再描画で繰り返し来るので useRef の Set でルーム ID＋回数ごとに 1 回だけ送る。送るのは人数・回数・真偽値・invite/host-link だけで、名前・招待コード・ホストキー・賞品名は送らない（track は #42 の analytics.ts で、本番の公開 URL 以外では何も送らない）。画面・CSS・文言・遷移・操作は変えていない。320px（small-mobile）・Android・デスクトップの Chromium で ux.spec.ts のルームの 31 状態（作る・招待・名前・ロビー・準備・見守り・満員・秒読み・開封・結果・みんなの結果・履歴・復帰・予約・人数待ちほか）と room.spec.ts・app.spec.ts を実行し、以前と同じ見出し・表示で JS エラーがなく、*.supabase.co への要求 0 件を確認した。iPhone・横向き（WebKit）はこの環境に無いため CI の UI/UX gate で確認する。",
+  "criteria": [
+    {
+      "id": "HIG-01",
+      "result": "not-applicable",
+      "evidence": "画面・文字・色を変更していない。ux.spec.ts のルームの状態（room-create・room-lobby・room-countdown・room-opening・room-my-result・room-all-results ほか）を 320px・Android・デスクトップの Chromium で実行し、axe の WCAG AA 検査を含めて以前と同じ結果で通ることを確認した。"
+    },
+    {
+      "id": "HIG-02",
+      "result": "not-applicable",
+      "evidence": "操作要素・タップ領域・フォーカス順・読み上げを変更していない。追加したのは useEffect と送信の呼び出しだけで、DOM の要素は増えない（analytics.room.test.tsx の各テストで既存の見出し・ボタン名がそのまま出る）。"
+    },
+    {
+      "id": "HIG-03",
+      "result": "not-applicable",
+      "evidence": "レイアウトを変更していない。ux.spec.ts（320px・文字200%・横はみ出しの検査）のルームの状態を small-mobile・android・desktop で実行し、以前と同じ結果で通ることを確認した。"
+    },
+    {
+      "id": "HIG-04",
+      "result": "pass",
+      "evidence": "計測は画面の処理から独立し、track は例外を握りつぶす（#42 の analytics.test.ts「gtag が壊れていても画面の処理に例外を返さない」）。入室・名前の変更・開始・結果の各操作の流れと文言は変えていない（Room.test.tsx 20 件がそのまま通る。analytics.room.test.tsx で、入室に失敗した満員のときや名前の変更では送らず、成功した入室で 1 回だけ送る）。"
+    },
+    {
+      "id": "HIG-05",
+      "result": "not-applicable",
+      "evidence": "演出・音・動きを追加していない。秒読み・開封の演出と動きを減らす設定の扱いはそのまま（ux.spec.ts の room-countdown・room-opening が以前と同じ結果）。"
+    },
+    {
+      "id": "GAME-01",
+      "result": "not-applicable",
+      "evidence": "見た目・画面構成・状態を変えていないため、Figma マスター 267:8198（T10 のルームの画面）の変更や照合は不要。room.spec.ts・ux.spec.ts のルームの状態で以前と同じ見出しと表示を確認した。"
+    },
+    {
+      "id": "GAME-02",
+      "result": "pass",
+      "evidence": "コイン・在庫・準備・ルームの状態を読むだけで変えない（送るのは人数・回数・真偽値だけ）。同じ状態が再描画で繰り返し来ても、ルーム ID＋回数ごとに 1 回だけ送る（analytics.room.test.tsx「room_ready を 1 回だけ送る」「回ごとに 1 回ずつ」）。送った値のどこにも名前・招待コード・ホストキー・賞品名（内部名・表示名）が入らないことを 4 つのテストで確認した。"
+    },
+    {
+      "id": "GAME-03",
+      "result": "pass",
+      "evidence": "通知・バッジ・催促を追加していない。中断・再開の流れ（おかえりなさい・ホストとして戻る・再接続）は変えず、再読み込みや別の端末では送り直さないように状態を端末に保存しない（送らない環境では #42 の track が何もしない。?internal=1 でいつでも計測から外れる）。"
+    },
+    {
+      "id": "GAME-04",
+      "result": "not-applicable",
+      "evidence": "着せ替え・選択肢・公開範囲は変更していない。見守り／参加の選択の操作と取り消しはそのまま（Room.test.tsx「準備 → 取り消し → 見守り → ルームを出る」）。計測に使う値をニックネームなど利用者の入力から集めることもしていない。"
+    },
+    {
+      "id": "GAME-05",
+      "result": "not-applicable",
+      "evidence": "画面の文言・説明を追加していない。外部送信の説明（マイページ「きまり」の公表文）は #46 と docs/PRODUCT.md で扱う。"
+    }
+  ]
+}
