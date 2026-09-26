@@ -1,1023 +1,987 @@
 {
-  "version": "0.1.0",
-  "date": "2026-09-25",
+  "version": "0.2.0",
+  "date": "2026-09-26",
   "fileKey": "yeDF1BwhrxpXI57Daainle",
-  "designStatus": "foundation",
-  "implementationStatus": "design-only-components-and-token-snapshot",
-  "paletteDecision": "Keep existing app green palette (user confirmed)",
-  "pages": [
-    {
-      "id": "72:2",
-      "name": "JTCC App / 00 Cover"
-    },
-    {
-      "id": "72:3",
-      "name": "JTCC App / 01 Getting Started"
-    },
-    {
-      "id": "72:4",
-      "name": "JTCC App / 02 Foundations"
-    },
-    {
-      "id": "72:5",
-      "name": "— JTCC Components —"
-    },
-    {
-      "id": "72:6",
-      "name": "JTCC App / 10 Button"
-    },
-    {
-      "id": "72:7",
-      "name": "JTCC App / 11 Input"
-    },
-    {
-      "id": "72:8",
-      "name": "JTCC App / 12 Card"
-    },
-    {
-      "id": "72:9",
-      "name": "— JTCC Utilities —"
-    },
-    {
-      "id": "72:10",
-      "name": "JTCC App / 90 Screens"
-    }
-  ],
+  "designStatus": "adopted-master",
+  "implementationStatus": "token-snapshot-not-imported",
+  "paletteDecision": "Pink \"Sakura Milk\" (さくらミルク) is the adopted palette (owner, 2026-09-26). Green accent version 252:2 is rejected; primary actions are not green.",
+  "master": {
+    "pageId": "267:8198",
+    "name": "Lastpiece / Master · T11",
+    "screens": 45,
+    "localComponents": [
+      {
+        "nodeId": "267:10063",
+        "name": "T07 / Town Map / 4W square"
+      },
+      {
+        "nodeId": "267:10520",
+        "name": "T08 / Gacha Machine / visual only"
+      }
+    ],
+    "mapping": "docs/ADOPTED_DESIGN.md"
+  },
+  "sourcePage": {
+    "pageId": "134:2",
+    "name": "Lastpiece / Town v2",
+    "note": "Button・Navigation 部品と変数の本体。マスターが live 参照するので、変更はマスターの見た目も変える"
+  },
   "components": [
     {
-      "name": "JTCC/Button",
-      "nodeId": "76:32",
-      "variants": 12,
+      "name": "LP v2 / Button",
+      "nodeId": "179:34",
+      "documentationNodeId": "179:19",
+      "variants": [
+        "Style=Primary, State=Default",
+        "Style=Primary, State=Focus",
+        "Style=Primary, State=Disabled",
+        "Style=Outline, State=Default",
+        "Style=Outline, State=Focus",
+        "Style=Outline, State=Disabled"
+      ],
+      "height": 48,
+      "instancesInMaster": 90,
       "implementation": null
     },
     {
-      "name": "JTCC/Input",
-      "nodeId": "78:2",
-      "variants": 5,
+      "name": "LP v2 / Navigation Item",
+      "nodeId": "180:27",
+      "documentationNodeId": "180:15",
+      "variants": [
+        "State=Selected",
+        "State=Default",
+        "State=Focus"
+      ],
+      "height": 64,
+      "instancesInMaster": 76,
       "implementation": null
     },
     {
-      "name": "JTCC/Card",
-      "nodeId": "79:2",
-      "variants": 2,
+      "name": "LP v2 / Bottom Navigation",
+      "nodeId": "180:28",
+      "documentationNodeId": "180:15",
+      "instancesInMaster": 19,
       "implementation": null
     }
   ],
   "collections": [
     {
-      "id": "VariableCollectionId:71:2",
-      "name": "JTCC / Primitives",
+      "id": "VariableCollectionId:177:15",
+      "name": "Lastpiece v2 / Primitives",
       "modes": [
         {
           "name": "Value",
-          "modeId": "71:0"
+          "modeId": "177:0"
         }
       ],
-      "count": 12
+      "count": 14
+    },
+    {
+      "id": "VariableCollectionId:177:16",
+      "name": "Lastpiece v2 / Tokens",
+      "modes": [
+        {
+          "name": "Light",
+          "modeId": "177:1"
+        }
+      ],
+      "count": 30
+    }
+  ],
+  "cssNaming": "CSS 名は Figma 変数の WEB code syntax と同じ。--bg/--surface/--soft/--main/--deep は src/index.css と同名・同値。それ以外は --lp-v2-*。v0.1 の --jtcc-* は使わない。文字スタイル由来の --lp-v2-type-* と --lp-v2-focus-ring は CSS 側で付けた名前。",
+  "bindingsNote": "bindingsInMaster はマスターページ 267:8198 の全ノード（部品インスタンス内を含む）で変数を結合したプロパティの件数。2026-09-26 に読み取り専用で集計。",
+  "variables": [
+    {
+      "id": "VariableID:177:17",
+      "collection": "Lastpiece v2 / Primitives",
+      "name": "primitive/canvas",
+      "syntax": {
+        "WEB": "var(--bg)"
+      },
+      "scopes": [],
+      "value": "#fff9fa"
+    },
+    {
+      "id": "VariableID:177:18",
+      "collection": "Lastpiece v2 / Primitives",
+      "name": "primitive/white",
+      "syntax": {
+        "WEB": "var(--surface)"
+      },
+      "scopes": [],
+      "value": "#ffffff"
+    },
+    {
+      "id": "VariableID:177:19",
+      "collection": "Lastpiece v2 / Primitives",
+      "name": "primitive/soft-rose",
+      "syntax": {
+        "WEB": "var(--soft)"
+      },
+      "scopes": [],
+      "value": "#fdeef2"
+    },
+    {
+      "id": "VariableID:177:20",
+      "collection": "Lastpiece v2 / Primitives",
+      "name": "primitive/petal",
+      "syntax": {
+        "WEB": "var(--lp-v2-petal)"
+      },
+      "scopes": [],
+      "value": "#f7cbd9"
+    },
+    {
+      "id": "VariableID:177:21",
+      "collection": "Lastpiece v2 / Primitives",
+      "name": "primitive/rose",
+      "syntax": {
+        "WEB": "var(--main)"
+      },
+      "scopes": [],
+      "value": "#de7f9c"
+    },
+    {
+      "id": "VariableID:177:22",
+      "collection": "Lastpiece v2 / Primitives",
+      "name": "primitive/wine",
+      "syntax": {
+        "WEB": "var(--deep)"
+      },
+      "scopes": [],
+      "value": "#a94a68"
+    },
+    {
+      "id": "VariableID:177:23",
+      "collection": "Lastpiece v2 / Primitives",
+      "name": "primitive/ink",
+      "syntax": {
+        "WEB": "var(--lp-v2-ink)"
+      },
+      "scopes": [],
+      "value": "#172324"
+    },
+    {
+      "id": "VariableID:177:24",
+      "collection": "Lastpiece v2 / Primitives",
+      "name": "primitive/muted",
+      "syntax": {
+        "WEB": "var(--lp-v2-muted)"
+      },
+      "scopes": [],
+      "value": "#52615a"
+    },
+    {
+      "id": "VariableID:177:25",
+      "collection": "Lastpiece v2 / Primitives",
+      "name": "primitive/forest",
+      "syntax": {
+        "WEB": "var(--lp-v2-forest)"
+      },
+      "scopes": [],
+      "value": "#be6482",
+      "note": "名前は旧版の名残。値はピンク"
+    },
+    {
+      "id": "VariableID:177:26",
+      "collection": "Lastpiece v2 / Primitives",
+      "name": "primitive/forest-deep",
+      "syntax": {
+        "WEB": "var(--lp-v2-forest-deep)"
+      },
+      "scopes": [],
+      "value": "#0e4b39",
+      "note": "濃い緑。tokens.css に定義しない（excluded）"
+    },
+    {
+      "id": "VariableID:177:27",
+      "collection": "Lastpiece v2 / Primitives",
+      "name": "primitive/disabled-bg",
+      "syntax": {
+        "WEB": "var(--lp-v2-disabled-bg)"
+      },
+      "scopes": [],
+      "value": "#d4dcd7"
+    },
+    {
+      "id": "VariableID:177:28",
+      "collection": "Lastpiece v2 / Primitives",
+      "name": "primitive/line",
+      "syntax": {
+        "WEB": "var(--lp-v2-line)"
+      },
+      "scopes": [],
+      "value": "#d8c9cf"
+    },
+    {
+      "id": "VariableID:177:29",
+      "collection": "Lastpiece v2 / Primitives",
+      "name": "primitive/mint",
+      "syntax": {
+        "WEB": "var(--lp-v2-mint)"
+      },
+      "scopes": [],
+      "value": "#e3f1e7",
+      "note": "Web で残すかは未決（docs/PRODUCT.md）"
+    },
+    {
+      "id": "VariableID:177:30",
+      "collection": "Lastpiece v2 / Primitives",
+      "name": "primitive/warm-white",
+      "syntax": {
+        "WEB": "var(--lp-v2-warm-white)"
+      },
+      "scopes": [],
+      "value": "#fffdfa"
+    },
+    {
+      "id": "VariableID:177:31",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/bg/canvas",
+      "syntax": {
+        "WEB": "var(--bg)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "aliasOf": "primitive/canvas",
+      "resolved": "#fff9fa",
+      "bindingsInMaster": 32
+    },
+    {
+      "id": "VariableID:177:32",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/bg/surface",
+      "syntax": {
+        "WEB": "var(--surface)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "aliasOf": "primitive/white",
+      "resolved": "#ffffff",
+      "bindingsInMaster": 113
+    },
+    {
+      "id": "VariableID:177:33",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/bg/soft",
+      "syntax": {
+        "WEB": "var(--soft)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "aliasOf": "primitive/soft-rose",
+      "resolved": "#fdeef2",
+      "bindingsInMaster": 83
+    },
+    {
+      "id": "VariableID:177:34",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/bg/petal",
+      "syntax": {
+        "WEB": "var(--lp-v2-bg-petal)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "aliasOf": "primitive/petal",
+      "resolved": "#f7cbd9",
+      "bindingsInMaster": 0
+    },
+    {
+      "id": "VariableID:177:35",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/bg/sheet",
+      "syntax": {
+        "WEB": "var(--lp-v2-bg-sheet)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "aliasOf": "primitive/warm-white",
+      "resolved": "#fffdfa",
+      "bindingsInMaster": 0
+    },
+    {
+      "id": "VariableID:177:36",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/text/primary",
+      "syntax": {
+        "WEB": "var(--lp-v2-text-primary)"
+      },
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "aliasOf": "primitive/ink",
+      "resolved": "#172324",
+      "bindingsInMaster": 139
+    },
+    {
+      "id": "VariableID:177:37",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/text/secondary",
+      "syntax": {
+        "WEB": "var(--lp-v2-text-secondary)"
+      },
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "aliasOf": "primitive/muted",
+      "resolved": "#52615a",
+      "bindingsInMaster": 329
+    },
+    {
+      "id": "VariableID:177:38",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/text/inverse",
+      "syntax": {
+        "WEB": "var(--lp-v2-text-inverse)"
+      },
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "aliasOf": "primitive/white",
+      "resolved": "#ffffff",
+      "bindingsInMaster": 42
+    },
+    {
+      "id": "VariableID:177:39",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/text/disabled",
+      "syntax": {
+        "WEB": "var(--lp-v2-text-disabled)"
+      },
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "aliasOf": "primitive/muted",
+      "resolved": "#52615a",
+      "bindingsInMaster": 1
+    },
+    {
+      "id": "VariableID:177:40",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/action/primary",
+      "syntax": {
+        "WEB": "var(--lp-v2-action-primary)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "aliasOf": "primitive/forest",
+      "resolved": "#be6482",
+      "bindingsInMaster": 175,
+      "note": "文字121件・文字以外の塗り54件。白文字との比は4.5:1未満（contrastAudit）"
+    },
+    {
+      "id": "VariableID:177:41",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/action/pressed",
+      "syntax": {
+        "WEB": "var(--lp-v2-action-pressed)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "aliasOf": "primitive/forest-deep",
+      "resolved": "#0e4b39",
+      "bindingsInMaster": 0,
+      "note": "濃い緑。マスター・部品とも未参照。tokens.css に定義しない（excluded）"
+    },
+    {
+      "id": "VariableID:177:42",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/action/secondary",
+      "syntax": {
+        "WEB": "var(--lp-v2-action-secondary)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "aliasOf": "primitive/white",
+      "resolved": "#ffffff",
+      "bindingsInMaster": 47
+    },
+    {
+      "id": "VariableID:177:43",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/action/disabled",
+      "syntax": {
+        "WEB": "var(--lp-v2-action-disabled)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "aliasOf": "primitive/disabled-bg",
+      "resolved": "#d4dcd7",
+      "bindingsInMaster": 1
+    },
+    {
+      "id": "VariableID:177:44",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/border/default",
+      "syntax": {
+        "WEB": "var(--lp-v2-border-default)"
+      },
+      "scopes": [
+        "STROKE_COLOR"
+      ],
+      "aliasOf": "primitive/line",
+      "resolved": "#d8c9cf",
+      "bindingsInMaster": 19,
+      "note": "区切り・無効の枠だけ。操作境界に使わない"
+    },
+    {
+      "id": "VariableID:177:45",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/border/focus",
+      "syntax": {
+        "WEB": "var(--lp-v2-border-focus)"
+      },
+      "scopes": [
+        "STROKE_COLOR"
+      ],
+      "aliasOf": "primitive/forest",
+      "resolved": "#be6482",
+      "bindingsInMaster": 47
+    },
+    {
+      "id": "VariableID:177:46",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/accent/rose",
+      "syntax": {
+        "WEB": "var(--main)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL",
+        "STROKE_COLOR"
+      ],
+      "aliasOf": "primitive/rose",
+      "resolved": "#de7f9c",
+      "bindingsInMaster": 0
+    },
+    {
+      "id": "VariableID:177:47",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/accent/wine",
+      "syntax": {
+        "WEB": "var(--deep)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL",
+        "STROKE_COLOR"
+      ],
+      "aliasOf": "primitive/wine",
+      "resolved": "#a94a68",
+      "bindingsInMaster": 9
+    },
+    {
+      "id": "VariableID:177:48",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/nav/selected",
+      "syntax": {
+        "WEB": "var(--lp-v2-nav-selected)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "aliasOf": "primitive/mint",
+      "resolved": "#e3f1e7",
+      "bindingsInMaster": 19,
+      "note": "淡いミント。Web で残すかは未決"
+    },
+    {
+      "id": "VariableID:181:24",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/border/focus-inner",
+      "syntax": {
+        "WEB": "var(--lp-v2-border-focus-inner)"
+      },
+      "scopes": [
+        "STROKE_COLOR"
+      ],
+      "aliasOf": "primitive/white",
+      "resolved": "#ffffff",
+      "bindingsInMaster": 0,
+      "note": "Button の Focus 状態（179:24）で使用"
+    },
+    {
+      "id": "VariableID:177:49",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "space/1",
+      "syntax": {
+        "WEB": "var(--lp-v2-space-1)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "value": 4,
+      "bindingsInMaster": 22
+    },
+    {
+      "id": "VariableID:177:50",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "space/2",
+      "syntax": {
+        "WEB": "var(--lp-v2-space-2)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "value": 8,
+      "bindingsInMaster": 218
+    },
+    {
+      "id": "VariableID:177:51",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "space/3",
+      "syntax": {
+        "WEB": "var(--lp-v2-space-3)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "value": 12,
+      "bindingsInMaster": 4
+    },
+    {
+      "id": "VariableID:177:52",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "space/4",
+      "syntax": {
+        "WEB": "var(--lp-v2-space-4)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "value": 16,
+      "bindingsInMaster": 38
+    },
+    {
+      "id": "VariableID:177:53",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "space/6",
+      "syntax": {
+        "WEB": "var(--lp-v2-space-6)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "value": 24,
+      "bindingsInMaster": 180
+    },
+    {
+      "id": "VariableID:177:54",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "space/8",
+      "syntax": {
+        "WEB": "var(--lp-v2-space-8)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "value": 32,
+      "bindingsInMaster": 0
+    },
+    {
+      "id": "VariableID:177:55",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "radius/control",
+      "syntax": {
+        "WEB": "var(--lp-v2-radius-control)"
+      },
+      "scopes": [
+        "CORNER_RADIUS"
+      ],
+      "value": 12,
+      "bindingsInMaster": 664
+    },
+    {
+      "id": "VariableID:177:56",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "radius/card",
+      "syntax": {
+        "WEB": "var(--lp-v2-radius-card)"
+      },
+      "scopes": [
+        "CORNER_RADIUS"
+      ],
+      "value": 20,
+      "bindingsInMaster": 80
+    },
+    {
+      "id": "VariableID:177:57",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "radius/full",
+      "syntax": {
+        "WEB": "var(--lp-v2-radius-full)"
+      },
+      "scopes": [
+        "CORNER_RADIUS"
+      ],
+      "value": 999,
+      "bindingsInMaster": 0
+    },
+    {
+      "id": "VariableID:177:58",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "size/touch/min",
+      "syntax": {
+        "WEB": "var(--lp-v2-touch-min)"
+      },
+      "scopes": [
+        "WIDTH_HEIGHT"
+      ],
+      "value": 44,
+      "bindingsInMaster": 0
+    },
+    {
+      "id": "VariableID:177:59",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "size/touch/primary",
+      "syntax": {
+        "WEB": "var(--lp-v2-touch-primary)"
+      },
+      "scopes": [
+        "WIDTH_HEIGHT"
+      ],
+      "value": 48,
+      "bindingsInMaster": 90
+    }
+  ],
+  "excluded": [
+    {
+      "name": "color/action/pressed",
+      "id": "VariableID:177:41",
+      "resolved": "#0e4b39",
+      "reason": "濃い緑。マスターと Button・Navigation 部品は参照していない。主操作を緑にしない決定に反するため tokens.css に定義しない。Figma 側の整理は未実施（変数を変えるとマスターに影響するため）"
+    },
+    {
+      "name": "primitive/forest-deep",
+      "id": "VariableID:177:26",
+      "resolved": "#0e4b39",
+      "reason": "上の action/pressed だけが参照する"
+    }
+  ],
+  "textStyles": [
+    {
+      "id": "S:6784aac8879be8c51c4c5b23311530bbd0785d53,",
+      "name": "Lastpiece v2/Display",
+      "font": "Shippori Mincho Bold",
+      "size": 32,
+      "line": 44,
+      "usesInMaster": 0
+    },
+    {
+      "id": "S:0c749e4d2b8bd5f76537e387fb024bfc3ab3b85e,",
+      "name": "Lastpiece v2/Title",
+      "font": "Noto Sans JP Bold",
+      "size": 24,
+      "line": 32,
+      "usesInMaster": 88
+    },
+    {
+      "id": "S:de48ff82ebb535e41c172bb61b0e92d9aa2348b4,",
+      "name": "Lastpiece v2/Body",
+      "font": "Noto Sans JP Regular",
+      "size": 17,
+      "line": 29,
+      "usesInMaster": 35
+    },
+    {
+      "id": "S:b8e00ba07b64576be8a4347922803a673234b68a,",
+      "name": "Lastpiece v2/Label",
+      "font": "Noto Sans JP Bold",
+      "size": 16,
+      "line": 24,
+      "usesInMaster": 94
+    },
+    {
+      "id": "S:3d5bde3b51a8f484c5cd6688974b99c6adae4394,",
+      "name": "Lastpiece v2/Caption",
+      "font": "Noto Sans JP Regular",
+      "size": 14,
+      "line": 22,
+      "usesInMaster": 180
+    }
+  ],
+  "textStylesNote": "マスターの文字898件のうち501件は文字スタイル未適用（Noto Sans JP の Bold/Regular、Shippori Mincho Bold 1件）。",
+  "effects": {
+    "usedInMaster": [],
+    "buttonFocus": {
+      "nodeId": "179:24",
+      "insideStroke": {
+        "width": 4,
+        "variable": "color/border/focus-inner"
+      },
+      "dropShadow": {
+        "offset": [
+          0,
+          0
+        ],
+        "blur": 0,
+        "spread": 3,
+        "variable": "color/accent/wine"
+      },
+      "css": "--lp-v2-focus-ring"
+    },
+    "note": "マスターは効果スタイルを使っていない。Figma にある Lastpiece v2/Sheet Shadow と JTCC/Shadow/Lastpiece は未参照。"
+  },
+  "differencesFromApp": [
+    {
+      "token": "color/text/primary",
+      "figma": "#172324",
+      "app": "--text #5C4A50",
+      "note": "Figma マスターは濃い墨色。現行 Web はピンク寄りの茶色"
+    },
+    {
+      "token": "color/text/secondary",
+      "figma": "#52615a",
+      "app": "--sub #7D646C"
+    },
+    {
+      "token": "color/action/primary",
+      "figma": "#be6482",
+      "app": "--deep #A94A68（.btn-main の塗り）",
+      "note": "Figma の白文字比は3.93:1で不足。Web は5.43:1"
+    },
+    {
+      "token": "color/border/focus",
+      "figma": "#be6482",
+      "app": "--deep #A94A68（:focus-visible）"
+    },
+    {
+      "token": "color/border/default",
+      "figma": "#d8c9cf",
+      "app": "--line #F5DDE4"
+    },
+    {
+      "token": "color/action/disabled",
+      "figma": "#d4dcd7",
+      "app": "なし",
+      "note": "灰緑の無効色"
+    },
+    {
+      "token": "color/nav/selected",
+      "figma": "#e3f1e7",
+      "app": "なし",
+      "note": "淡いミント。docs/PRODUCT.md の未決事項"
+    }
+  ],
+  "differencesNote": "同じ名前の --bg/--surface/--soft/--main/--deep は値が一致。上の差は Figma を記録どおり残し、Web 実装時にどちらへ揃えるかを決める。src/index.css の --head/--wine/--line 等は Figma の「JTCC / Lastpiece」(83:18) にだけある。",
+  "contrastAudit": [
+    {
+      "name": "text/primary / bg/canvas",
+      "fg": "#172324",
+      "bg": "#fff9fa",
+      "minimum": 4.5,
+      "ratio": 15.49,
+      "pass": true
+    },
+    {
+      "name": "text/primary / bg/soft",
+      "fg": "#172324",
+      "bg": "#fdeef2",
+      "minimum": 4.5,
+      "ratio": 14.35,
+      "pass": true
+    },
+    {
+      "name": "text/secondary / bg/canvas",
+      "fg": "#52615a",
+      "bg": "#fff9fa",
+      "minimum": 4.5,
+      "ratio": 6.27,
+      "pass": true
+    },
+    {
+      "name": "text/secondary / bg/surface",
+      "fg": "#52615a",
+      "bg": "#ffffff",
+      "minimum": 4.5,
+      "ratio": 6.52,
+      "pass": true
+    },
+    {
+      "name": "text/secondary / bg/soft",
+      "fg": "#52615a",
+      "bg": "#fdeef2",
+      "minimum": 4.5,
+      "ratio": 5.81,
+      "pass": true
+    },
+    {
+      "name": "text/inverse / action/primary",
+      "fg": "#ffffff",
+      "bg": "#be6482",
+      "minimum": 4.5,
+      "ratio": 3.93,
+      "pass": false,
+      "note": "Button Primary の16px Bold ラベル。大きい文字に当たらない"
+    },
+    {
+      "name": "action/primary / action/secondary",
+      "fg": "#be6482",
+      "bg": "#ffffff",
+      "minimum": 4.5,
+      "ratio": 3.93,
+      "pass": false,
+      "note": "Button Outline のラベル"
+    },
+    {
+      "name": "action/primary / bg/canvas",
+      "fg": "#be6482",
+      "bg": "#fff9fa",
+      "minimum": 4.5,
+      "ratio": 3.78,
+      "pass": false,
+      "note": "背景上の強調文字"
+    },
+    {
+      "name": "action/primary / nav/selected",
+      "fg": "#be6482",
+      "bg": "#e3f1e7",
+      "minimum": 4.5,
+      "ratio": 3.37,
+      "pass": false,
+      "note": "選択中タブの14pxラベル"
+    },
+    {
+      "name": "text/disabled / action/disabled",
+      "fg": "#52615a",
+      "bg": "#d4dcd7",
+      "minimum": 4.5,
+      "ratio": 4.66,
+      "pass": true,
+      "note": "無効状態。WCAG の必須対象外だが読める濃さを確認"
+    },
+    {
+      "name": "accent/wine / bg/surface",
+      "fg": "#a94a68",
+      "bg": "#ffffff",
+      "minimum": 4.5,
+      "ratio": 5.43,
+      "pass": true
+    },
+    {
+      "name": "border/focus / bg/surface",
+      "fg": "#be6482",
+      "bg": "#ffffff",
+      "minimum": 3,
+      "ratio": 3.93,
+      "pass": true,
+      "note": "フォーカス線（非文字）"
+    },
+    {
+      "name": "accent/wine focus ring / bg/canvas",
+      "fg": "#a94a68",
+      "bg": "#fff9fa",
+      "minimum": 3,
+      "ratio": 5.22,
+      "pass": true,
+      "note": "Button Focus の外側リング（非文字）"
+    },
+    {
+      "name": "border/default / bg/surface",
+      "fg": "#d8c9cf",
+      "bg": "#ffffff",
+      "minimum": null,
+      "ratio": 1.59,
+      "note": "区切り・無効枠だけ。操作境界に使わない"
+    }
+  ],
+  "contrastMethod": "WCAG 2.x 相対輝度。比は小数第3位を切り捨て。本文・操作ラベルは4.5:1、非文字の境界は3:1以上。",
+  "appReference": [
+    {
+      "name": "src --text / --bg",
+      "fg": "#5c4a50",
+      "bg": "#fff9fa",
+      "minimum": 4.5,
+      "ratio": 7.91,
+      "pass": true
+    },
+    {
+      "name": "src --sub / --bg",
+      "fg": "#7d646c",
+      "bg": "#fff9fa",
+      "minimum": 4.5,
+      "ratio": 5.15,
+      "pass": true
+    },
+    {
+      "name": "src 白 / --deep（.btn-main）",
+      "fg": "#ffffff",
+      "bg": "#a94a68",
+      "minimum": 4.5,
+      "ratio": 5.43,
+      "pass": true
+    }
+  ],
+  "otherCollections": [
+    {
+      "id": "VariableCollectionId:83:18",
+      "name": "JTCC / Lastpiece",
+      "modes": [
+        {
+          "name": "Sakura Milk",
+          "modeId": "83:0"
+        }
+      ],
+      "count": 20,
+      "webSyntax": "var(--jtcc-lastpiece-*)",
+      "usedByMaster": false,
+      "note": "src/index.css の値と一致する変数（text #5c4a50、sub #7d646c、action #a94a68 など）。マスターは参照していない"
+    },
+    {
+      "id": "VariableCollectionId:71:2",
+      "name": "JTCC / Primitives",
+      "count": 54,
+      "usedByMaster": false,
+      "note": "v0.1 の12変数に lastpiece/area/town 等が追加済み。primitive/green/700・800 の値は Figma 上で #be6482・#a85570 に変わっており、v0.1 の記録（#16634d・#104e3c）と一致しない。green/900 は #0c3b2e のまま"
     },
     {
       "id": "VariableCollectionId:71:3",
       "name": "JTCC / Color",
-      "modes": [
-        {
-          "name": "Light",
-          "modeId": "71:1"
-        }
-      ],
-      "count": 16
+      "count": 16,
+      "usedByMaster": false,
+      "note": "v0.1 の意味色。action/pressed は緑 #0c3b2e を参照"
     },
     {
       "id": "VariableCollectionId:71:4",
       "name": "JTCC / Layout",
-      "modes": [
-        {
-          "name": "Value",
-          "modeId": "71:2"
-        }
-      ],
-      "count": 17
+      "count": 31,
+      "usedByMaster": false
     },
     {
       "id": "VariableCollectionId:71:5",
       "name": "JTCC / Typography",
-      "modes": [
-        {
-          "name": "Value",
-          "modeId": "71:3"
-        }
-      ],
-      "count": 12
+      "count": 12,
+      "usedByMaster": false
     }
   ],
-  "variables": [
+  "history": [
     {
-      "id": "VariableID:71:6",
-      "name": "primitive/green/700",
-      "syntax": {
-        "WEB": "var(--jtcc-primitive-green-700)"
-      },
-      "scopes": [],
-      "values": {
-        "71:0": {
-          "r": 0.08627451211214066,
-          "g": 0.38823530077934265,
-          "b": 0.3019607961177826,
-          "a": 1
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:7",
-      "name": "primitive/green/800",
-      "syntax": {
-        "WEB": "var(--jtcc-primitive-green-800)"
-      },
-      "scopes": [],
-      "values": {
-        "71:0": {
-          "r": 0.062745101749897,
-          "g": 0.30588236451148987,
-          "b": 0.23529411852359772,
-          "a": 1
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:8",
-      "name": "primitive/green/900",
-      "syntax": {
-        "WEB": "var(--jtcc-primitive-green-900)"
-      },
-      "scopes": [],
-      "values": {
-        "71:0": {
-          "r": 0.0470588244497776,
-          "g": 0.23137255012989044,
-          "b": 0.18039216101169586,
-          "a": 1
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:9",
-      "name": "primitive/mint/100",
-      "syntax": {
-        "WEB": "var(--jtcc-primitive-mint-100)"
-      },
-      "scopes": [],
-      "values": {
-        "71:0": {
-          "r": 0.772549033164978,
-          "g": 0.9333333373069763,
-          "b": 0.8823529481887817,
-          "a": 1
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:10",
-      "name": "primitive/neutral/50",
-      "syntax": {
-        "WEB": "var(--jtcc-primitive-neutral-50)"
-      },
-      "scopes": [],
-      "values": {
-        "71:0": {
-          "r": 0.9607843160629272,
-          "g": 0.9686274528503418,
-          "b": 0.9607843160629272,
-          "a": 1
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:11",
-      "name": "primitive/neutral/100",
-      "syntax": {
-        "WEB": "var(--jtcc-primitive-neutral-100)"
-      },
-      "scopes": [],
-      "values": {
-        "71:0": {
-          "r": 0.929411768913269,
-          "g": 0.9450980424880981,
-          "b": 0.9372549057006836,
-          "a": 1
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:12",
-      "name": "primitive/neutral/200",
-      "syntax": {
-        "WEB": "var(--jtcc-primitive-neutral-200)"
-      },
-      "scopes": [],
-      "values": {
-        "71:0": {
-          "r": 0.8627451062202454,
-          "g": 0.9058823585510254,
-          "b": 0.886274516582489,
-          "a": 1
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:13",
-      "name": "primitive/neutral/500",
-      "syntax": {
-        "WEB": "var(--jtcc-primitive-neutral-500)"
-      },
-      "scopes": [],
-      "values": {
-        "71:0": {
-          "r": 0.4431372582912445,
-          "g": 0.5098039507865906,
-          "b": 0.4901960790157318,
-          "a": 1
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:14",
-      "name": "primitive/neutral/700",
-      "syntax": {
-        "WEB": "var(--jtcc-primitive-neutral-700)"
-      },
-      "scopes": [],
-      "values": {
-        "71:0": {
-          "r": 0.32549020648002625,
-          "g": 0.38823530077934265,
-          "b": 0.3803921639919281,
-          "a": 1
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:15",
-      "name": "primitive/neutral/950",
-      "syntax": {
-        "WEB": "var(--jtcc-primitive-neutral-950)"
-      },
-      "scopes": [],
-      "values": {
-        "71:0": {
-          "r": 0.09019608050584793,
-          "g": 0.13725490868091583,
-          "b": 0.1411764770746231,
-          "a": 1
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:16",
-      "name": "primitive/white",
-      "syntax": {
-        "WEB": "var(--jtcc-primitive-white)"
-      },
-      "scopes": [],
-      "values": {
-        "71:0": {
-          "r": 1,
-          "g": 1,
-          "b": 1,
-          "a": 1
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:17",
-      "name": "primitive/red/700",
-      "syntax": {
-        "WEB": "var(--jtcc-primitive-red-700)"
-      },
-      "scopes": [],
-      "values": {
-        "71:0": {
-          "r": 0.6470588445663452,
-          "g": 0.16470588743686676,
-          "b": 0.21960784494876862,
-          "a": 1
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:18",
-      "name": "color/bg/canvas",
-      "syntax": {
-        "WEB": "var(--jtcc-color-bg-canvas)"
-      },
-      "scopes": [
-        "FRAME_FILL",
-        "SHAPE_FILL"
-      ],
-      "values": {
-        "71:1": {
-          "type": "VARIABLE_ALIAS",
-          "id": "VariableID:71:10"
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:19",
-      "name": "color/bg/surface",
-      "syntax": {
-        "WEB": "var(--jtcc-color-bg-surface)"
-      },
-      "scopes": [
-        "FRAME_FILL",
-        "SHAPE_FILL"
-      ],
-      "values": {
-        "71:1": {
-          "type": "VARIABLE_ALIAS",
-          "id": "VariableID:71:16"
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:20",
-      "name": "color/bg/subtle",
-      "syntax": {
-        "WEB": "var(--jtcc-color-bg-subtle)"
-      },
-      "scopes": [
-        "FRAME_FILL",
-        "SHAPE_FILL"
-      ],
-      "values": {
-        "71:1": {
-          "type": "VARIABLE_ALIAS",
-          "id": "VariableID:71:11"
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:21",
-      "name": "color/text/primary",
-      "syntax": {
-        "WEB": "var(--jtcc-color-text-primary)"
-      },
-      "scopes": [
-        "TEXT_FILL"
-      ],
-      "values": {
-        "71:1": {
-          "type": "VARIABLE_ALIAS",
-          "id": "VariableID:71:15"
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:22",
-      "name": "color/text/secondary",
-      "syntax": {
-        "WEB": "var(--jtcc-color-text-secondary)"
-      },
-      "scopes": [
-        "TEXT_FILL"
-      ],
-      "values": {
-        "71:1": {
-          "type": "VARIABLE_ALIAS",
-          "id": "VariableID:71:14"
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:23",
-      "name": "color/text/on-action",
-      "syntax": {
-        "WEB": "var(--jtcc-color-text-on-action)"
-      },
-      "scopes": [
-        "TEXT_FILL"
-      ],
-      "values": {
-        "71:1": {
-          "type": "VARIABLE_ALIAS",
-          "id": "VariableID:71:16"
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:24",
-      "name": "color/action/default",
-      "syntax": {
-        "WEB": "var(--jtcc-color-action-default)"
-      },
-      "scopes": [
-        "FRAME_FILL",
-        "SHAPE_FILL"
-      ],
-      "values": {
-        "71:1": {
-          "type": "VARIABLE_ALIAS",
-          "id": "VariableID:71:6"
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:25",
-      "name": "color/action/hover",
-      "syntax": {
-        "WEB": "var(--jtcc-color-action-hover)"
-      },
-      "scopes": [
-        "FRAME_FILL",
-        "SHAPE_FILL"
-      ],
-      "values": {
-        "71:1": {
-          "type": "VARIABLE_ALIAS",
-          "id": "VariableID:71:7"
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:26",
-      "name": "color/action/pressed",
-      "syntax": {
-        "WEB": "var(--jtcc-color-action-pressed)"
-      },
-      "scopes": [
-        "FRAME_FILL",
-        "SHAPE_FILL"
-      ],
-      "values": {
-        "71:1": {
-          "type": "VARIABLE_ALIAS",
-          "id": "VariableID:71:8"
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:27",
-      "name": "color/action/disabled",
-      "syntax": {
-        "WEB": "var(--jtcc-color-action-disabled)"
-      },
-      "scopes": [
-        "FRAME_FILL",
-        "SHAPE_FILL"
-      ],
-      "values": {
-        "71:1": {
-          "type": "VARIABLE_ALIAS",
-          "id": "VariableID:71:12"
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:28",
-      "name": "color/text/disabled",
-      "syntax": {
-        "WEB": "var(--jtcc-color-text-disabled)"
-      },
-      "scopes": [
-        "TEXT_FILL"
-      ],
-      "values": {
-        "71:1": {
-          "type": "VARIABLE_ALIAS",
-          "id": "VariableID:71:14"
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:29",
-      "name": "color/border/subtle",
-      "syntax": {
-        "WEB": "var(--jtcc-color-border-subtle)"
-      },
-      "scopes": [
-        "STROKE_COLOR"
-      ],
-      "values": {
-        "71:1": {
-          "type": "VARIABLE_ALIAS",
-          "id": "VariableID:71:12"
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:30",
-      "name": "color/border/control",
-      "syntax": {
-        "WEB": "var(--jtcc-color-border-control)"
-      },
-      "scopes": [
-        "STROKE_COLOR"
-      ],
-      "values": {
-        "71:1": {
-          "type": "VARIABLE_ALIAS",
-          "id": "VariableID:71:13"
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:31",
-      "name": "color/focus",
-      "syntax": {
-        "WEB": "var(--jtcc-color-focus)"
-      },
-      "scopes": [
-        "STROKE_COLOR"
-      ],
-      "values": {
-        "71:1": {
-          "type": "VARIABLE_ALIAS",
-          "id": "VariableID:71:6"
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:32",
-      "name": "color/error",
-      "syntax": {
-        "WEB": "var(--jtcc-color-error)"
-      },
-      "scopes": [
-        "TEXT_FILL",
-        "STROKE_COLOR"
-      ],
-      "values": {
-        "71:1": {
-          "type": "VARIABLE_ALIAS",
-          "id": "VariableID:71:17"
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:33",
-      "name": "color/selection",
-      "syntax": {
-        "WEB": "var(--jtcc-color-selection)"
-      },
-      "scopes": [
-        "FRAME_FILL",
-        "SHAPE_FILL"
-      ],
-      "values": {
-        "71:1": {
-          "type": "VARIABLE_ALIAS",
-          "id": "VariableID:71:9"
-        }
-      }
-    },
-    {
-      "id": "VariableID:71:34",
-      "name": "spacing/0",
-      "syntax": {
-        "WEB": "var(--jtcc-spacing-0)"
-      },
-      "scopes": [
-        "GAP"
-      ],
-      "values": {
-        "71:2": 0
-      }
-    },
-    {
-      "id": "VariableID:71:35",
-      "name": "spacing/4",
-      "syntax": {
-        "WEB": "var(--jtcc-spacing-4)"
-      },
-      "scopes": [
-        "GAP"
-      ],
-      "values": {
-        "71:2": 4
-      }
-    },
-    {
-      "id": "VariableID:71:36",
-      "name": "spacing/8",
-      "syntax": {
-        "WEB": "var(--jtcc-spacing-8)"
-      },
-      "scopes": [
-        "GAP"
-      ],
-      "values": {
-        "71:2": 8
-      }
-    },
-    {
-      "id": "VariableID:71:37",
-      "name": "spacing/12",
-      "syntax": {
-        "WEB": "var(--jtcc-spacing-12)"
-      },
-      "scopes": [
-        "GAP"
-      ],
-      "values": {
-        "71:2": 12
-      }
-    },
-    {
-      "id": "VariableID:71:38",
-      "name": "spacing/16",
-      "syntax": {
-        "WEB": "var(--jtcc-spacing-16)"
-      },
-      "scopes": [
-        "GAP"
-      ],
-      "values": {
-        "71:2": 16
-      }
-    },
-    {
-      "id": "VariableID:71:39",
-      "name": "spacing/20",
-      "syntax": {
-        "WEB": "var(--jtcc-spacing-20)"
-      },
-      "scopes": [
-        "GAP"
-      ],
-      "values": {
-        "71:2": 20
-      }
-    },
-    {
-      "id": "VariableID:71:40",
-      "name": "spacing/24",
-      "syntax": {
-        "WEB": "var(--jtcc-spacing-24)"
-      },
-      "scopes": [
-        "GAP"
-      ],
-      "values": {
-        "71:2": 24
-      }
-    },
-    {
-      "id": "VariableID:71:41",
-      "name": "spacing/32",
-      "syntax": {
-        "WEB": "var(--jtcc-spacing-32)"
-      },
-      "scopes": [
-        "GAP"
-      ],
-      "values": {
-        "71:2": 32
-      }
-    },
-    {
-      "id": "VariableID:71:42",
-      "name": "spacing/48",
-      "syntax": {
-        "WEB": "var(--jtcc-spacing-48)"
-      },
-      "scopes": [
-        "GAP"
-      ],
-      "values": {
-        "71:2": 48
-      }
-    },
-    {
-      "id": "VariableID:71:43",
-      "name": "spacing/64",
-      "syntax": {
-        "WEB": "var(--jtcc-spacing-64)"
-      },
-      "scopes": [
-        "GAP"
-      ],
-      "values": {
-        "71:2": 64
-      }
-    },
-    {
-      "id": "VariableID:71:44",
-      "name": "radius/control",
-      "syntax": {
-        "WEB": "var(--jtcc-radius-control)"
-      },
-      "scopes": [
-        "CORNER_RADIUS"
-      ],
-      "values": {
-        "71:2": 12
-      }
-    },
-    {
-      "id": "VariableID:71:45",
-      "name": "radius/card",
-      "syntax": {
-        "WEB": "var(--jtcc-radius-card)"
-      },
-      "scopes": [
-        "CORNER_RADIUS"
-      ],
-      "values": {
-        "71:2": 20
-      }
-    },
-    {
-      "id": "VariableID:71:46",
-      "name": "radius/pill",
-      "syntax": {
-        "WEB": "var(--jtcc-radius-pill)"
-      },
-      "scopes": [
-        "CORNER_RADIUS"
-      ],
-      "values": {
-        "71:2": 999
-      }
-    },
-    {
-      "id": "VariableID:71:47",
-      "name": "size/touch",
-      "syntax": {
-        "WEB": "var(--jtcc-size-touch)"
-      },
-      "scopes": [
-        "WIDTH_HEIGHT"
-      ],
-      "values": {
-        "71:2": 44
-      }
-    },
-    {
-      "id": "VariableID:71:48",
-      "name": "size/control",
-      "syntax": {
-        "WEB": "var(--jtcc-size-control)"
-      },
-      "scopes": [
-        "WIDTH_HEIGHT"
-      ],
-      "values": {
-        "71:2": 48
-      }
-    },
-    {
-      "id": "VariableID:71:49",
-      "name": "stroke/default",
-      "syntax": {
-        "WEB": "var(--jtcc-stroke-default)"
-      },
-      "scopes": [
-        "STROKE_FLOAT"
-      ],
-      "values": {
-        "71:2": 1
-      }
-    },
-    {
-      "id": "VariableID:71:50",
-      "name": "stroke/focus",
-      "syntax": {
-        "WEB": "var(--jtcc-stroke-focus)"
-      },
-      "scopes": [
-        "STROKE_FLOAT"
-      ],
-      "values": {
-        "71:2": 3
-      }
-    },
-    {
-      "id": "VariableID:71:51",
-      "name": "type/display/size",
-      "syntax": {
-        "WEB": "var(--jtcc-type-display-size)"
-      },
-      "scopes": [
-        "FONT_SIZE"
-      ],
-      "values": {
-        "71:3": 34
-      }
-    },
-    {
-      "id": "VariableID:71:52",
-      "name": "type/display/line",
-      "syntax": {
-        "WEB": "var(--jtcc-type-display-line)"
-      },
-      "scopes": [
-        "LINE_HEIGHT"
-      ],
-      "values": {
-        "71:3": 44
-      }
-    },
-    {
-      "id": "VariableID:71:54",
-      "name": "type/title/size",
-      "syntax": {
-        "WEB": "var(--jtcc-type-title-size)"
-      },
-      "scopes": [
-        "FONT_SIZE"
-      ],
-      "values": {
-        "71:3": 24
-      }
-    },
-    {
-      "id": "VariableID:71:55",
-      "name": "type/title/line",
-      "syntax": {
-        "WEB": "var(--jtcc-type-title-line)"
-      },
-      "scopes": [
-        "LINE_HEIGHT"
-      ],
-      "values": {
-        "71:3": 34
-      }
-    },
-    {
-      "id": "VariableID:71:57",
-      "name": "type/heading/size",
-      "syntax": {
-        "WEB": "var(--jtcc-type-heading-size)"
-      },
-      "scopes": [
-        "FONT_SIZE"
-      ],
-      "values": {
-        "71:3": 20
-      }
-    },
-    {
-      "id": "VariableID:71:58",
-      "name": "type/heading/line",
-      "syntax": {
-        "WEB": "var(--jtcc-type-heading-line)"
-      },
-      "scopes": [
-        "LINE_HEIGHT"
-      ],
-      "values": {
-        "71:3": 30
-      }
-    },
-    {
-      "id": "VariableID:71:60",
-      "name": "type/body/size",
-      "syntax": {
-        "WEB": "var(--jtcc-type-body-size)"
-      },
-      "scopes": [
-        "FONT_SIZE"
-      ],
-      "values": {
-        "71:3": 17
-      }
-    },
-    {
-      "id": "VariableID:71:61",
-      "name": "type/body/line",
-      "syntax": {
-        "WEB": "var(--jtcc-type-body-line)"
-      },
-      "scopes": [
-        "LINE_HEIGHT"
-      ],
-      "values": {
-        "71:3": 30
-      }
-    },
-    {
-      "id": "VariableID:71:63",
-      "name": "type/label/size",
-      "syntax": {
-        "WEB": "var(--jtcc-type-label-size)"
-      },
-      "scopes": [
-        "FONT_SIZE"
-      ],
-      "values": {
-        "71:3": 17
-      }
-    },
-    {
-      "id": "VariableID:71:64",
-      "name": "type/label/line",
-      "syntax": {
-        "WEB": "var(--jtcc-type-label-line)"
-      },
-      "scopes": [
-        "LINE_HEIGHT"
-      ],
-      "values": {
-        "71:3": 24
-      }
-    },
-    {
-      "id": "VariableID:71:66",
-      "name": "type/caption/size",
-      "syntax": {
-        "WEB": "var(--jtcc-type-caption-size)"
-      },
-      "scopes": [
-        "FONT_SIZE"
-      ],
-      "values": {
-        "71:3": 14
-      }
-    },
-    {
-      "id": "VariableID:71:67",
-      "name": "type/caption/line",
-      "syntax": {
-        "WEB": "var(--jtcc-type-caption-line)"
-      },
-      "scopes": [
-        "LINE_HEIGHT"
-      ],
-      "values": {
-        "71:3": 22
-      }
+      "version": "0.1.0",
+      "date": "2026-09-25",
+      "status": "archived",
+      "supersededOn": "2026-09-26",
+      "paletteDecision": "Keep existing app green palette (user confirmed)",
+      "summary": "JTCC App 初版。4コレクション57変数（Primitives 12、Color 16、Layout 17、Typography 12）、JTCC/Button 76:32・Input 78:2・Card 79:2、320px 確認 80:2。アクセント #16634d。ラストピースには使わない",
+      "snapshot": "git show fb93ffa:design-system/figma-manifest.json"
     }
-  ],
-  "styles": [
-    {
-      "id": "S:feabc5029cff87b24c2ea3143f71d105f0e0163f,",
-      "name": "JTCC/Display"
-    },
-    {
-      "id": "S:8662214e0c0e323f4ccf19c98ab7d37626edc1f9,",
-      "name": "JTCC/Title"
-    },
-    {
-      "id": "S:d7bb88a92fd1297aea0b8c23af1c6c6de1c05dcb,",
-      "name": "JTCC/Heading"
-    },
-    {
-      "id": "S:c91c1f1443dca68383fe459dc0a45f6f50023cab,",
-      "name": "JTCC/Body"
-    },
-    {
-      "id": "S:d43f77faa1cec30290db03b536a06cae30be1d6d,",
-      "name": "JTCC/Label"
-    },
-    {
-      "id": "S:a68cb8116f92789e4e48a5b871a25996c6ea9d4a,",
-      "name": "JTCC/Caption"
-    }
-  ],
-  "effect": {
-    "id": "S:4593ca7346c821b4c2d1662f12fa42df523b20e4,",
-    "name": "JTCC/Shadow/Card"
-  },
-  "contrastAudit": [
-    {
-      "name": "primary / canvas",
-      "fg": "#172324",
-      "bg": "#f5f7f5",
-      "minimum": 4.5,
-      "ratio": 14.98
-    },
-    {
-      "name": "secondary / canvas",
-      "fg": "#536361",
-      "bg": "#f5f7f5",
-      "minimum": 4.5,
-      "ratio": 5.87
-    },
-    {
-      "name": "on-action / default",
-      "fg": "#ffffff",
-      "bg": "#16634d",
-      "minimum": 4.5,
-      "ratio": 7.18
-    },
-    {
-      "name": "error / surface",
-      "fg": "#a52a38",
-      "bg": "#ffffff",
-      "minimum": 4.5,
-      "ratio": 7.03
-    },
-    {
-      "name": "control border / surface",
-      "fg": "#71827d",
-      "bg": "#ffffff",
-      "minimum": 3,
-      "ratio": 4.05
-    },
-    {
-      "name": "secondary / subtle",
-      "fg": "#536361",
-      "bg": "#edf1ef",
-      "minimum": 4.5,
-      "ratio": 5.54
-    }
-  ],
-  "qaNodeId": "80:2"
+  ]
 }

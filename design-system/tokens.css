@@ -1,63 +1,71 @@
-/* JTCC design system v0.1 — Figma snapshot. See docs/DESIGN.md.
- * Not imported by the current app. Import with a reviewed UI implementation PR.
- * Figma px values map to rem for text to preserve browser font scaling. */
+/* ラストピース「さくらミルク」デザイントークン v0.2 — Figma スナップショット（2026-09-26）。
+ * 出典: Figma yeDF1BwhrxpXI57Daainle の変数コレクション
+ *   「Lastpiece v2 / Primitives」(177:15) と「Lastpiece v2 / Tokens」(177:16)。
+ *   デザインマスター Lastpiece / Master · T11 (267:8198) の画面と部品が参照する変数。
+ * CSS 名は Figma 変数の WEB code syntax と同じ。--bg / --surface / --soft / --main / --deep は
+ *   src/index.css と同じ名前・同じ値。それ以外は --lp-v2-*。詳細は docs/DESIGN.md と figma-manifest.json。
+ * 現行アプリはこのファイルを import していない。適用は UI 実装 PR で実画面を検証して行う。
+ * 注意: --lp-v2-action-primary (#be6482) と白文字の組合せは 3.93:1 で、16px の操作ラベルに必要な 4.5:1 に届かない。
+ *   現行 Web の主操作は --deep (#a94a68, 5.43:1)。どちらに揃えるかは未決（figma-manifest.json の contrastAudit）。
+ * Figma の action/pressed と primitive/forest-deep (#0e4b39) は濃い緑で、マスターは参照していない。
+ *   主操作を緑にしない決定に反するため、ここには定義しない。
+ * 文字寸法は 16px 基準の rem。ブラウザの文字拡大を維持する。 */
 :root {
-  --jtcc-primitive-green-700: #16634d;
-  --jtcc-primitive-green-800: #104e3c;
-  --jtcc-primitive-green-900: #0c3b2e;
-  --jtcc-primitive-mint-100: #c5eee1;
-  --jtcc-primitive-neutral-50: #f5f7f5;
-  --jtcc-primitive-neutral-100: #edf1ef;
-  --jtcc-primitive-neutral-200: #dce7e2;
-  --jtcc-primitive-neutral-500: #71827d;
-  --jtcc-primitive-neutral-700: #536361;
-  --jtcc-primitive-neutral-950: #172324;
-  --jtcc-primitive-white: #ffffff;
-  --jtcc-primitive-red-700: #a52a38;
-  --jtcc-color-bg-canvas: var(--jtcc-primitive-neutral-50);
-  --jtcc-color-bg-surface: var(--jtcc-primitive-white);
-  --jtcc-color-bg-subtle: var(--jtcc-primitive-neutral-100);
-  --jtcc-color-text-primary: var(--jtcc-primitive-neutral-950);
-  --jtcc-color-text-secondary: var(--jtcc-primitive-neutral-700);
-  --jtcc-color-text-on-action: var(--jtcc-primitive-white);
-  --jtcc-color-action-default: var(--jtcc-primitive-green-700);
-  --jtcc-color-action-hover: var(--jtcc-primitive-green-800);
-  --jtcc-color-action-pressed: var(--jtcc-primitive-green-900);
-  --jtcc-color-action-disabled: var(--jtcc-primitive-neutral-200);
-  --jtcc-color-text-disabled: var(--jtcc-primitive-neutral-700);
-  --jtcc-color-border-subtle: var(--jtcc-primitive-neutral-200);
-  --jtcc-color-border-control: var(--jtcc-primitive-neutral-500);
-  --jtcc-color-focus: var(--jtcc-primitive-green-700);
-  --jtcc-color-error: var(--jtcc-primitive-red-700);
-  --jtcc-color-selection: var(--jtcc-primitive-mint-100);
-  --jtcc-spacing-0: 0px;
-  --jtcc-spacing-4: 4px;
-  --jtcc-spacing-8: 8px;
-  --jtcc-spacing-12: 12px;
-  --jtcc-spacing-16: 16px;
-  --jtcc-spacing-20: 20px;
-  --jtcc-spacing-24: 24px;
-  --jtcc-spacing-32: 32px;
-  --jtcc-spacing-48: 48px;
-  --jtcc-spacing-64: 64px;
-  --jtcc-radius-control: 12px;
-  --jtcc-radius-card: 20px;
-  --jtcc-radius-pill: 999px;
-  --jtcc-size-touch: 44px;
-  --jtcc-size-control: 48px;
-  --jtcc-stroke-default: 1px;
-  --jtcc-stroke-focus: 3px;
-  --jtcc-type-display-size: 2.125rem;
-  --jtcc-type-display-line: 2.75rem;
-  --jtcc-type-title-size: 1.5rem;
-  --jtcc-type-title-line: 2.125rem;
-  --jtcc-type-heading-size: 1.25rem;
-  --jtcc-type-heading-line: 1.875rem;
-  --jtcc-type-body-size: 1.0625rem;
-  --jtcc-type-body-line: 1.875rem;
-  --jtcc-type-label-size: 1.0625rem;
-  --jtcc-type-label-line: 1.5rem;
-  --jtcc-type-caption-size: 0.875rem;
-  --jtcc-type-caption-line: 1.375rem;
-  --jtcc-shadow-card: 0 12px 32px #153b2e0a;
+  /* Lastpiece v2 / Primitives (177:15) */
+  --bg: #fff9fa;                   /* primitive/canvas */
+  --surface: #ffffff;              /* primitive/white */
+  --soft: #fdeef2;                 /* primitive/soft-rose */
+  --lp-v2-petal: #f7cbd9;          /* primitive/petal */
+  --main: #de7f9c;                 /* primitive/rose */
+  --deep: #a94a68;                 /* primitive/wine */
+  --lp-v2-ink: #172324;            /* primitive/ink */
+  --lp-v2-muted: #52615a;          /* primitive/muted */
+  --lp-v2-forest: #be6482;         /* primitive/forest（名前は旧版の名残。値はピンク） */
+  --lp-v2-disabled-bg: #d4dcd7;    /* primitive/disabled-bg */
+  --lp-v2-line: #d8c9cf;           /* primitive/line */
+  --lp-v2-mint: #e3f1e7;           /* primitive/mint（Web で残すかは未決） */
+  --lp-v2-warm-white: #fffdfa;     /* primitive/warm-white */
+
+  /* Lastpiece v2 / Tokens (177:16), mode Light。
+   * color/bg/canvas・surface・soft と color/accent/rose・wine は上の --bg 等を共有する。 */
+  --lp-v2-bg-petal: var(--lp-v2-petal);
+  --lp-v2-bg-sheet: var(--lp-v2-warm-white);
+  --lp-v2-text-primary: var(--lp-v2-ink);
+  --lp-v2-text-secondary: var(--lp-v2-muted);
+  --lp-v2-text-inverse: var(--surface);
+  --lp-v2-text-disabled: var(--lp-v2-muted);
+  --lp-v2-action-primary: var(--lp-v2-forest);
+  --lp-v2-action-secondary: var(--surface);
+  --lp-v2-action-disabled: var(--lp-v2-disabled-bg);
+  --lp-v2-border-default: var(--lp-v2-line);
+  --lp-v2-border-focus: var(--lp-v2-forest);
+  --lp-v2-border-focus-inner: var(--surface);
+  --lp-v2-nav-selected: var(--lp-v2-mint);
+  --lp-v2-space-1: 4px;
+  --lp-v2-space-2: 8px;
+  --lp-v2-space-3: 12px;
+  --lp-v2-space-4: 16px;
+  --lp-v2-space-6: 24px;
+  --lp-v2-space-8: 32px;
+  --lp-v2-radius-control: 12px;
+  --lp-v2-radius-card: 20px;
+  --lp-v2-radius-full: 999px;
+  --lp-v2-touch-min: 44px;
+  --lp-v2-touch-primary: 48px;
+
+  /* 文字スタイル「Lastpiece v2/*」由来（Figma 変数ではない。CSS 側で付けた名前）。
+   * Display は Shippori Mincho Bold、他は Noto Sans JP（Title・Label は Bold、Body・Caption は Regular）。 */
+  --lp-v2-type-display-size: 2rem;        /* 32px */
+  --lp-v2-type-display-line: 2.75rem;     /* 44px */
+  --lp-v2-type-title-size: 1.5rem;        /* 24px */
+  --lp-v2-type-title-line: 2rem;          /* 32px */
+  --lp-v2-type-body-size: 1.0625rem;      /* 17px */
+  --lp-v2-type-body-line: 1.8125rem;      /* 29px */
+  --lp-v2-type-label-size: 1rem;          /* 16px */
+  --lp-v2-type-label-line: 1.5rem;        /* 24px */
+  --lp-v2-type-caption-size: 0.875rem;    /* 14px */
+  --lp-v2-type-caption-line: 1.375rem;    /* 22px */
+
+  /* LP v2 / Button の Focus 状態（179:24）: 内側 4px の白線 + 外側 3px の accent/wine（DROP_SHADOW spread 3, blur 0）。 */
+  --lp-v2-focus-ring: inset 0 0 0 4px var(--lp-v2-border-focus-inner), 0 0 0 3px var(--deep);
 }
