@@ -9,6 +9,7 @@ OPS-4（#90）のキューは、main を取り込んだ後の CI を `workflow_d
 - `workflow_dispatch` の CI は起動しない。`autoMerge` も `pull_request` の CI だけを使い、run のブランチが PR のブランチと同じことを確かめる。
 - 承認できなかった PR には、手での承認のしかたを1回だけコメントする。
 - 手順と手での回避は docs/DEVELOPMENT.md「マージのキュー」「キューが動かないように見えるとき」。
+- 追加（2つ目の PR）: #154 のマージ後、承認そのものは GITHUB_TOKEN で通った（run 36261111160 が #153 の run 3 件を承認）。一方、Bot が承認した CI は完了しても `workflow_run` を起こさず、`schedule` もほとんど動かないため、キューが次のイベントまで止まった。そこで見回りがキューの CI の完了を最大25分待ってマージし、キューを進めた回は次の見回りを `workflow_dispatch` で自分で起動するようにした（auto-merge.yml の `timeout-minutes` を 5→30）。`ci.yml` の古いコメントもこの PR で「手での確認用」に直した。
 
 ## 検証と証拠
 
@@ -19,14 +20,17 @@ OPS-4（#90）のキューは、main を取り込んだ後の CI を `workflow_d
   - 承認できないときは1回だけ知らせ、ほかの PR は進める。
   - キューの CI の間は待つ（作業者の push の CI では待たない）。
   - `workflow_dispatch` の CI の成功ではマージしない。
+  - 承認した CI の完了を待ってマージし、次の見回りを起動する。25分で終わらなければ引き継ぐ。CI の失敗は PR に知らせ、次の回は空回りしない。
 - 実際の GitHub での確認（遅れた PR が人の手なしでマージされる）は、マージ後に Issue #147 に run の URL を記録する。
 
 ## 残課題
 
 - main の `.github/workflows` が変わった後は、Bot が取り込めない（OPS-4 と同じ）。
-- `ci.yml` の `workflow_dispatch`（`queue_base`）の入力と「キューが起動する」というコメントは古いが、この PR では変えていない。workflow を変えると、マージ直後に他の Ready の PR へ Bot が取り込めなくなり、この修正の実地確認も遅れるため。次に workflow を変える PR で、入力を外すかコメントを「手での確認用」に直す。
-- `auto-merge.yml` の `workflow_run` の条件に残る `workflow_dispatch` も同じ（`autoMerge` が skip するので害はない）。
+- `ci.yml` の `workflow_dispatch`（`queue_base`）の入力は、手での確認用として残した（キューは使わない。コメントは直した）。
+- `auto-merge.yml` の `workflow_run` の条件に残る `workflow_dispatch` は害がない（`autoMerge` が skip する）ので残した。
+- 見回りが CI を待つ間（最大25分）は `merge-main` の concurrency で他の見回りが待つ。待ちの間に来たイベントは最新の1つだけ残るが、毎回すべての PR を見直すので落ちない。
+- 担当者の判断待ち（needs-owner、#147）: この「待って自分で次を起動する」方式でよいか。代案は PAT での承認（秘密の追加）。
 
 ## ブランチ・記録
 
-`claude/merge-queue-approve`、この PR の Git 履歴を参照。
+`claude/merge-queue-approve`（#154）と `claude/merge-queue-follow-ci`、各 PR の Git 履歴を参照。

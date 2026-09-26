@@ -37,9 +37,10 @@ main は「最新の main を含むこと」を必須にしている（strict）
   - そこでキューが、その push の承認待ちの run を API（`POST /actions/runs/{id}/approve`、`actions: write`）で承認する。承認するのは、Bot が actor で、キューに並ぶ PR（同じリポジトリ・Ready・Bot 以外が作者）の今の head の SHA とブランチの、決まった3つの workflow（`ci.yml`・`preview-build.yml`・`pr-issue-link.yml`）の run だけ。PR が足した workflow は Bot は承認しない（`pull_request` の workflow を増やしたら `scripts/auto-merge.mjs` の `queueWorkflows` にも足す）。run はマージの数秒後に作られるので、取り込んだ回に最大1分待ち、間に合わなければ次の見回りで承認する。
   - 承認された CI は通常の PR の CI なので、結果は PR の head の SHA に付き、必須チェックになる。`workflow_dispatch` の CI はもう起動しない（二重に回さない）。
   - キューの CI（Bot の push の run）が動いている間は、次の PR に手を付けない。
-- 成功したら、いつもどおり Bot が承認してマージし、次の PR へ進む。キューを動かす時機は3つ: CI の完了、Ready、10分ごとの見回り（`schedule`）。どれも毎回すべての PR を見直すので、イベントが落ちても次の見回りで進む。
+  - Bot が承認した CI は、完了しても `workflow_run` を起こさない（GITHUB_TOKEN が起こしたイベントとして扱われる。#147 で実地に確認）。そこで見回りがその CI の完了を30秒ごとに最大25分待ち、終わったら続けてマージする（auto-merge.yml の `timeout-minutes` は30）。25分で終わらなければ次の見回りが引き継ぐ。
+- 成功したら、いつもどおり Bot が承認してマージし、次の PR へ進む。キューを動かす時機は4つ: CI の完了、Ready、10分ごとの見回り（`schedule`。GitHub が間引くので実際にはほとんど動かない）、**キューを進めた見回りが自分で起動する次の見回り**（auto-merge.yml の `workflow_dispatch`）。マージした・CI を待ちきれなかった・CI が失敗した回は次の見回りを起動し、することがなくなった回（空・対象なし）は起動しない。どれも毎回すべての PR を見直すので、イベントが落ちても次の見回りで進む。
 - **作業者が手で main を取り込む必要はない。** Ready にして CI が成功したら、待つだけでよい。
-- **キューから外れる**のは次の3つ。どちらも Bot が PR にコメントするので、直して push する。CI が成功すればキューに戻る。
+- **キューから外れる**のは次の3つ。どれも Bot が PR にコメントするので、直して push する。CI が成功すればキューに戻る。
   - 取り込めない: 競合するとき、または main が `.github/workflows` を変えたとき（GITHUB_TOKEN はワークフローを書き換えるコミットを push できない）。作業者が `git merge origin/main` で取り込む。
   - 取り込んだ後の CI が失敗した: よくあるのは、**UI の変更が main と重なったとき**。UI の digest がどちらの記録とも合わなくなるため、今の UI を確かめて記録を作り直す（`pnpm ux:digest` → `docs/ux-reviews/`）。UI を変えない PR、または main 側に UI の変更がないときは、digest がどちらかの記録と一致するので作り直しは要らない。
   - 承認できない: Bot が承認待ちの run を承認できなかったとき（権限など）。Bot が手での承認のしかたを PR にコメントする（下の「キューが動かないように見えるとき」）。

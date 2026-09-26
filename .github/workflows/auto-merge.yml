@@ -29,7 +29,8 @@ jobs:
     # CI の完了は成功でも失敗でも来る（キューの CI の失敗を PR に知らせ、次の PR へ進めるため）。push の CI は対象外。
     if: github.event_name != 'workflow_run' || github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.event == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # キューが承認した CI は完了しても workflow_run を起こさないので、見回りがその CI の完了を最大25分待ってマージする（#147）。
+    timeout-minutes: 30
     permissions:
       actions: write
       contents: write
