@@ -8,7 +8,7 @@
     "dev": "vite",
     "typecheck": "tsc -b",
     "lint": "oxlint",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/check-dist.mjs dist",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "test:e2e": "playwright test app.spec.ts",
