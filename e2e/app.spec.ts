@@ -296,7 +296,7 @@ async function expectKnobRotation(page: Page, degrees: number) {
   expect(diff, `つまみの向き ${actual.toFixed(1)}° は ${degrees}° のはず`).toBeLessThanOrEqual(2)
 }
 
-test('つまみを指で右に丸くなぞって回す（#115、マスター 421:9251・421:9270）：左回りは進まず、1 周で 1 回転、3 回転でカプセルが出る', async ({ page }) => {
+test('つまみを指で右に丸くなぞって回す（#115、マスター 421:9251・421:9270）：左回りは進まず、1 周で 1 回転、3 回転でカプセルが出る', async ({ page, browserName, hasTouch }) => {
   // 3 周分（100 点以上）ポインタを動かすので、通常の 3 倍の時間を許す
   test.slow()
   const errors = watchErrors(page)
@@ -330,37 +330,36 @@ test('つまみを指で右に丸くなぞって回す（#115、マスター 421
   await expect(page.getByText('つづけて右に回そう。')).toBeVisible()
   await expect(page.locator('.m-click')).toBeVisible()
   await page.mouse.up()
-  // 離すと矢印が戻る（turn2）。もう一度触って 2 周なぞると 3 回転になり、カプセルが出る
+  // 離すと矢印が戻る（turn2）
   await expect(page.locator('.m-hint')).toBeVisible()
   await expect(page.getByText('つまみを右にくるっと回そう')).toBeVisible()
+  // 2 周目: タッチのある Chromium（Android 相当）では CDP で実際の指のタッチの列を送り、ページが動かないこと（touch-action: none）と
+  // 指が押せる範囲から少し外れても続くこと（setPointerCapture）を確かめる。ほかの構成はマウスで同じ 1 周（iPhone の実際の指は実機で確かめる。MULTI_DEVICE.md）
+  if (browserName === 'chromium' && hasTouch) {
+    const scrollBefore = await page.evaluate(() => window.scrollY)
+    const cdp = await page.context().newCDPSession(page)
+    const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', degrees?: number) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: degrees === undefined ? [] : [{ ...at(degrees), id: 1 }] })
+    await touch('touchStart', 90)
+    for (let d = 100; d <= 90 + 360; d += 10) await touch('touchMove', d)
+    await expect(page.getByText('回転 2 / 3')).toBeVisible()
+    await touch('touchEnd')
+    expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore)
+    await cdp.detach()
+  } else {
+    await moveTo(90)
+    await page.mouse.down()
+    for (let d = 100; d <= 90 + 360; d += 10) await moveTo(d)
+    await expect(page.getByText('回転 2 / 3')).toBeVisible()
+    await page.mouse.up()
+  }
+  // 3 周目でカプセルが出る
   await moveTo(90)
   await page.mouse.down()
   for (let d = 100; d <= 90 + 360; d += 10) await moveTo(d)
-  await expect(page.getByText('回転 2 / 3')).toBeVisible()
-  for (let d = 460; d <= 90 + 720; d += 10) await moveTo(d)
   await page.mouse.up()
   await expect(page.getByText('回転 3 / 3')).toBeVisible()
   await expect(page.getByText(/カプセルが出てきました/)).toBeVisible()
   await expect(page.getByRole('button', { name: /カプセルをタップ/ })).toBeVisible()
-  expect(errors).toEqual([])
-})
-
-test('Android 相当（Chromium）: 指のタッチで丸くなぞっても、ページは動かず 1 回転進む（touch-action: none・setPointerCapture）', async ({ page, browserName, isMobile }) => {
-  test.skip(browserName !== 'chromium' || !isMobile, 'タッチの列を作れるのは Chromium の CDP だけ。iPhone は実機で確かめる（MULTI_DEVICE.md）')
-  const errors = watchErrors(page)
-  await page.goto('./#/gacha/sanrio-capsule/spin')
-  await confirmSpin(page)
-  const { at } = await knobCircle(page)
-  const scrollBefore = await page.evaluate(() => window.scrollY)
-  const cdp = await page.context().newCDPSession(page)
-  const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', degrees?: number) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: degrees === undefined ? [] : [{ ...at(degrees), id: 1 }] })
-  await touch('touchStart', 0)
-  // 押せる範囲から少し外れる大きな円でも、setPointerCapture で続く
-  for (let d = 10; d <= 360; d += 10) await touch('touchMove', d)
-  await expect(page.getByText('回転 1 / 3')).toBeVisible()
-  await touch('touchEnd')
-  expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore)
-  await expect(page.getByText('回転 1 / 3')).toBeVisible()
   expect(errors).toEqual([])
 })
 
