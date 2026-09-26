@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { prefersReducedMotion, useApp } from '../app/appContext'
 import { OPENING_TIMING, shouldShowOpening } from '../app/opening'
+import { LOADING_DELAY, useAssetStatus, useDelayed, type AssetGate } from '../app/assets'
 import { paths } from '../app/router'
-import { catalog } from '../domain/catalog'
+import { townFeature } from '../app/townAssets'
 import { CoinPill, MockNotice, SaveWarning, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { TownMapLayer, TownViewport } from '../components/TownMap'
@@ -14,24 +15,84 @@ const OPENING_COPY = {
   still: { title: ['ようこそ、', 'ラストピースへ。'], lead: ['お気に入りが見つかる街。', '自分のペースで楽しもう。'], action: '街へ' },
 }
 
-/** 街（ホーム）。アプリを開いた直後は導入をはさむ。 */
-export function Town() {
-  const [opening, setOpening] = useState(() => shouldShowOpening(window.location.hash))
+/** 読み込み中（267:8244）の文。進み具合の数字は出さない（本当の割合が分からないため）。 */
+const LOADING_COPY = {
+  loading: { title: '街の準備をしています', lead: ['先に街を見て回れます。', '準備ができたら、そのまま街へ進みます。'] },
+  error: { title: '街の準備ができませんでした', lead: ['通信の状態を確かめて、もう一度読み込んでください。', '先に街を見ることもできます。'] },
+}
+
+/** 導入 → （待つときだけ）読み込み中 → 街。wait は読み込み中を出す前の短い猶予（LOADING_DELAY）。 */
+type View = 'opening' | 'wait' | 'loading' | 'home'
+
+function focusTitle() {
+  if (typeof window.scrollTo === 'function' && !/jsdom/i.test(navigator.userAgent)) window.scrollTo(0, 0)
+  const title = document.getElementById('page-title')
+  if (title && (document.activeElement === document.body || document.activeElement === null)) title.focus({ preventScroll: true })
+}
+
+/**
+ * 街（ホーム）。アプリを開いた直後は導入をはさむ。
+ * 街の絵などがまだ準備できていなければ、LOADING_DELAY 待っても準備できないときだけ読み込み中を出す。
+ * すでに準備できていれば読み込み中は出さない（わざと待たせない）。
+ */
+export function Town({ assets }: { assets: AssetGate }) {
+  const status = useAssetStatus(assets)
+  const [fromOpening] = useState(() => shouldShowOpening(window.location.hash))
+  const [view, setView] = useState<View>(fromOpening ? 'opening' : 'wait')
   const finished = useRef(false)
+  const waited = useDelayed(view === 'wait' && status === 'loading', LOADING_DELAY)
+  const shown: View = view === 'opening' || view === 'home' ? view : status === 'ready' ? 'home' : status === 'error' || waited ? 'loading' : view
+  // 一度出した読み込み中の画面は、もう一度読み込むあいだも出したままにする（猶予の空白に戻さない）
+  const retry = () => { setView('loading'); assets.load() }
   const finish = () => {
     if (finished.current) return
     finished.current = true
     // 再読み込みや戻るで導入をくり返さないよう、街の URL に置き換える
     if (shouldShowOpening(window.location.hash)) window.history.replaceState(window.history.state, '', paths.town)
-    setOpening(false)
+    setView('wait')
   }
+  const previous = useRef(shown)
   useEffect(() => {
-    if (opening || !finished.current) return
-    if (typeof window.scrollTo === 'function' && !/jsdom/i.test(navigator.userAgent)) window.scrollTo(0, 0)
-    const title = document.getElementById('page-title')
-    if (title && (document.activeElement === document.body || document.activeElement === null)) title.focus({ preventScroll: true })
-  }, [opening])
-  return opening ? <Opening onDone={finish} /> : <TownHome />
+    const before = previous.current
+    previous.current = shown
+    if (before !== shown && (shown === 'loading' || shown === 'home')) focusTitle()
+  }, [shown])
+  // 導入のあとの猶予のあいだは導入を出したままにし、画面を一瞬空にしない
+  if (shown === 'opening' || (shown === 'wait' && fromOpening)) return <Opening onDone={finish} />
+  if (shown === 'wait') return <div className="screen" aria-busy="true" />
+  if (shown === 'loading') return <TownLoading failed={status === 'error'} onEnter={() => setView('home')} onRetry={retry} />
+  return <TownHome />
+}
+
+/**
+ * 読み込み中（デザインマスター 267:8244「T07 / Loading / static」）。動きのない1枚。
+ * 準備できたら自動で街へ進む。先に街を見ることもできる。失敗したらもう一度読み込める。
+ */
+function TownLoading({ failed, onEnter, onRetry }: { failed: boolean; onEnter: () => void; onRetry: () => void }) {
+  const { state } = useApp()
+  const copy = LOADING_COPY[failed ? 'error' : 'loading']
+  // もう一度読み込むと押したボタンが消えるので、状態を伝える見出しへ焦点を移す
+  useEffect(focusTitle, [failed])
+  return (
+    <div className="screen opening-screen loading-screen">
+      <header className="opening-bar">
+        <p className="opening-brand" lang="en">LASTPIECE</p>
+        <button type="button" className="btn btn-outline opening-skip" onClick={onEnter}>スキップ</button>
+      </header>
+      <main className="opening-main">
+        <div className="opening-town loading-town" aria-hidden="true" inert>
+          <TownMapLayer interactive={false} winCount={state.wins.length} />
+        </div>
+        <div className="opening-copy" role="status" aria-busy={!failed}>
+          <h1 id="page-title" tabIndex={-1}>{copy.title}</h1>
+          <p className="lead opening-lead loading-lead">{copy.lead[0]}<br />{copy.lead[1]}</p>
+        </div>
+        {failed && <button key="retry" type="button" className="btn btn-main btn-block" onClick={onRetry}>もう一度読み込む</button>}
+        <button key="enter" type="button" className={`btn ${failed ? 'btn-outline' : 'btn-main'} btn-block`} onClick={onEnter}>街を見る</button>
+        <p className="opening-notice">提案モック・公式サービスではありません</p>
+      </main>
+    </div>
+  )
 }
 
 function Opening({ onDone }: { onDone: () => void }) {
@@ -70,8 +131,7 @@ function Opening({ onDone }: { onDone: () => void }) {
 
 function TownHome() {
   const { state } = useApp()
-  const gacha = catalog[0]
-  const prize = gacha.prizes.find((item) => item.glow === 'featured') ?? gacha.prizes[0]
+  const { gacha, prize } = townFeature()
   const count = state.wins.length
   return (
     <div className="screen town-screen">
