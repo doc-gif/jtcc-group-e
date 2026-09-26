@@ -115,6 +115,8 @@ test('サーバー時刻のずれを補正し、startsAt まで結果を隠し�
   const friend = server.asUser('friend')
   const { id, invite } = host.getState().snapshot!
   await friend.join(invite, '友だち')
+  // F13: ホストのほかに 2 人以上いないと始められない。
+  await server.asUser('watcher').join(invite, '見守り')
   await friend.ready(id, true)
   await settle(host.setReady(true))
   expect(host.getState()).toMatchObject({ phase: 'ready', readyOnline: 2, readyOthers: 1, canStart: true })
@@ -154,6 +156,8 @@ test('応答を失った作成・開始は同じ request で送り直し、二�
   net.offline = false
   expect((await host.createAsHost(KEY, 'ホスト')).ok).toBe(true)
   expect(net.creates).toEqual(['req-1', 'req-1'])
+  // F13: ホストのほかに 2 人以上いないと始められない。
+  for (const guest of ['a', 'b']) await server.asUser(guest).join(host.getState().snapshot!.invite, guest)
   await host.setReady(true)
 
   net.loseStartResponse = true
@@ -320,6 +324,8 @@ test('通信断のあいだは最後の状態を保ち、復帰後に見逃し�
   let wake = () => {}
   const friend = controller('friend', transport, { onWake: next => { wake = next; return () => {} } })
   await friend.join(host.getState().snapshot!.invite, '友だち')
+  // F13: ホストのほかに 2 人以上いないと始められない。
+  await server.asUser('watcher').join(host.getState().snapshot!.invite, '見守り')
   await friend.setReady(true)
   await host.refresh()
   expect(host.getState()).toMatchObject({ readyOnline: 1, readyOthers: 1, canStart: true })
@@ -348,6 +354,7 @@ test('通信断のあいだは最後の状態を保ち、復帰後に見逃し�
 
   // roundNo は部屋ごとに 1 から始まる。別の部屋の round 1 は確認済みにしない。
   await reopened.createAsHost(KEY, '友だち')
+  for (const guest of ['a', 'b']) await server.asUser(guest).join(reopened.getState().snapshot!.invite, guest)
   await reopened.setReady(true)
   await reopened.start()
   await vi.advanceTimersByTimeAsync(9_000)
@@ -388,6 +395,8 @@ test('予約した開始時刻まで補正した秒読みを出し、ホスト�
   await host.createAsHost(KEY, 'ホスト')
   const friend = controller('friend')
   await friend.join(host.getState().snapshot!.invite, '友だち')
+  // F13: ホストのほかに 2 人以上いないと始められない。
+  await server.asUser('watcher').join(host.getState().snapshot!.invite, '見守り')
   await friend.setReady(true)
   await host.setReady(true)
   expect(host.getState()).toMatchObject({ canSchedule: true, scheduleOptions: [1, 3, 5, 10], scheduledAt: null, secondsToScheduled: null })
@@ -431,9 +440,11 @@ test('予約した開始時刻まで補正した秒読みを出し、ホスト�
 })
 
 test('予約の変更・取り消し・期限の上限、時刻に誰も準備していなかった理由を出す', async () => {
-  const { controller } = setup()
+  const { server, controller } = setup()
   const host = controller('host')
   await host.createAsHost(KEY, 'ホスト')
+  // F13: ホストのほかに 2 人以上いないと始められない。
+  for (const guest of ['a', 'b']) await server.asUser(guest).join(host.getState().snapshot!.invite, guest)
   await host.schedule(5)
   expect(host.getState().secondsToScheduled).toBe(300)
   await host.schedule(null)
@@ -461,11 +472,13 @@ test('予約の変更・取り消し・期限の上限、時刻に誰も準備�
 })
 
 test('ピッチモードと目玉の確定を全員の状態に出す', async () => {
-  const { controller } = setup()
+  const { server, controller } = setup()
   const host = controller('host')
   await host.createAsHost(KEY, 'ホスト')
   const friend = controller('friend')
   await friend.join(host.getState().snapshot!.invite, '友だち')
+  // F13: ホストのほかに 2 人以上いないと始められない。
+  await server.asUser('watcher').join(host.getState().snapshot!.invite, '見守り')
   expect(friend.getState()).toMatchObject({ pitchMode: false, canSetPitchMode: false })
   expect((await friend.setPitchMode(true)).error?.code).toBe('host-required')
   expect(host.getState().canSetPitchMode).toBe(true)
@@ -501,6 +514,8 @@ test('開始できなかった案内はホストだけに出し、閉じた後�
   await host.createAsHost(KEY, 'ホスト')
   const friend = controller('friend')
   await friend.join(host.getState().snapshot!.invite, '友だち')
+  // F13: ホストのほかに 2 人以上いないと始められない。
+  await server.asUser('watcher').join(host.getState().snapshot!.invite, '見守り')
   await host.schedule(1)
   await vi.advanceTimersByTimeAsync(60_250)
   expect(host.getState().scheduleNotice?.code).toBe('nobody-ready')
@@ -520,11 +535,13 @@ test('開始できなかった案内はホストだけに出し、閉じた後�
 })
 
 test('予約の時刻を過ぎた後のホストの変更は、先に予約どおり始まったことを示す', async () => {
-  const { controller } = setup()
+  const { server, controller } = setup()
   const host = controller('host')
   await host.createAsHost(KEY, 'ホスト')
   const friend = controller('friend')
   await friend.join(host.getState().snapshot!.invite, '友だち')
+  // F13: ホストのほかに 2 人以上いないと始められない。
+  await server.asUser('watcher').join(host.getState().snapshot!.invite, '見守り')
   await friend.setReady(true)
   await host.schedule(1)
   // 誰も再取得しないうちに時刻を過ぎた（全員の画面が止まっていた）。
@@ -537,4 +554,84 @@ test('予約の時刻を過ぎた後のホストの変更は、先に予約ど�
   expect(late.error?.code).toBe('round-active')
   await vi.advanceTimersByTimeAsync(0)
   expect(host.getState()).toMatchObject({ phase: 'countdown', scheduledAt: null, lastSchedule: { status: 'started', roundNo: 1 } })
+})
+
+test('F13: ホストのほかに 2 人以上いないと始められず、あと何人必要かを全員の状態に出す', async () => {
+  const { server, controller } = setup()
+  const { transport, net } = network(server.asUser('host'))
+  const host = controller('host', transport)
+  expect(host.getState()).toMatchObject({ guestCount: 0, playersNeeded: 0, playersNeededMessage: null })
+  await host.createAsHost(KEY, 'ホスト')
+  await host.setReady(true)
+  expect(host.getState()).toMatchObject({
+    guestCount: 0, playersNeeded: 2, canStart: false, startBlockedBy: 'need-more-players', readyOnline: 1,
+    seats: { taken: 1 }, playersNeededMessage: 'あと2人で始められます', scheduleWaitingMessage: null,
+  })
+  const invite = host.getState().snapshot!.invite
+  const a = controller('a')
+  await a.join(invite, 'あ')
+  await a.setReady(true)
+  await vi.advanceTimersByTimeAsync(0)
+  expect(host.getState()).toMatchObject({ guestCount: 1, playersNeeded: 1, canStart: false, startBlockedBy: 'need-more-players' })
+  // 参加者にも同じ人数を出す（開始できない理由はホストでないこと）。
+  expect(a.getState()).toMatchObject({ guestCount: 1, playersNeeded: 1, startBlockedBy: 'host-required', playersNeededMessage: 'あと1人で始められます' })
+  // 古い状態の端末から送っても、サーバーが断る。コイン・ラウンドは変わらない。
+  expect(await host.start()).toEqual({
+    ok: false, error: { code: 'need-more-players', message: 'ガチャを始めるには、ホストのほかに2人以上が必要です。' },
+  })
+  expect(net.starts).toHaveLength(1)
+  expect(host.getState()).toMatchObject({ balance: 3000, snapshot: { roundNo: 0 } })
+
+  const b = controller('b')
+  await b.join(invite, 'い')
+  await vi.advanceTimersByTimeAsync(0)
+  expect(host.getState()).toMatchObject({ guestCount: 2, playersNeeded: 0, canStart: true, startBlockedBy: null, seats: { taken: 3 }, playersNeededMessage: null })
+  expect(b.getState()).toMatchObject({ guestCount: 2, playersNeeded: 0 })
+  // 退室した人は数えない。
+  await b.leave()
+  await vi.advanceTimersByTimeAsync(0)
+  expect(host.getState()).toMatchObject({ guestCount: 1, playersNeeded: 1, canStart: false })
+  await b.join(invite, 'い')
+  await vi.advanceTimersByTimeAsync(0)
+  expect((await host.start()).ok).toBe(true)
+  expect(host.getState()).toMatchObject({ phase: 'countdown', balance: 2500, playersNeeded: 0 })
+})
+
+test('F13: 予約の時刻を過ぎても人数が足りなければ待ち、2 人目が入ると始まる。待つ間は 1 秒ごとに取り直さない', async () => {
+  const { server, controller } = setup()
+  const inner = server.asUser('host')
+  const snapshots = vi.fn(inner.snapshot)
+  const host = controller('host', { ...inner, snapshot: snapshots })
+  await host.createAsHost(KEY, 'ホスト')
+  const invite = host.getState().snapshot!.invite
+  const a = controller('a')
+  await a.join(invite, 'あ')
+  await a.setReady(true)
+  await host.setReady(true)
+  await host.schedule(1)
+  const scheduledAt = host.getState().scheduledAt!
+  expect(host.getState()).toMatchObject({ scheduleWaiting: false, scheduleWaitingMessage: null, playersNeeded: 1, secondsToScheduled: 60 })
+
+  await vi.advanceTimersByTimeAsync(60_250)
+  expect(host.getState()).toMatchObject({
+    phase: 'ready', scheduledAt, secondsToScheduled: 0, scheduleWaiting: true, playersNeeded: 1,
+    scheduleWaitingMessage: '開始の時刻になりました。あと1人集まると始まります。', playersNeededMessage: 'あと1人で始められます',
+    lastSchedule: null, scheduleNotice: null, canSchedule: true,
+  })
+  expect(a.getState()).toMatchObject({ scheduleWaiting: true, playersNeeded: 1, scheduleWaitingMessage: '開始の時刻になりました。あと1人集まると始まります。' })
+  const polled = snapshots.mock.calls.length
+  await vi.advanceTimersByTimeAsync(10_000)
+  expect(snapshots.mock.calls.length - polled).toBeLessThanOrEqual(1)
+  expect(host.getState().scheduleWaiting).toBe(true)
+
+  // 2 人目が入った呼び出しで始まり、通知で全員が受け取る。
+  const b = controller('b')
+  await b.join(invite, 'い')
+  expect(b.getState()).toMatchObject({ phase: 'countdown', scheduleWaiting: false, lastSchedule: { status: 'started', scheduledAt, roundNo: 1 } })
+  await vi.advanceTimersByTimeAsync(0)
+  expect(host.getState()).toMatchObject({
+    phase: 'countdown', balance: 2500, scheduledAt: null, scheduleWaiting: false, scheduleWaitingMessage: null, playersNeeded: 0,
+    lastSchedule: { status: 'started', scheduledAt, roundNo: 1 },
+  })
+  expect(b.getState().balance).toBe(3000)
 })

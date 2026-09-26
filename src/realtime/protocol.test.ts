@@ -1,7 +1,8 @@
 import { expect, test } from 'vitest'
 import { browserHostKeyStore, HOST_KEY_STORAGE, hostLinkHash, parseHostLink } from './hostKey'
 import {
-  cleanName, errorMessage, nameKey, nameSuggestion, RoomContractError, scheduleMessage, secondsUntil, serverOffset, worldSize,
+  cleanName, errorMessage, guestCount, nameKey, nameSuggestion, playersNeeded, playersNeededMessage, RoomContractError,
+  scheduleMessage, scheduleWaitingMessage, secondsUntil, serverOffset, SHARED_MIN_GUESTS, worldSize,
   type RoomTransport,
 } from './protocol'
 import { AUTO_NAME_WORDS, MockRoomServer } from './mock'
@@ -312,6 +313,7 @@ test('mock resume: the owner becomes host on a new device and keeps seats, coins
  const [laptop, phone, friend] = ['laptop', 'phone', 'friend'].map(id => server.asUser(id)) as [RoomTransport, RoomTransport, RoomTransport]
  const room = await laptop.create('room-r', KEY, 'オーナー')
  await friend.join(room.invite, '友だち')
+ await server.asUser('watcher').join(room.invite, '見守り') // F13: two guests besides the host
  await laptop.ready(room.id, true)
  await friend.ready(room.id, true)
  await laptop.start(room.id, 'start-r', 0)
@@ -321,7 +323,7 @@ test('mock resume: the owner becomes host on a new device and keeps seats, coins
  await expect(phone.resumeHost(KEY, 'room-unknown')).rejects.toThrow('no-room')
  const resumed = await phone.resumeHost(KEY, null)
  expect(resumed).toMatchObject({ id: room.id, host: 'phone', self: 'phone', balance: before.balance, myResults: before.myResults })
- expect(resumed.members.map(member => [member.id, member.nickname])).toEqual([['phone', 'オーナー'], ['friend', '友だち']])
+ expect(resumed.members.map(member => [member.id, member.nickname])).toEqual([['phone', 'オーナー'], ['friend', '友だち'], ['watcher', '見守り']])
  expect(resumed.round?.results?.some(result => result.userId === 'laptop')).toBe(false)
  expect(await friend.snapshot(room.id)).toMatchObject({ host: 'phone', balance: friendBefore.balance, myResults: friendBefore.myResults })
  await expect(laptop.snapshot(room.id)).rejects.toThrow('room-unavailable')
@@ -330,8 +332,8 @@ test('mock resume: the owner becomes host on a new device and keeps seats, coins
  await laptop.join(room.invite, 'ノートPC')
  const back = await laptop.resumeHost(KEY, room.id)
  expect(back).toMatchObject({ host: 'laptop', balance: 3000 })
- expect(back.members.map(member => member.nickname)).toEqual(['友だち', 'ノートPC'])
- expect((await phone.resumeHost(KEY, room.id)).members.map(member => member.nickname)).toEqual(['オーナー', '友だち'])
+ expect(back.members.map(member => member.nickname)).toEqual(['友だち', '見守り', 'ノートPC'])
+ expect((await phone.resumeHost(KEY, room.id)).members.map(member => member.nickname)).toEqual(['オーナー', '友だち', '見守り'])
  now += 2 * 60 * 60_000
  await expect(phone.resumeHost(KEY, null)).rejects.toThrow('no-room')
 })
@@ -383,6 +385,7 @@ test('mock parity: rename is refused while a round is active, like lp_rename', a
  const friend = server.asUser('friend')
  const room = await owner.create('room-l', KEY, 'オーナー')
  await friend.join(room.invite, '友だち')
+ await server.asUser('watcher').join(room.invite, '見守り') // F13: two guests besides the host
  await friend.ready(room.id, true)
  await owner.start(room.id, 'start-l', 0)
  for (const user of [owner, friend]) await expect(user.rename(room.id, '新しい名前')).rejects.toThrow('rename-locked')
@@ -398,4 +401,102 @@ test('mock parity: rename is refused while a round is active, like lp_rename', a
  now += 20_000
  await expect(friend.rename(room.id, '予約中の名前')).rejects.toThrow('rename-locked')
  expect(await owner.snapshot(room.id)).toMatchObject({ roundNo: 2, lastSchedule: { status: 'started' } })
+})
+
+test('F13: guests are active non-host seats; messages name how many more are needed, never the capacity', () => {
+ const members = (ids: string[]) => ids.map(id => ({ id, nickname: id, ready: false, online: false }))
+ expect(guestCount({ host: 'h', members: members(['h']) })).toBe(0)
+ expect(guestCount({ host: 'h', members: members(['h', 'a']) })).toBe(1)
+ // A host who left is not in members; guests are still counted without them.
+ expect(guestCount({ host: 'h', members: members(['a', 'b']) })).toBe(2)
+ expect([0, 1, 2, 3].map(playersNeeded)).toEqual([2, 1, 0, 0])
+ expect(SHARED_MIN_GUESTS).toBe(2)
+ expect(playersNeededMessage(2)).toBe('あと2人で始められます')
+ expect(playersNeededMessage(1)).toBe('あと1人で始められます')
+ expect(playersNeededMessage(0)).toBeNull()
+ expect(scheduleWaitingMessage(1)).toBe('開始の時刻になりました。あと1人集まると始まります。')
+ expect(scheduleWaitingMessage(0)).toBeNull()
+ expect(errorMessage(new Error('P0001: need-more-players'))).toBe('ガチャを始めるには、ホストのほかに2人以上が必要です。')
+ for (const text of [playersNeededMessage(2), scheduleWaitingMessage(2), errorMessage(new Error('need-more-players'))]) expect(text).not.toContain('100')
+})
+
+test('mock parity (F13): starting now needs 2 active guests, like lp_start and lp_draw', async () => {
+ let now = 0
+ const server = new MockRoomServer(() => now, () => 'invite-m', () => 0)
+ server.addHostKey(KEY)
+ const [host, a, b] = ['host', 'a', 'b'].map(id => server.asUser(id)) as [RoomTransport, RoomTransport, RoomTransport]
+ const room = await host.create('room-m', KEY, 'ホスト')
+ await host.ready(room.id, true)
+ await expect(host.start(room.id, 's-0', 0)).rejects.toThrow('need-more-players')
+ await a.join(room.invite, 'あ')
+ await a.ready(room.id, true)
+ await expect(host.start(room.id, 's-1', 0)).rejects.toThrow('need-more-players')
+ await expect(a.start(room.id, 's-2', 0)).rejects.toThrow('host-required')
+ // A guest who left does not count.
+ await b.join(room.invite, 'い')
+ await b.leave(room.id)
+ await expect(host.start(room.id, 's-3', 0)).rejects.toThrow('need-more-players')
+ const lobby = await host.snapshot(room.id)
+ expect(lobby).toMatchObject({ roundNo: 0, balance: 3000 })
+ expect(lobby.members.filter(member => member.ready)).toHaveLength(2)
+ await host.setPitchMode(room.id, true)
+ await expect(host.start(room.id, 's-4', 0)).rejects.toThrow('need-more-players')
+ await host.setPitchMode(room.id, false)
+ // Two active guests: the round starts. An offline guest still counts (a seat, not presence).
+ now += 60_000
+ await host.snapshot(room.id)
+ await b.join(room.invite, 'い')
+ expect(await host.start(room.id, 's-5', 0)).toMatchObject({ roundNo: 1, balance: 2500 })
+ expect((await a.snapshot(room.id)).balance).toBe(3000)
+ await b.leave(room.id)
+ await expect(host.start(room.id, 's-6', 1)).rejects.toThrow('round-active')
+})
+
+test('mock parity (F13): a due schedule waits for the second guest, starts on that join, and stays editable', async () => {
+ let now = 0
+ let rooms = 0
+ const server = new MockRoomServer(() => now, () => `invite-w${++rooms}`, () => 0)
+ server.addHostKey(KEY)
+ const [host, a, b] = ['host', 'a', 'b'].map(id => server.asUser(id)) as [RoomTransport, RoomTransport, RoomTransport]
+ const room = await host.create('room-w', KEY, 'ホスト')
+ await a.join(room.invite, 'あ')
+ await host.ready(room.id, true)
+ await a.ready(room.id, true)
+ const { scheduledAt } = await host.schedule(room.id, 1)
+ now += 61_000
+ for (const user of [a, host, a]) expect(await user.snapshot(room.id)).toMatchObject({ roundNo: 0, scheduledAt, lastSchedule: null })
+ expect((await a.ready(room.id, true)).scheduledAt).toBe(scheduledAt)
+ await expect(host.start(room.id, 'w-0', 0)).rejects.toThrow('need-more-players')
+ expect((await host.snapshot(room.id)).scheduledAt).toBe(scheduledAt)
+ const joined = await b.join(room.invite, 'い')
+ expect(joined).toMatchObject({ roundNo: 1, scheduledAt: null, lastSchedule: { status: 'started', scheduledAt, roundNo: 1 } })
+ expect(joined.round?.results).toBeNull()
+ now += 8_000
+ expect((await host.snapshot(room.id)).round?.results?.map(result => result.userId)).toEqual(['host', 'a'])
+ expect((await b.snapshot(room.id)).balance).toBe(3000)
+
+ // A guest leaving before the time makes it wait; the rejoin releases it. Pitch mode waits the same way.
+ const other = await host.create('room-w2', KEY, 'ホスト')
+ await a.join(other.invite, 'あ')
+ await b.join(other.invite, 'い')
+ await host.setPitchMode(other.id, true)
+ await host.ready(other.id, true)
+ await host.schedule(other.id, 1)
+ await b.leave(other.id)
+ now += 61_000
+ expect(await host.snapshot(other.id)).toMatchObject({ roundNo: 0, lastSchedule: null })
+ const back = await b.join(other.invite, null)
+ expect(back).toMatchObject({ roundNo: 1, pitchMode: true, scheduledAt: null, lastSchedule: { status: 'started', roundNo: 1 } })
+ expect(back.round?.guaranteed).toBe(true)
+
+ // The host can still change or cancel a waiting schedule.
+ const third = await host.create('room-w3', KEY, 'ホスト')
+ await a.join(third.invite, 'あ')
+ await host.schedule(third.id, 1)
+ now += 61_000
+ const changed = await host.schedule(third.id, 3)
+ expect(changed).toMatchObject({ roundNo: 0, scheduledAt: new Date(now + 180_000).toISOString(), lastSchedule: null })
+ now += 181_000
+ const cancelled = await host.schedule(third.id, null)
+ expect(cancelled).toMatchObject({ roundNo: 0, scheduledAt: null, lastSchedule: { status: 'cancelled', scheduledAt: changed.scheduledAt, roundNo: null } })
 })
