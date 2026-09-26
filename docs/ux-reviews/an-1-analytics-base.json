@@ -1,8 +1,8 @@
 {
-  "uiDigest": "f58966799d76a51ee0c0ec9e2f9289fd56a947817e56d9790f095d42497925fc",
+  "uiDigest": "fe8eb4189a2e53f6979cbfcc24f4c6a37ad12b40d726d932393078db99a3cf75",
   "reviewer": "Claude (AN-1 / #42: analytics base)",
   "reviewedAt": "2026-09-26",
-  "summary": "#42 の計測基盤。src/app/analytics.ts（shouldTrack・initAnalytics・track・trackOnce）を追加し、src/main.tsx で initAnalytics() を 1 回呼ぶ。GA4（G-3DDS1NJZXS、Google シグナル・広告向け機能オフ）は本番の公開 URL（doc-gif.github.io/jtcc-group-e/ 配下）でだけ gtag.js を動的に挿入し、localhost・127.0.0.1・自動操作・jsdom・確認用プレビュー・?internal=1（LP と同じ lp_internal）では何も読み込まない。ハッシュが変わるたびに page_view を送り、招待コード・ホストキーは #/room/:invite・#/host/:key に伏せる。画面・CSS・文言・遷移は変更していない（320px で街・ガチャ・ルームを作る・マイページを見て、表示と JS エラーなしを確認）。",
+  "summary": "#42 の計測基盤。src/app/analytics.ts（shouldTrack・initAnalytics・track・trackOnce）を追加し、src/main.tsx で initAnalytics() を 1 回呼ぶ。GA4（G-3DDS1NJZXS、Google シグナル・広告向け機能オフ）は本番の公開 URL（doc-gif.github.io/jtcc-group-e/ 配下）でだけ gtag.js を動的に挿入し、localhost・127.0.0.1・自動操作・jsdom・確認用プレビュー・?internal=1（LP と同じ lp_internal）では何も読み込まない。ハッシュが変わるたびに page_view を送り（page_path は固定版でも /jtcc-group-e/#/... にそろえ、page_location に版のパスを残す）、招待コード・ホストキーは #/room/:invite・#/host/:key に伏せる。画面・CSS・文言・遷移は変更していない（320px で街・ガチャ・ルームを作る・マイページを見て、表示と JS エラーなしを確認）。",
   "criteria": [
     {
       "id": "HIG-01",

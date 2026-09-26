@@ -70,10 +70,14 @@ export function analyticsHash(hash: string): string {
   }
 }
 
-/** page_location（UTM などの検索部分は残す）と page_path（`/jtcc-group-e/#/gacha/...` の形）。 */
+/**
+ * page_location（固定版のパスや UTM などの検索部分は残す）と page_path（`/jtcc-group-e/#/gacha/...` の形）。
+ * 固定版 `/jtcc-group-e/versions/vX.Y.Z/` の page_path も公開ルートにそろえ、同じ画面を 1 つのパスで集計する。
+ */
 export function pageFields(location: Pick<Location, 'origin' | 'pathname' | 'search' | 'hash'>) {
   const hash = analyticsHash(location.hash)
-  return { page_location: location.origin + location.pathname + location.search + hash, page_path: location.pathname + hash }
+  const root = location.pathname.startsWith(PRODUCTION_PATH) ? PRODUCTION_PATH : location.pathname
+  return { page_location: location.origin + location.pathname + location.search + hash, page_path: root + hash }
 }
 
 type Gtag = (...args: unknown[]) => void

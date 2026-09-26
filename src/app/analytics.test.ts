@@ -90,6 +90,14 @@ describe('送る画面の場所', () => {
       page_path: '/jtcc-group-e/#/host/:key',
     })
   })
+
+  test('固定版の page_path は公開ルートにそろえ、page_location には版のパスを残す', () => {
+    expect(pageFields(new URL(`${PRODUCTION}versions/v0.2.0/#/gacha/a-1`))).toEqual({
+      page_location: 'https://doc-gif.github.io/jtcc-group-e/versions/v0.2.0/#/gacha/a-1',
+      page_path: '/jtcc-group-e/#/gacha/a-1',
+    })
+    expect(pageFields(new URL('http://127.0.0.1:4173/other/#/me')).page_path).toBe('/other/#/me')
+  })
 })
 
 type Loaded = typeof import('./analytics')
