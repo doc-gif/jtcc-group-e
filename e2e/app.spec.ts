@@ -153,9 +153,9 @@ test('回帰：ガチャ詳細を開いたあとも、街の注目カードは�
     const read = (selector: string) => getComputedStyle(element.querySelector(selector)!)
     return { kicker: read('.feature-kicker').fontSize, name: read('.feature-name').color, radius: getComputedStyle(element).borderTopLeftRadius }
   })
-  // 街（App.css）の値：見出し 17px・商品名はワイン・角丸 20px（ガチャ詳細の値で上書きされない）
+  // 街（App.css）の値：見出し 17px・商品名は本文色 #172324（マスター 267:8203）・角丸 20px（ガチャ詳細の値で上書きされない）
   expect(styles.kicker).toBe('17px')
-  expect(styles.name).toBe('rgb(74, 42, 54)')
+  expect(styles.name).toBe('rgb(23, 35, 36)')
   expect(styles.radius).toBe('20px')
 })
 
