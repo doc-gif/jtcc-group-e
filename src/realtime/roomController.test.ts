@@ -122,30 +122,26 @@ test('サーバー時刻のずれを補正し、startsAt から自分のカプ�
   await settle(host.setReady(true))
   expect(host.getState()).toMatchObject({ phase: 'ready', readyOnline: 2, readyOthers: 1, canStart: true })
 
+  // #88: 秒読みはなく、開始したらすぐ自分のカプセル（回す画面）。みんなの結果は開始から 15 秒で固定。
   expect((await settle(host.start())).ok).toBe(true)
-  expect(host.getState()).toMatchObject({ phase: 'countdown', secondsLeft: 8, balance: 2500, myPrize: null, canStart: false })
-  expect(host.getState().round?.results).toBeNull()
-  expect(host.getState().snapshot?.stock).toBeNull()
-
-  await vi.advanceTimersByTimeAsync(7_850)
-  expect(host.getState()).toMatchObject({ phase: 'countdown', secondsLeft: 1 })
-  expect(host.getState().round?.results).toBeNull()
-
-  // #88: startsAt から自分のカプセル。全員の結果は 10 秒後（全員が開ければその時点）まで出さない。
-  await vi.advanceTimersByTimeAsync(150)
   expect(host.getState()).toMatchObject({
-    phase: 'opening', secondsLeft: 10, isEntrant: true, hasOpened: false, canOpen: true, openedCount: 0, entrantCount: 2, myPrize: null,
+    phase: 'opening', secondsLeft: 15, balance: 2500, canStart: false,
+    isEntrant: true, hasOpened: false, canOpen: true, openedCount: 0, entrantCount: 2, myPrize: null,
   })
   expect(host.getState().round?.results).toBeNull()
+  expect(host.getState().snapshot?.stock).toBeNull()
 
   expect((await settle(host.openCapsule())).ok).toBe(true)
   expect(host.getState()).toMatchObject({ phase: 'waiting', hasOpened: true, canOpen: false, openedCount: 1, myPrize: 'plush' })
   expect(host.getState().round?.results).toBeNull()
   expect(host.getState().snapshot?.stock).toBeNull()
 
-  // 友だちが開けると全員の結果。起床通知で取り直す。
+  // 友だちが開けても早めない（起床通知で開けた人数だけが増える）。
   await friend.open(id, 1)
   await vi.advanceTimersByTimeAsync(300)
+  expect(host.getState()).toMatchObject({ phase: 'waiting', openedCount: 2 })
+  expect(host.getState().round?.results).toBeNull()
+  await vi.advanceTimersByTimeAsync(15_000)
   expect(host.getState()).toMatchObject({ phase: 'results', myPrize: 'plush', startBlockedBy: 'round-active', canReady: false })
   expect(host.getState().round?.results).toHaveLength(2)
   expect(host.getState().unseenResults).toEqual([{ roundNo: 1, prize: 'plush' }])
@@ -182,7 +178,7 @@ test('応答を失った作成・開始は同じ request で送り直し、二�
   net.offline = false
   expect((await host.start()).ok).toBe(true)
   expect(net.starts).toEqual(['req-2', 'req-2'])
-  expect(host.getState()).toMatchObject({ phase: 'countdown', balance: 2500, error: null })
+  expect(host.getState()).toMatchObject({ phase: 'opening', balance: 2500, error: null })
   expect(host.getState().snapshot?.roundNo).toBe(1)
 
   const blocked = await host.start()
@@ -312,7 +308,7 @@ test('名前を選ばずに入ると重ならない名前が付き、使われ�
   expect(quiet.getState()).toMatchObject({ phase: 'ready', canRename: true })
   await host.start()
   await quiet.refresh()
-  expect(quiet.getState()).toMatchObject({ phase: 'countdown', canRename: false })
+  expect(quiet.getState()).toMatchObject({ phase: 'opening', canRename: false })
   // 開封中はサーバーへ送らずに断る。古い状態のままの端末から送っても、サーバーが断る。
   const renames = vi.spyOn(quietTransport, 'rename')
   expect(await quiet.rename('開封中の名前')).toEqual({
@@ -342,7 +338,7 @@ test('通信断のあいだは最後の状態を保ち、復帰後に見逃し�
   expect(host.getState()).toMatchObject({ readyOnline: 1, readyOthers: 1, canStart: true })
   await host.start()
   await vi.advanceTimersByTimeAsync(0)
-  expect(friend.getState().phase).toBe('countdown')
+  expect(friend.getState().phase).toBe('opening')
 
   net.offline = true
   await vi.advanceTimersByTimeAsync(40_000)
@@ -352,6 +348,10 @@ test('通信断のあいだは最後の状態を保ち、復帰後に見逃し�
   net.offline = false
   wake()
   await vi.advanceTimersByTimeAsync(0)
+  // #88: みんなの結果が出ていても、まだ回していない本人は回す画面のまま。自分の賞品は開けるまで出さない。
+  expect(friend.getState()).toMatchObject({ phase: 'opening', myPrize: null, unseenResults: [], balance: 2500 })
+  expect(friend.getState().round?.results).toHaveLength(1)
+  expect((await friend.openCapsule()).ok).toBe(true)
   expect(friend.getState()).toMatchObject({ phase: 'results', myPrize: 'plush', balance: 2500 })
   expect(friend.getState().unseenResults).toEqual([{ roundNo: 1, prize: 'plush' }])
   friend.dismissResults()
@@ -368,7 +368,8 @@ test('通信断のあいだは最後の状態を保ち、復帰後に見逃し�
   for (const guest of ['a', 'b']) await server.asUser(guest).join(reopened.getState().snapshot!.invite, guest)
   await reopened.setReady(true)
   await reopened.start()
-  await vi.advanceTimersByTimeAsync(19_000)
+  await reopened.openCapsule()
+  await vi.advanceTimersByTimeAsync(16_000)
   expect(reopened.getState()).toMatchObject({ phase: 'results', unseenResults: [{ roundNo: 1, prize: 'plush' }] })
 })
 
@@ -411,11 +412,11 @@ test('#68: 購読できると入室・準備・開始がポーリングを待た
   await a.setReady(true)
   await vi.advanceTimersByTimeAsync(0)
   expect(host.getState().readyOthers).toBe(1)
-  // 今すぐ開始: 参加者の秒読みがすぐ始まる（8 秒の秒読みを飛ばさない）
+  // 今すぐ開始: 抽選に入った人はすぐ回す画面、見守る人はすぐ待つ画面（#88）
   await host.start()
   await vi.advanceTimersByTimeAsync(0)
-  expect(a.getState()).toMatchObject({ phase: 'countdown', secondsLeft: 8 })
-  expect(b.getState()).toMatchObject({ phase: 'countdown', secondsLeft: 8 })
+  expect(a.getState()).toMatchObject({ phase: 'opening', secondsLeft: 15 })
+  expect(b.getState()).toMatchObject({ phase: 'waiting', secondsLeft: 15 })
   // 退室: 人数がすぐ減る
   await b.leave()
   await vi.advanceTimersByTimeAsync(0)
@@ -500,12 +501,13 @@ test('予約した開始時刻まで補正した秒読みを出し、ホスト�
   // 予約の直後の再取得で、サーバーが開始する（オンラインで準備済みの人だけが対象）。
   await vi.advanceTimersByTimeAsync(250)
   expect(friend.getState()).toMatchObject({
-    phase: 'countdown', secondsLeft: 8, balance: 2500, scheduledAt: null, secondsToScheduled: null,
+    phase: 'opening', secondsLeft: 15, balance: 2500, scheduledAt: null, secondsToScheduled: null,
     lastSchedule: { status: 'started', scheduledAt, roundNo: 1 }, scheduleNotice: null, roundGuaranteed: false,
   })
   expect(friend.getState().members.find(member => member.id === 'host')?.online).toBe(false)
-  expect(Date.parse(friend.getState().round!.startsAt) - Date.parse(scheduledAt)).toBeGreaterThanOrEqual(8_000)
-  await vi.advanceTimersByTimeAsync(18_500)
+  expect(Date.parse(friend.getState().round!.startsAt) - Date.parse(scheduledAt)).toBeGreaterThanOrEqual(0)
+  await friend.openCapsule()
+  await vi.advanceTimersByTimeAsync(15_500)
   expect(friend.getState()).toMatchObject({ phase: 'results', myPrize: 'plush' })
   expect(friend.getState().round?.results).toHaveLength(1)
   expect((await server.asUser('host').snapshot(host.getState().snapshot!.id)).balance).toBe(3000)
@@ -561,9 +563,10 @@ test('ピッチモードと目玉の確定を全員の状態に出す', async ()
   await friend.setReady(true)
   await host.start()
   await vi.advanceTimersByTimeAsync(0)
-  expect(friend.getState()).toMatchObject({ phase: 'countdown', roundGuaranteed: true, myPrize: null })
+  expect(friend.getState()).toMatchObject({ phase: 'opening', roundGuaranteed: true, myPrize: null })
   expect(friend.getState().round?.results).toBeNull()
-  await vi.advanceTimersByTimeAsync(18_500)
+  await friend.openCapsule()
+  await vi.advanceTimersByTimeAsync(15_500)
   expect(friend.getState()).toMatchObject({ phase: 'results', roundGuaranteed: true, myPrize: 'plush' })
 
   await host.setPitchMode(false)
@@ -603,7 +606,7 @@ test('開始できなかった案内はホストだけに出し、閉じた後�
   keepStale = true
   await friend.setReady(true)
   expect((await host.start()).ok).toBe(true)
-  expect(host.getState()).toMatchObject({ phase: 'countdown', lastSchedule: { status: 'nobody-ready' }, scheduleNotice: null })
+  expect(host.getState()).toMatchObject({ phase: 'waiting', lastSchedule: { status: 'nobody-ready' }, scheduleNotice: null })
 })
 
 test('予約の時刻を過ぎた後のホストの変更は、先に予約どおり始まったことを示す', async () => {
@@ -625,7 +628,7 @@ test('予約の時刻を過ぎた後のホストの変更は、先に予約ど�
   const late = await host.schedule(3)
   expect(late.error?.code).toBe('round-active')
   await vi.advanceTimersByTimeAsync(0)
-  expect(host.getState()).toMatchObject({ phase: 'countdown', scheduledAt: null, lastSchedule: { status: 'started', roundNo: 1 } })
+  expect(host.getState()).toMatchObject({ phase: 'waiting', scheduledAt: null, lastSchedule: { status: 'started', roundNo: 1 } })
 })
 
 test('F13: ホストのほかに 2 人以上いないと始められず、あと何人必要かを全員の状態に出す', async () => {
@@ -666,7 +669,7 @@ test('F13: ホストのほかに 2 人以上いないと始められず、あと
   await b.join(invite, 'い')
   await vi.advanceTimersByTimeAsync(0)
   expect((await host.start()).ok).toBe(true)
-  expect(host.getState()).toMatchObject({ phase: 'countdown', balance: 2500, playersNeeded: 0 })
+  expect(host.getState()).toMatchObject({ phase: 'opening', balance: 2500, playersNeeded: 0 })
 })
 
 test('F13: 予約の時刻を過ぎても人数が足りなければ待ち、2 人目が入ると始まる。待つ間は 1 秒ごとに取り直さない', async () => {
@@ -699,16 +702,16 @@ test('F13: 予約の時刻を過ぎても人数が足りなければ待ち、2 �
   // 2 人目が入った呼び出しで始まり、通知で全員が受け取る。
   const b = controller('b')
   await b.join(invite, 'い')
-  expect(b.getState()).toMatchObject({ phase: 'countdown', scheduleWaiting: false, lastSchedule: { status: 'started', scheduledAt, roundNo: 1 } })
+  expect(b.getState()).toMatchObject({ phase: 'waiting', scheduleWaiting: false, lastSchedule: { status: 'started', scheduledAt, roundNo: 1 } })
   await vi.advanceTimersByTimeAsync(0)
   expect(host.getState()).toMatchObject({
-    phase: 'countdown', balance: 2500, scheduledAt: null, scheduleWaiting: false, scheduleWaitingMessage: null, playersNeeded: 0,
+    phase: 'opening', balance: 2500, scheduledAt: null, scheduleWaiting: false, scheduleWaitingMessage: null, playersNeeded: 0,
     lastSchedule: { status: 'started', scheduledAt, roundNo: 1 },
   })
   expect(b.getState().balance).toBe(3000)
 })
 
-test('#88: 見守る人はカプセルなしで待ち、開けない人がいても 10 秒で全員の結果。起床通知がなければ短い間隔で取り直す', async () => {
+test('#88: 見守る人はカプセルなしで待ち、開けない人がいても開始から 15 秒で全員の結果。起床通知がなければ短い間隔で取り直す', async () => {
   const { server, controller } = setup()
   const host = controller('host')
   await host.createAsHost(KEY, 'ホスト')
@@ -724,7 +727,7 @@ test('#88: 見守る人はカプセルなしで待ち、開けない人がいて
   await host.start()
   // 起床通知がない見守る人は、開始をポーリングで知る（ここでは画面の再取得）。
   await watcher.refresh()
-  await vi.advanceTimersByTimeAsync(8_300)
+  await vi.advanceTimersByTimeAsync(300)
   expect(watcher.getState()).toMatchObject({ phase: 'waiting', isEntrant: false, canOpen: false, entrantCount: 2, openedCount: 0, realtime: 'polling' })
   expect(host.getState()).toMatchObject({ phase: 'waiting', isEntrant: false })
   expect((await watcher.openCapsule()).error?.code).toBe('invalid-round')
@@ -735,8 +738,8 @@ test('#88: 見守る人はカプセルなしで待ち、開けない人がいて
   expect(watcher.getState()).toMatchObject({ phase: 'waiting', openedCount: 1 })
   expect(watcher.getState().round?.results).toBeNull()
 
-  // もうひとりは開けない。startsAt から 10 秒で全員の結果。
-  await vi.advanceTimersByTimeAsync(8_000)
+  // もうひとりは開けない。開始から 15 秒で全員の結果。
+  await vi.advanceTimersByTimeAsync(13_000)
   expect(watcher.getState()).toMatchObject({ phase: 'results', myPrize: null })
   expect(watcher.getState().round?.results).toHaveLength(2)
 })

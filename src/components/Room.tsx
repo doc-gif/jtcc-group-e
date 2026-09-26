@@ -155,6 +155,22 @@ export function RoomStats({ items }: { items: [RoomStat, RoomStat] }) {
   )
 }
 
+/**
+ * 自分の当たりを中央に大きく（デザイン T10 31、#88。ひとりで回すの結果 267:8438 と同じ形）。
+ * 写真（F15）が読めないときは元の絵に戻す。
+ */
+export function RoomPrize({ prize, photo = null }: { prize: SharedPrize; photo?: ShownPhoto | null }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+  const shown = photo && failedUrl !== photo.url ? photo : null
+  return (
+    <article className="result-card room-prize" aria-labelledby="room-prize-name">
+      <PrizePicture prize={prize} photo={shown} onBroken={setFailedUrl} />
+      <h2 id="room-prize-name" className="reveal-name">{prizeName(prize)}</h2>
+      {shown && <p className="fine room-photo-credit">{shown.credit}</p>}
+    </article>
+  )
+}
+
 /** 見出しの小札（CHOOSE・READY など）と説明、下の淡いミントの一言。 */
 /** privateTitle: 見出しにニックネームを含むとき、録画（Clarity）で隠す。 */
 export function RoomCard({ kicker, title, children, note, labelledBy, privateTitle = false }: {

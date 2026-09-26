@@ -22,7 +22,7 @@ function memoryKeys() {
 
 const ui = (extra: Partial<RoomUi> = {}): RoomUi => ({
   inRoom: true, joinError: null, nameStep: null, autoNamed: false, watching: false, detail: null, scheduleSetup: false,
-  resumed: false, watchedRounds: new Set(), hostAwayAck: false, resumeAck: false, ...extra,
+  resumed: false, watchedRounds: new Set(), hostAwayAck: false, resumeAck: false, prizeSeen: new Set(), ...extra,
 })
 
 const member = (id: string, extra: Partial<RoomState['members'][number]> = {}) => ({ id, nickname: id, ready: false, online: true, ...extra })
@@ -80,16 +80,26 @@ describe('ルームの画面の選び方（T10 の24画面）', () => {
     expect(roomView(stateOf(host), ui({ resumed: true, resumeAck: true }))).toBe('hostStart')
   })
 
-  test('開封：秒読み・同時開封・結果・みんな・履歴・復帰・再接続・終了', () => {
+  test('開封（#88）：回す・自分の当たり・待つ・みんな・履歴・復帰・再接続・終了', () => {
+    const round = { number: 1, startsAt: '', revealAt: '', nextReadyAt: '', entrants: ['g'], opened: [], results: null, guaranteed: false }
     expect(roomView(stateOf({ phase: 'countdown' }), ui())).toBe('countdown')
-    expect(roomView(stateOf({ phase: 'opening' }), ui())).toBe('opening')
-    expect(roomView(stateOf({ phase: 'results' }), ui())).toBe('opening')
-    expect(roomView(stateOf({ phase: 'results' }), ui({ detail: 'mine' }))).toBe('myResult')
-    expect(roomView(stateOf({ phase: 'results' }), ui({ detail: 'all' }))).toBe('allResults')
-    expect(roomView(stateOf({ phase: 'results' }), ui({ detail: 'history' }))).toBe('history')
+    // 抽選に入った人は、開けるまで回す画面（みんなの結果が出た後も）
+    expect(roomView(stateOf({ phase: 'opening', isEntrant: true, round }), ui())).toBe('draw')
+    // 開けた直後は自分の当たりを大きく。「みんなの様子を見る」の後は待つ画面、「自分の結果」でまた当たり
+    const opened = stateOf({ phase: 'waiting', isEntrant: true, hasOpened: true, myPrize: 'badge', round })
+    expect(roomView(opened, ui())).toBe('myResult')
+    expect(roomView(opened, ui({ prizeSeen: new Set([1]) }))).toBe('waitingEntrant')
+    expect(roomView(opened, ui({ prizeSeen: new Set([1]), detail: 'mine' }))).toBe('myResult')
+    // 見守る人はカプセルなしで待ち、みんなの結果が出ても同じ画面（「みんなの結果を見る」が押せる）
+    expect(roomView(stateOf({ phase: 'waiting', round }), ui())).toBe('waitingWatcher')
+    expect(roomView(stateOf({ phase: 'results', round }), ui())).toBe('waitingWatcher')
+    const done = stateOf({ phase: 'results', isEntrant: true, hasOpened: true, myPrize: 'badge', round })
+    expect(roomView(done, ui({ prizeSeen: new Set([1]) }))).toBe('waitingEntrant')
+    expect(roomView(done, ui({ detail: 'all' }))).toBe('allResults')
+    expect(roomView(done, ui({ detail: 'history' }))).toBe('history')
     const missed = stateOf({ phase: 'results', unseenResults: [{ roundNo: 1, prize: 'badge' }] })
     expect(roomView(missed, ui({ resumed: true }))).toBe('recover')
-    expect(roomView(missed, ui({ resumed: true, watchedRounds: new Set([1]) }))).toBe('opening')
+    expect(roomView(missed, ui({ resumed: true, watchedRounds: new Set([1]) }))).toBe('waitingWatcher')
     expect(roomView(stateOf({ phase: 'reconnecting' }), ui())).toBe('reconnecting')
     expect(roomView(stateOf({ phase: 'connecting', snapshot: null }), ui())).toBe('reconnecting')
     expect(roomView(stateOf({ phase: 'unavailable' }), ui())).toBe('expired')

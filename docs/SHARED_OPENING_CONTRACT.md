@@ -1,6 +1,6 @@
 # 共有オープニングの契約（T03、F07・F10・F13・#88 で更新）
 
-T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で、上限を 100 人にし、ホストの予約開始とピッチモードを加えた。F10（同日の担当者の決定）で、ホストを担当者だけにし（ホスト用リンク）、参加者によるホスト交代を廃止し、ニックネームをルーム内で重ならないようにした。F13（同日の担当者の決定「ガチャはホスト以外に2人以上じゃないと引けないようにしたい」）で、ラウンドの開始にホスト以外の active メンバー 2 人以上を必要にした（下記「開始の人数」）。#88（同日の担当者の決定）で、各自が自分のカプセルを開け、全員が開けたら（または 10 秒で）全員の結果を出すようにした（下記「各自で開ける」）。
+T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で、上限を 100 人にし、ホストの予約開始とピッチモードを加えた。F10（同日の担当者の決定）で、ホストを担当者だけにし（ホスト用リンク）、参加者によるホスト交代を廃止し、ニックネームをルーム内で重ならないようにした。F13（同日の担当者の決定「ガチャはホスト以外に2人以上じゃないと引けないようにしたい」）で、ラウンドの開始にホスト以外の active メンバー 2 人以上を必要にした（下記「開始の人数」）。#88（同日の担当者の決定）で、秒読みをなくし、各自が自分のペースでガチャを回してカプセルを開け、みんなの結果は開始から 15 秒で出すようにした（下記「各自で開ける」）。
 
 この契約は実装・デザインの入力であり、本番環境で動いているアプリの接続済み機能や実 DB の検証結果ではない。既存の端末内の模擬ルーム（1 台のブラウザのタブの間だけで動く）はそのまま残す。`src/realtime/protocol.ts` の `RoomTransport` を、ローカル専用 `MockRoomServer.asUser()` と Supabase `supabaseTransport()` の共通境界とする。どちらも `Snapshot` と下記の失敗コードを返し、UI は通信経路を黙って切り替えない。
 
@@ -26,7 +26,7 @@ T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で�
 | `schedule(room, minutes)` | 現在のホストだけ。`minutes` は 1・3・5・10 で、サーバー時刻の `minutes` 分後を `scheduledAt` にする。予約中の再指定は変更、`null` は取り消し（`lastSchedule.status = 'cancelled'`）。予約はルームの期限の 1 分前まで。人数が足りなくても予約できる（時刻になっても始まらず、2 人目が入ると始まる。F13）。 | `room-unavailable`、`host-required`、許されない分数・期限の 1 分前を過ぎる時刻は `invalid-schedule`、開封中・次の準備までの間は `round-active`。 |
 | `setPitchMode(room, on)` | 現在のホストだけ。部屋のピッチモードを切り替え、次に始まるラウンドから効く。 | `room-unavailable`、`host-required`、真偽値でなければ `invalid-request`。 |
 | ~~`claim(room)`~~（**廃止**、F10） | 参加者によるホスト交代はなくなった。SQL の `lp_claim_host` は削除し、transport・状態層からも外した。ホストが不在でも予約した開始は時刻に始まる。ホストは `resumeHost` で戻る。 | 呼び出せない（関数がない）。旧コード `host-online` も廃止。 |
-| `open(room, roundNo)`（#88） | 最新ラウンドの抽選に入った本人だけ、`startsAt` 以後。本人の「開けた」を記録し、本人の結果だけを `myResults` に入れた snapshot を返す。抽選に入った active な人が全員開けたら、その時点で全員の結果を公開する。再送しても同じ（通知も 1 回）。 | `room-unavailable`、見守る人（抽選に入っていない人）・最新でないラウンド・`startsAt` 前は `invalid-round`。 |
+| `open(room, roundNo)`（#88） | 最新ラウンドの抽選に入った本人だけ、開始の直後から（時間切れなし）。本人の「開けた」を記録し、本人の結果を `myResults` に入れた snapshot を返す。みんなの結果の時刻は変えない。再送しても同じ（通知も 1 回）。 | `room-unavailable`、見守る人（抽選に入っていない人）・最新でないラウンドは `invalid-round`。 |
 | `leave(room)` | active メンバー本人。席を空け ready を解除する。残高・結果台帳は残す。ホストが退室しても交代はなく、ホストは `join`（同じ端末）か `resumeHost` で戻る。 | 非メンバー・失効は `room-unavailable`。 |
 | `subscribe(room, refresh, onStatus?)` | メンバー向けの更新ヒント。通知の内容で結果・権限を決めず、受信時に `snapshot` を再取得する。購読失敗時もポーリングを続ける。`onStatus` は購読の状態（`live`／`down`）を知らせ、状態層の `realtime`（`live`／`polling`）になる。サーバーは入室・準備・退室・開始・予約・ピッチモード・名前の変更・ホストの再開ごとに 1 回送る（#68）。 | 非メンバーは購読できない。Realtime の認可失敗をゲーム結果の失敗に変換しない。 |
 
@@ -37,22 +37,24 @@ T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で�
 - `serverTime`、`expiresAt`、`startsAt`、`revealAt`、`nextReadyAt` はサーバーの UTC 時刻。端末時刻は権限・抽選に使わない。UI の秒読みは `serverOffset` で補正し、`revealAt` に snapshot を再取得して公開済み結果を表示する。タブ復帰や再接続時にも取得し直す。
 - 本人の snapshot 呼び出しが heartbeat。SQL は最終接続時刻を最大 10 秒間隔で更新し、45 秒以内をオンラインとみなす。UI は接続中に 20 秒以内のポーリングを続ける。通知は加速手段であり、送信に失敗しても抽選・コイン・結果を取り消さない。全員へのフレーム単位の動き配信はしない。
 - `start` の成功時点で対象者を固定し、各人から 500 デモコインを引き、在庫を減らし、結果を保存する。残数が参加人数未満なら **全員の抽選を取り消し** `sold-out`。ラウンド識別子は部屋 ID と `number` の組で安定する。
-- 全員の結果は `revealAt`（下記「各自で開ける」。`startsAt` の 10 秒後か、全員が開けた時点）まで **全員に非公開**。その間 `round.results` と賞品別 `stock` は `null`、`myResults` には本人が開けた結果だけを加える。Realtime の通知には賞品を載せない。`revealAt` 以後、同じ保存済み結果を全員に返す。次の ready/start は `nextReadyAt`（`revealAt` から 15 秒後）まで拒否する。
+- 全員の結果は `revealAt`（下記「各自で開ける」。開始から 15 秒）まで **全員に非公開**。その間 `round.results` と賞品別 `stock` は `null`、`myResults` には本人が開けた結果だけを加える。Realtime の通知には賞品を載せない。`revealAt` 以後、同じ保存済み結果を全員に返す。次の ready/start は `nextReadyAt`（`revealAt` から 15 秒後）まで拒否する。
 - `snapshot` は最新ラウンドだけを開封演出用に返す。`myResults` は本人の公開済み結果を過去ラウンドから返し、長時間オフラインでも当たりを見失わない。同じ request を再送しても追加コインや追加結果は作らない。
 - Supabase の 4 テーブルは Data API の直接読み書きを許さず RLS を有効にし、RPC 内で本人と active membership を確認する。Private Broadcast は起床通知のみ。公式の [Realtime Authorization](https://supabase.com/docs/guides/realtime/authorization) に従い、受信ポリシー `lp_receive_round`（参加中の人だけ SELECT、INSERT なし）を migration `lp_realtime_wake`（#68）で適用した。Realtime のない DB（テスト）ではポリシーを作らず、台帳はポーリングで動く。通知の内容は `{roomId, roundNo, reason}` だけ。接続時の認可キャッシュがあるため、退室後の通知にも秘密を載せない。
 
 ## 各自で開ける（#88）
 
-担当者の決定（2026-09-26）。以前は秒読みの終わり（`startsAt`）に全員の結果を同時に公開していた。
+担当者の決定（2026-09-26、2 回。後の決定が優先）。以前は秒読みの終わり（`startsAt`）に全員の結果を同時に公開していた。
 
 - 抽選は今どおり開始の時点で確定する。開ける順番で中身は変わらない。ホストの許可・ホスト以外 2 人以上・ピッチモードの確定枠も変わらない。
-- `startsAt` から、抽選に入った人（`round.entrants`。準備OKで抽選に入った人の ID だけで、賞品は含まない）が自分のカプセルを開ける（`open`）。**開けるまでサーバーは本人にも結果を返さない**。開けると本人の賞品だけが `myResults` に入る。見守る人（抽選に入っていない人。ホストも準備していなければ見守り）には開けるカプセルがなく、全員の結果を待つ。
-- 全員の結果（`round.results`・`stock`）は `revealAt` に出る。`revealAt` は最初 `startsAt` + 10 秒（`SHARED_OPEN_TIMEOUT_MS`）で、抽選に入った active な人が全員開けた時点に早まる。**開けないまま退室した人は待たない**。時間切れは時刻を比べるだけで、書き込みは要らない。
-- `round.opened` は開けた人の ID（「みんなが開けています N/M 人」用）。`nextReadyAt` は `revealAt` の 15 秒後で、早まるときも一緒に動く。そのため準備・開始・予約・名前の変更の「開封中」の判定は変えていない。
-- SQL: `lp_members.opened_round`（本人が最後に開けたラウンド）と `lp_rounds.reveal_at`。`lp_open`（RPC）は部屋行を `FOR UPDATE` で取り、`lp_fire_due` を先に呼んでから記録し、内部の `lp_settle_open`（実行権限なし）で全員が開けたかを確かめる。`lp_leave` も退室の後に `lp_settle_open` を呼ぶ。起床通知の理由に `open` を加えた（中身は今どおり `{roomId, roundNo, reason}` だけ）。
-- 予約の期限の余裕（1 分）は変えない。予約の開始から全員の結果まで最長 8 + 10 秒で収まる。
-- 状態層（`roomController`）の phase は `countdown`（〜`startsAt`）→ `opening`（抽選に入っていて、まだ開けていない。`openCapsule()`）→ `waiting`（開けた、または見守る人）→ `results`。`isEntrant`・`hasOpened`・`openedCount`・`entrantCount`・`canOpen` を出す。起床通知がないときは、開ける間だけ 2 秒ごとに取り直す（`ROOM_OPENING_POLL_MS`）。
-- 公開中の古いアプリ（`revealAt` を知らない）は、`startsAt` の後も結果が出るまで 1 秒ごとに取り直すので、全員の結果が最大 10 秒遅れて出るだけで壊れない。
+- **秒読みはない**。`startsAt` は開始のコミットの時刻（`SHARED_START_DELAY_MS = 0`）。開始したら、抽選に入った人（`round.entrants`。準備OKで抽選に入った人の ID だけで、賞品は含まない）はすぐ自分のガチャを回し、出てきたカプセルを **1回タップ** で開ける（`open`）。**時間切れはない**。まだ回していない人は、みんなの結果が出た後も回し終えるまで回す画面のまま。
+- 開けると本人の賞品だけが `myResults` に入る。見守る人（抽選に入っていない人。ホストも準備していなければ見守り）には回すガチャもカプセルもなく、みんなの結果を待つ。
+- **みんなの結果**（`round.results`・`stock`）は `revealAt` = 開始 + 15 秒（`SHARED_REVEAL_DELAY_MS`）に全員に出る。**全員が開けても早めない**（担当者の決定「結果表示は一定時間待たないとみんなの結果が見られない」）。まだ開けていない人の結果もみんなの結果に出る（担当者の決定。そのため、前の決定「開けるまで結果を端末に送らない」は `revealAt` まで。`revealAt` 以後は本人の端末にも届くので、アプリは開けるまで本人の賞品を出さない）。退室しても `revealAt` は動かない。
+- `round.opened` は開けた人の ID（「開けた人 N / M 人」用。画面に時間の数字は出さない）。`nextReadyAt` は `revealAt` の 15 秒後。準備・開始・予約・名前の変更の「開封中」の判定は変えていない。
+- SQL: `lp_members.opened_round`（本人が最後に開けたラウンド）と `lp_rounds.reveal_at`（`lp_open_each`）。`lp_open`（RPC）は部屋行を `FOR UPDATE` で取り、`lp_fire_due` を先に呼んでから記録する（`lp_open_self_paced` で `starts_at` の確認と早めの公開をなくし、`lp_settle_open` を削除した）。起床通知の理由に `open`（中身は今どおり `{roomId, roundNo, reason}` だけ）。
+- 予約の期限の余裕（1 分）は変えない。予約の開始から全員の結果まで 15 秒で収まる。
+- 状態層（`roomController`）の phase は `opening`（抽選に入っていて、まだ開けていない。みんなの結果の後も続く。`openCapsule()`）→ `waiting`（開けた、または見守る人。`revealAt` まで）→ `results`。`countdown` は時刻のずれでだけ一瞬出る。`isEntrant`・`hasOpened`・`openedCount`・`entrantCount`・`canOpen` を出し、`myPrize`・`myResults` は開けるまで今のラウンドの自分の賞品を含めない。起床通知がないときは、みんなの結果までの間だけ 2 秒ごとに取り直す（`ROOM_OPENING_POLL_MS`）。回している間に次のラウンドが始まったら、この端末では開けたことにする（結果は履歴にある）。
+- 画面（デザインマスター T10 29〜33 `427:12645`〜`427:12932`。案 `385:10240`）: 29 ガチャを回す・30 カプセルが出る（ひとりで回すと同じ筐体・回し方。中身が届いていないのでカプセルは普通の見た目）→ 31 自分の当たりを中央に大きく → 32 みんなを待つ（ロビーと同じ形）→ みんなの結果。見守る人は 33。
+- 公開中の古いアプリ（`revealAt` を知らない）は、結果が出るまで 1 秒ごとに取り直すので、全員の結果が開始から 15 秒で出るだけで壊れない。
 
 ## ホスト用リンク（F10）
 
@@ -86,19 +88,19 @@ T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で�
 - 1 回だけの保証: 開始する取引は部屋行を `FOR UPDATE` でロックし直し、`scheduledAt` がまだ残っているかを確かめてから消す。同時に来た別の snapshot はロックを待ち、消えた予約を見て何もしない。さらに request を「部屋 ID と `scheduledAt`」から決まる UUID にし、`(room, request_id)` の一意制約と事前の存在確認で同じ予約の二重抽選を防ぐ。
 - ロック: 通常の snapshot は従来どおり部屋行を `FOR SHARE` で読む。ロックなしの読み取りで予約の時刻を過ぎていると分かったときだけ、最初から `FOR UPDATE` を取る（`FOR SHARE` からの格上げは、同時に格上げする 2 つの取引がデッドロックするため行わない）。部屋→会員・在庫・ラウンドの順は変えない。
 - 開始できなかったとき（準備OKの人がいない・売り切れ・コイン不足）は、抽選の変更をすべて取り消し（サブトランザクション）、予約を消して `lastSchedule = { status, scheduledAt, roundNo: null }` にする。ホストの画面は `scheduleNotice` で理由を出す（ホストだけ。閉じる操作 `dismissScheduleNotice`、次のラウンドの後は出さない）。成功時は `status: 'started'` と `roundNo`。`lastSchedule` は次の予約か「今すぐ開始」で消える。
-- `startsAt` は従来どおり開始のコミットから 8 秒後。予約の開始は `scheduledAt` 以後にしかコミットしないので、公開は必ず `scheduledAt` + 8 秒以後になる。UI は `scheduledAt` まで予約の秒読み、その後 `startsAt` まで開封の秒読みを出す。
+- `startsAt` は開始のコミットの時刻（#88 で秒読みをなくした。以前は 8 秒後）。予約の開始は `scheduledAt` 以後にしかコミットしないので、みんなの結果は必ず `scheduledAt` + 15 秒以後になる。UI は `scheduledAt` まで予約の秒読み、その後はすぐ回す画面・待つ画面。
 - 予約は部屋の期限（作成から 2 時間）の 1 分前までに限る。開始・公開が期限の後になって、誰も結果を見られなくなることを防ぐ。
 
 ## ピッチモード（F07）
 
 - 限定公開アプリの機能。対面のビジネスピッチのために、ホストが部屋ごとにオンにする。オンの間、各ラウンドで参加者 1 人を一様な乱数で選び、目玉（`plush`、架空在庫でいちばん少ない賞品）を **本物の在庫から 1 つ先に確保して** 渡す。ほかの人は残りの在庫から通常どおり抽選する（目玉を引くこともある）。
-- 正直さ: `pitchMode` と、そのラウンドで確定枠を使ったかの `round.guaranteed` を全員の snapshot に出す。UI は「ピッチ用デモ：このラウンドは1人に目玉確定」などと明示する（画面の文言。ピッチモードがオンだと分かる文にする）。`guaranteed` は開始直後から見えるが、誰が受け取るかは `startsAt` まで非公開のまま。
+- 正直さ: `pitchMode` と、そのラウンドで確定枠を使ったかの `round.guaranteed` を全員の snapshot に出す。UI は「ピッチ用デモ：このラウンドは1人に目玉確定」などと明示する（画面の文言。ピッチモードがオンだと分かる文にする）。`guaranteed` は開始直後から見えるが、誰が受け取るかは `revealAt` まで非公開のまま（受け取る本人には開けた時点で見える）。
 - 目玉の在庫が 0 なら装わない。通常の抽選にし、`round.guaranteed = false` にする。確定演出は本当に目玉が出るときだけという決まりは変わらない。
 - ピッチモード中は、公開している確率は確定枠には当てはまらない（確定枠以外の人には当てはまる）。UI はそのことを表示する（[PRODUCT.md](PRODUCT.md)）。
 
 ## 今回の検証境界と体験レビュー
 
-コアの SQL は T14 で正式 migration（`supabase/migrations/`）にし、専用の検証プロジェクトに適用した（[T14 の記録](SQL_MIGRATION_T14.md)）。予約開始・ピッチモード・100 席は F07 の migration で追加・適用した（[F07 の記録](SQL_MIGRATION_F07.md)）。ホスト用リンク・ホスト交代の廃止・ニックネームは F10 の migration で追加・適用した（[F10 の記録](SQL_MIGRATION_F10.md)）。開始の人数は F13 の migration で追加・適用した（[F13 の記録](SQL_MIGRATION_F13.md)）。各自で開ける（#88）は migration `lp_open_each` で追加・適用した（[#88 の記録](SQL_MIGRATION_88.md)）。Realtime の受信ポリシー `supabase/drafts/optional_broadcast.sql` は、Realtime の初期化後に適用する草案のまま。F15 で、本番・確認用プレビュー・CI のビルドをこのプロジェクトに接続した（`.env.production` の URL と publishable キー。[F15 の記録](MULTI_DEVICE.md)）。Realtime は未初期化のため起床通知は使われず、ポーリングと時刻での取り直しで動く。ブラウザからの HTTP 経路、多数の端末（最大 100 台）の実接続、実 iPhone の遅延・再接続は未検証（この作業環境から `*.supabase.co` へ接続できない）で、担当者の実機の確認手順を F15 の記録に置いた。`supabaseTransport` は型上の共通実装。画面（F05）は `configuredTransport()` があればそれを（E2E は `localStorage` の `lastpiece_room_force_demo=1` で使わない、F15）、なければ同じブラウザのタブの間だけで動く端末内デモ（`MockRoomServer` を localStorage に置く、`src/app/sharedRoom.ts`）を使い、デモであることを画面に出す。旧 `useSimulatedRoom` はなくした。
+コアの SQL は T14 で正式 migration（`supabase/migrations/`）にし、専用の検証プロジェクトに適用した（[T14 の記録](SQL_MIGRATION_T14.md)）。予約開始・ピッチモード・100 席は F07 の migration で追加・適用した（[F07 の記録](SQL_MIGRATION_F07.md)）。ホスト用リンク・ホスト交代の廃止・ニックネームは F10 の migration で追加・適用した（[F10 の記録](SQL_MIGRATION_F10.md)）。開始の人数は F13 の migration で追加・適用した（[F13 の記録](SQL_MIGRATION_F13.md)）。各自で開ける（#88）は migration `lp_open_each` と `lp_open_self_paced` で追加・適用した（[#88 の記録](SQL_MIGRATION_88.md)）。Realtime の受信ポリシー `supabase/drafts/optional_broadcast.sql` は、Realtime の初期化後に適用する草案のまま。F15 で、本番・確認用プレビュー・CI のビルドをこのプロジェクトに接続した（`.env.production` の URL と publishable キー。[F15 の記録](MULTI_DEVICE.md)）。Realtime は未初期化のため起床通知は使われず、ポーリングと時刻での取り直しで動く。ブラウザからの HTTP 経路、多数の端末（最大 100 台）の実接続、実 iPhone の遅延・再接続は未検証（この作業環境から `*.supabase.co` へ接続できない）で、担当者の実機の確認手順を F15 の記録に置いた。`supabaseTransport` は型上の共通実装。画面（F05）は `configuredTransport()` があればそれを（E2E は `localStorage` の `lastpiece_room_force_demo=1` で使わない、F15）、なければ同じブラウザのタブの間だけで動く端末内デモ（`MockRoomServer` を localStorage に置く、`src/app/sharedRoom.ts`）を使い、デモであることを画面に出す。旧 `useSimulatedRoom` はなくした。
 
 画面から使う状態層は `src/realtime/roomController.ts` の `createRoomController` と React 用の `useSharedRoom`（F05a）。この契約の時刻補正、20 秒以内のポーリング、`startsAt` での再取得、通信断からの再接続、request の再利用、失敗コードの日本語化をここで行う。F07 で予約（`schedule`、`scheduledAt` での再取得、`secondsToScheduled`、`scheduleOptions`、`scheduleNotice`）とピッチモード（`setPitchMode`、`pitchMode`、`roundGuaranteed`）を加えた。F10 でホスト用キー（`createAsHost`、`resumeHost`、`hostKey`、`forgetHostKey`。キーはこの端末の `localStorage`）と名前（`join(invite, null)`、`rename`、`nameSuggestion`、`canRename`）を加え、`claimHost`・`canClaim` を外して `hostOnline` にした。F13 で人数（`guestCount`・`playersNeeded`・`scheduleWaiting`、`canStart` と `startBlockedBy: 'need-more-players'`）を加えた。画面は F05 で接続した（`src/screens/Room.tsx`、状態から画面を選ぶのは `src/app/roomView.ts`）。
 

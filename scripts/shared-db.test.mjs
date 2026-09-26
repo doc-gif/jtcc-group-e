@@ -9,7 +9,7 @@ const KEY=createHostKey()
 const users=Array.from({length:102},()=>randomUUID())
 const room=randomUUID()
 let invite
-const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql','supabase/migrations/20260926025335_lp_name_chars_create_retry.sql','supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql','supabase/migrations/20260926033821_lp_min_guests.sql','supabase/migrations/20260926052120_lp_pitch_goods_photos.sql','supabase/migrations/20260926075123_lp_realtime_wake.sql','supabase/migrations/20260926104012_lp_open_each.sql','supabase/migrations/20260926172325_lp_pitch_characters.sql']
+const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql','supabase/migrations/20260926025335_lp_name_chars_create_retry.sql','supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql','supabase/migrations/20260926033821_lp_min_guests.sql','supabase/migrations/20260926052120_lp_pitch_goods_photos.sql','supabase/migrations/20260926075123_lp_realtime_wake.sql','supabase/migrations/20260926104012_lp_open_each.sql','supabase/migrations/20260926133919_lp_open_self_paced.sql','supabase/migrations/20260926172325_lp_pitch_characters.sql']
 // Supabase Storage is not in PGlite. A minimal stand-in (F15): the real schema has more columns; the grants mirror Supabase (RLS decides).
 const STORAGE_STUB=`create schema storage;
  create table storage.buckets(id text primary key,name text not null,public boolean default false,file_size_limit bigint,allowed_mime_types text[]);
@@ -53,7 +53,7 @@ test('100 seats, idempotent joins, atomic shared results, reconnect and private 
  const start=await call(users[0],'select public.lp_start($1,$2,0) result',[room,request])
  await expect(call(users[0],'select public.lp_ready($1,true) result',[room])).rejects.toThrow('round-active')
  expect(start.balance).toBe(2500);expect(start.round.results).toBeNull();expect(start.stock).toBeNull();expect(start.myResults).toEqual([])
- expect(Date.parse(start.round.revealAt)-Date.parse(start.round.startsAt)).toBe(10000)
+ expect(Date.parse(start.round.revealAt)-Date.parse(start.round.startsAt)).toBe(15000)
  expect(Date.parse(start.round.nextReadyAt)-Date.parse(start.round.revealAt)).toBe(15000)
  const repeated=await call(users[0],'select public.lp_start($1,$2,0) result',[room,request])
  expect(repeated.roundNo).toBe(1);expect(repeated.balance).toBe(2500)
@@ -237,7 +237,8 @@ describe('F07: scheduled start and pitch mode', () => {
   expect(Date.parse(started.lastSchedule.scheduledAt)).toBe(dueAt.getTime())
   expect(started.round.results).toBeNull()
   expect(started.stock).toBeNull()
-  expect(Date.parse(started.round.startsAt)-dueAt.getTime()).toBeGreaterThanOrEqual(8000)
+  // #88: no countdown, so the round starts when the due schedule fires.
+  expect(Date.parse(started.round.startsAt)-dueAt.getTime()).toBeGreaterThanOrEqual(0)
   // Online ready members at that moment only: the offline host keeps their coins.
   expect(await balances(id)).toEqual({[host]:3000,[friend]:2500,[watcher]:3000})
   for(const user of [friend,watcher,host,friend]) expect((await snap(user,id)).roundNo).toBe(1)
@@ -927,7 +928,7 @@ describe('#150: private character art (limited-release app) is readable only ins
   await expire(id)
  })
 })
-test('#88: each entrant opens their own capsule; all results once everyone opened, after 10 s, or when the last one left', async()=>{
+test('#88: each entrant opens at their own pace; everyone sees all results at a fixed 15 s', async()=>{
  const id=randomUUID()
  // An earlier test made realtime.send fail; wakes are counted here, so restore the recording stand-in.
  await db.exec("create or replace function realtime.send(payload jsonb,event text,topic text,private boolean) returns void language sql as $$insert into realtime.messages(extension,topic,event,payload,private) values('broadcast',topic,event,payload,private)$$")
@@ -941,49 +942,47 @@ test('#88: each entrant opens their own capsule; all results once everyone opene
   return started
  }
  const open=(user,n)=>call(user,'select public.lp_open($1,$2) result',[id,n])
- // The latest round's capsules appear now (its reveal and next ready stay in the future).
- const capsules=()=>db.query('update public.lp_rounds set starts_at=now()-interval \'1 second\' where room=$1 and number=(select round_no from public.lp_rooms where id=$1)',[id])
+ const reveal=()=>db.query("update public.lp_rounds set reveal_at=now()-interval '1 second' where room=$1 and number=(select round_no from public.lp_rooms where id=$1)",[id])
+ const done=()=>db.query("update public.lp_rounds set starts_at=now()-interval '31 seconds',reveal_at=now()-interval '16 seconds',next_ready_at=now()-interval '1 second' where room=$1",[id])
  const started=await round(1)
- await expect(open(a,1)).rejects.toThrow('invalid-round') // before startsAt
- await capsules()
+ // No countdown: the capsule can be opened right after the start. Everyone's results at a fixed start + 15 s.
+ expect(Date.parse(started.round.revealAt)-Date.parse(started.round.startsAt)).toBe(15000)
+ expect(Date.parse(started.round.nextReadyAt)-Date.parse(started.round.revealAt)).toBe(15000)
  for(const [user,n] of [[watcher,1],[host,1],[a,0],[a,null]]) await expect(open(user,n)).rejects.toThrow('invalid-round')
  const mine=await open(a,1)
  expect(mine.myResults.map(r=>r.roundNo)).toEqual([1])
  expect(mine).toMatchObject({stock:null,round:{opened:[a],results:null}})
  expect((await call(b,'select public.lp_snapshot($1) result',[id])).myResults).toEqual([])
- expect((await call(watcher,'select public.lp_snapshot($1) result',[id])).round.results).toBeNull()
  // A retry changes nothing and sends no second wake.
  const wakes=async()=>(await db.query("select count(*)::int count from realtime.messages where topic=$1 and payload->>'reason'='open'",[`lp:${id}`])).rows[0].count
  expect(await wakes()).toBe(1)
  expect((await open(a,1)).round.revealAt).toBe(started.round.revealAt)
  expect(await wakes()).toBe(1)
- const all=await open(b,1)
- expect(all.round.results.map(r=>r.userId)).toEqual([a,b])
- expect(Date.parse(all.round.revealAt)).toBeLessThan(Date.parse(started.round.revealAt))
- expect(Date.parse(all.round.nextReadyAt)-Date.parse(all.round.revealAt)).toBe(15000)
- expect(all.stock).not.toBeNull()
+ // Everyone opened: no early reveal.
+ const both=await open(b,1)
+ expect(both.round).toMatchObject({opened:[a,b],results:null,revealAt:started.round.revealAt})
+ await reveal()
  expect((await call(watcher,'select public.lp_snapshot($1) result',[id])).round.results).toHaveLength(2)
- await db.query("update public.lp_rounds set starts_at=now()-interval '30 seconds',reveal_at=now()-interval '20 seconds',next_ready_at=now()-interval '5 seconds' where room=$1",[id])
+ await done()
 
- // Nobody opens: the deadline alone reveals, with no write.
+ // Nobody opens: all results at the fixed time, with the prizes of those who have not turned yet.
  await round(2)
- await db.query("update public.lp_rounds set starts_at=now()-interval '11 seconds',reveal_at=now()-interval '1 second',next_ready_at=now()+interval '14 seconds' where room=$1 and number=2",[id])
- expect((await call(watcher,'select public.lp_snapshot($1) result',[id])).round.results).toHaveLength(2)
- await expect(call(a,'select public.lp_ready($1,true) result',[id])).rejects.toThrow('round-active')
- await db.query("update public.lp_rounds set next_ready_at=now()-interval '1 second' where room=$1",[id])
+ await reveal()
+ const late=await call(b,'select public.lp_snapshot($1) result',[id])
+ expect(late.round.opened).toEqual([])
+ expect(late.round.results.map(r=>r.userId)).toEqual([a,b])
+ // No time limit: b can still open after the reveal.
+ expect((await open(b,2)).round.opened).toEqual([b])
+ await done()
 
- // The last unopened entrant leaves: not waited for.
+ // Leaving does not move the reveal.
  await round(3)
- await capsules()
  await open(a,3)
- expect((await call(watcher,'select public.lp_snapshot($1) result',[id])).round.results).toBeNull()
  await call(b,'select public.lp_leave($1) result',[id])
- expect((await call(watcher,'select public.lp_snapshot($1) result',[id])).round.results).toHaveLength(2)
+ expect((await call(watcher,'select public.lp_snapshot($1) result',[id])).round.results).toBeNull()
 
- // Internal functions stay private; only signed-in users may open.
- await db.exec('set role authenticated')
- await expect(db.query('select public.lp_settle_open($1)',[id])).rejects.toThrow('permission denied')
- await db.exec('reset role')
+ // The early-reveal helper is gone; only signed-in users may open.
+ expect((await db.query("select count(*)::int count from pg_proc where proname='lp_settle_open'")).rows[0].count).toBe(0)
  await db.exec('set role anon')
  await expect(db.query('select public.lp_open($1,1)',[id])).rejects.toThrow('permission denied')
  await db.exec('reset role')

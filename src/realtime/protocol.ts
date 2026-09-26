@@ -2,12 +2,13 @@
 /** 内部の上限（ホストを含む active メンバー）。画面には上限を出さず「N人が集まっています」だけを出す。 */
 export const SHARED_CAPACITY = 100
 export const SHARED_PRICE = 500
-export const SHARED_START_DELAY_MS = 8_000
+/** 開始のコミットからカプセルが出るまで。#88（担当者の決定 2026-09-26）で秒読みをなくし、開始したらすぐ回す（0）。 */
+export const SHARED_START_DELAY_MS = 0
 /**
- * #88（担当者の決定 2026-09-26）: startsAt から各自が自分のカプセルを開ける。全員（抽選に入った active な人）が開けるか、
- * startsAt からこの時間が過ぎたら、全員の結果を出す（開けていない人も開けたことにする）。SQL の lp_draw と同じ。
+ * #88（担当者の決定 2026-09-26）: 各自が自分のペースでハンドルを回してカプセルを開ける（時間切れなし）。
+ * みんなの結果は開始からこの時間で全員に出る（全員が開けていても早めない。まだ開けていない人の結果も出る）。SQL の lp_draw と同じ。
  */
-export const SHARED_OPEN_TIMEOUT_MS = 10_000
+export const SHARED_REVEAL_DELAY_MS = 15_000
 export const SHARED_ROUND_LOCK_MS = 15_000
 export const SHARED_ONLINE_WINDOW_MS = 45_000
 export const SHARED_PRIZES = {
@@ -82,8 +83,9 @@ export interface Round {
   /** Server UTC time when the committed results become visible to all active members. */
   startsAt: string
   /**
-   * Server UTC time when every member sees all results: startsAt + SHARED_OPEN_TIMEOUT_MS, moved earlier to the moment
-   * every active entrant has opened (#88). Before it, each entrant sees only their own prize after opening (myResults).
+   * Server UTC time when every member sees all results: startsAt + SHARED_REVEAL_DELAY_MS, fixed (#88). Before it, each
+   * entrant sees only their own prize after opening (myResults). After it, results include entrants who have not opened
+   * yet; the app keeps the caller's own prize hidden until they open.
    */
   revealAt: string
   /** Server UTC time after which ready/start can be requested for the next round (revealAt + 15 s). */
@@ -142,8 +144,8 @@ export interface RoomTransport {
   /** Host only. Turns pitch mode on or off for the following rounds. */
   setPitchMode(room: string, on: boolean): Promise<Snapshot>
   /**
-   * An entrant opens their own capsule of the latest round, from startsAt (#88). Returns the snapshot with the caller's
-   * prize in myResults. Retrying is harmless. Watchers, an older round or before startsAt: invalid-round.
+   * An entrant opens their own capsule of the latest round, any time after the start (#88, no time limit). Returns the
+   * snapshot with the caller's prize in myResults. Retrying is harmless. Watchers or an older round: invalid-round.
    */
   open(room: string, roundNo: number): Promise<Snapshot>
   leave(room: string): Promise<void>
