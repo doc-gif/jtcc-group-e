@@ -28,7 +28,22 @@ pnpm install --frozen-lockfile
 
 `workflow_run` の承認ジョブは `main` のスクリプトだけを実行し、PR のコードや成果物を実行しない。フォークからの PR は自動承認の対象外。進行中の修正は Draft のままにする。
 
-## main が進んだとき
+## マージのキュー（main が進んだとき）
+
+main は「最新の main を含むこと」を必須にしている（strict）。そのため、ほかの PR が先にマージされると、CI が成功した PR も main より遅れてマージできない。以前は各エージェントが手で main を取り込み、CI をやり直していた。いまは **Bot がキューとして1本ずつ行う**（`scripts/auto-merge.mjs` の `advanceQueue`、[HANDOFF の 6](HANDOFF.md) の 1）。
+
+- 対象は、Ready で、head の最新の CI が成功した、同じリポジトリの PR。**番号の小さい順に1本ずつ**処理する。
+- main より遅れていれば、Bot が main を PR のブランチへマージする。そのうえで、そのブランチの CI を `workflow_dispatch` で起動する。GITHUB_TOKEN の push では pull_request の CI が動かないため。
+  - CI の結果は PR の head の SHA に付き、必須チェックになる。
+  - キューの CI が動いている間は、次の PR に手を付けない。
+- 成功したら、いつもどおり Bot が承認してマージし、次の PR へ進む。キューを動かす時機は3つ: CI の完了、Ready、10分ごとの見回り（`schedule`）。どれも毎回すべての PR を見直すので、イベントが落ちても次の見回りで進む。
+- **作業者が手で main を取り込む必要はない。** Ready にして CI が成功したら、待つだけでよい。
+- **キューから外れる**のは次の2つ。どちらも Bot が PR にコメントするので、直して push する。CI が成功すればキューに戻る。
+  - 取り込めない: 競合するとき、または main が `.github/workflows` を変えたとき（GITHUB_TOKEN はワークフローを書き換えるコミットを push できない）。作業者が `git merge origin/main` で取り込む。
+  - 取り込んだ後の CI が失敗した: よくあるのは、**UI の変更が main と重なったとき**。UI の digest がどちらの記録とも合わなくなるため、今の UI を確かめて記録を作り直す（`pnpm ux:digest` → `docs/ux-reviews/`）。UI を変えない PR、または main 側に UI の変更がないときは、digest がどちらかの記録と一致するので作り直しは要らない。
+- 品質の門は変えていない。キューの CI も `Quality gate`・`UI/UX gate`・全5構成を通す。main の保護設定も変えていない。GitHub の merge queue は、個人アカウントのリポジトリでは使えないため使っていない。
+
+手で取り込むときは次のとおり。
 
 ```bash
 git fetch origin
@@ -38,9 +53,7 @@ pnpm verify
 git push
 ```
 
-再度 CI に成功すると自動承認の対象になる。共有ブランチへの force push や、保護ルールを外した直接マージは行わない。
-
-同時マージは直列化する。GitHub concurrency では待機中ジョブが新しい実行で置き換わる場合がある。成功済みなのに処理されないときは、Actions の「Approve and merge tested PR」を、該当 CI の run ID を入力して再実行する。実行時にも最新 SHA とゲートを検証する。
+共有ブランチへの force push や、保護ルールを外した直接マージは行わない。キューが動かないように見えるときは、Actions の「Approve and merge tested PR」を run ID なしで手動実行する（キューだけ進める）。run ID を入れると、その CI の結果でマージを試す。どちらも実行時に最新 SHA とゲートを検証する。
 
 ## 初期構築だけの例外
 

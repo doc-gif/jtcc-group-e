@@ -7,11 +7,15 @@ on:
   workflow_run:
     workflows: [CI]
     types: [completed]
+  # マージのキューの見回り。イベントが落ちても（待機中の実行が置き換えられても）次の見回りで進める。
+  schedule:
+    - cron: '*/10 * * * *'
   workflow_dispatch:
     inputs:
       run_id:
-        description: Successful CI run ID to retry
-        required: true
+        description: CI run ID to retry (empty = only advance the merge queue)
+        required: false
+        default: ''
         type: string
 
 permissions: {}
@@ -22,11 +26,12 @@ concurrency:
 
 jobs:
   merge:
-    if: github.event_name == 'pull_request_target' || github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success')
+    # CI の完了は成功でも失敗でも来る（キューの CI の失敗を PR に知らせ、次の PR へ進めるため）。push の CI は対象外。
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.event == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      actions: read
+      actions: write
       contents: write
       pull-requests: write
     steps:
@@ -39,11 +44,14 @@ jobs:
           CI_RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
         with:
           script: |
-            const { autoMerge, readyRunId } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/auto-merge.mjs`)
+            const { advanceQueue, autoMerge, readyRunId } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/auto-merge.mjs`)
             const runId = context.eventName === 'pull_request_target'
               ? await readyRunId({ github, ...context.repo, pr: context.payload.pull_request })
-              : Number(process.env.CI_RUN_ID)
-            if (!runId) { core.info('CI is not complete; workflow_run will handle the merge'); return }
-            const result = await autoMerge({ github, ...context.repo, runId })
-            core.info(result)
-            await core.summary.addRaw(result).write()
+              : Number(process.env.CI_RUN_ID || 0)
+            const results = []
+            if (runId) results.push(await autoMerge({ github, ...context.repo, runId }))
+            else results.push('no completed CI run for this event')
+            // After every event, move the queue: merge a green up-to-date PR or bring main into the oldest green one.
+            results.push(await advanceQueue({ github, ...context.repo }))
+            for (const line of results) core.info(line)
+            await core.summary.addRaw(results.join('\n\n')).write()
