@@ -22,18 +22,17 @@
 - 後片付け: ローカル検証用のキー（label `local test 2026-09-26`、担当者のキーとは別）は 2026-09-26 05:41 UTC に `revoked_at` で無効にし、検証のルームも閉じた。**担当者のキー（label `owner 2026-09`, id `0e61b081-eb69-4860-9909-3df411dec211`）は触らない。**
 - 後続（別 PR）:
   - 別端末でホストを再開したあと、元の端末が「ルームは終了しました」と出る → 実態は「ホストが別の端末に移った」。文言と状態を分ける（マスターにない状態なので Figma を先に）。
-  - ロビーの反映がポーリングで最大 15〜30 秒。
+  - ロビーの反映がポーリングで最大 15〜30 秒 → #68 で Realtime を有効にした。
 
 ## 2. 担当者の返事待ち
-- **Realtime を有効にするか**（今はポーリング15秒。有効にすると即時。「今すぐ開始」の遅れが消える）。ピッチでは当面「予約開始（1分後など）」を使うよう案内済み。
+- Realtime は有効にすると決まり、#68 で対応した（ポーリングは保険として残る）。100 人のルームで無料プランの上限が足りるかは #68 で担当者の判断待ち。
 - **会場の人数**: 匿名ログインの上限が 60件/時/IP。同じ Wi‑Fi だと61人目以降が入れない可能性。Supabase Dashboard → Authentication → Rate Limits で上げる。
 
-## 3. F15 ピッチ用の実物グッズ写真（途中・要注意）
-- **本番 DB にはすでに migration `20260926052120 lp_pitch_goods_photos` を適用済み**（非公開バケット `pitch-goods`：1 MiB・JPEG のみ・0 枚、関数 `public.lp_can_view_photos()`（開いているルームの参加者・ホストだけ true、authenticated のみ実行可）、`storage.objects` の読み取りだけのポリシー `lp_pitch_goods_read`。書き込みのポリシーはなく、アップロードは Dashboard だけ）。
-- **その migration ファイルと途中のコードは、ブランチ `claude/f15-pitch-photos`（`636add7`、WIP・未検証、#41 の最初のコミット `e9a283c` の上）にだけある。** main にはまだない＝DB がリポジトリより先に進んでいる。このブランチに `origin/main`（#41 マージ済み）を merge して続けるか、同じ migration ファイルを新しいブランチに入れる（ファイル名・中身を変えない）。
-- 入っているもの: `src/realtime/photos.ts`・`src/app/pitchPhotos.ts`（読み込みと対応表）、ルームの結果画面の写真・フォールバック・© 表記（`src/components/Room.tsx`・`src/screens/Room.tsx`・`room.css`）、`glowLabel` を `src/domain/odds.ts` へ移動、`sharedRoom.ts` の写真の配線、DB テスト3件（Storage の小さな代役、27/27 成功）。
-- 足りないもの: 写真の画面テスト、担当者向け `docs/PITCH_PHOTOS.md`、`docs/SQL_MIGRATION_F15.md`、文書の更新、UX レビュー記録、実 DB での「参加者は読める・部外者は読めない」の取り消す取引での確認と advisors。
-- 許諾の範囲（担当者、2026-09-26）: **ピッチ・関係者だけ**、**実物グッズの写真だけ**（キャラクターの絵はアプリに入れない）。写真はリポジトリ・`public/`・プレビュー・本番ビルドに入れない。governance の画像の許可リストのテストは緩めない。ASSET_LIBRARY.md に許諾と範囲を記録する。
+## 3. F15 ピッチ用の実物グッズ写真（Issue #55、lock:supabase #51）
+- migration `20260926052120 lp_pitch_goods_photos` は、クラウドの作業で先に本番 DB へ適用された（非公開バケット `pitch-goods`：1 MiB・JPEG のみ、関数 `public.lp_can_view_photos()`（開いているルームの参加者・ホストだけ true、authenticated のみ実行可）、`storage.objects` の読み取りだけのポリシー `lp_pitch_goods_read`。書き込みのポリシーはなく、アップロードは Dashboard だけ）。ファイルはブランチ `claude/f15-pitch-photos` で、名前・中身を変えずに main へ入れる。仕組みと実 DB での確認は [SQL_MIGRATION_F15.md](SQL_MIGRATION_F15.md)、担当者のアップロード手順は [PITCH_PHOTOS.md](PITCH_PHOTOS.md)。
+- 許諾の範囲（担当者、2026-09-26）: **ピッチ・関係者だけ**、**実物グッズの写真だけ**（キャラクターの絵はアプリに入れない）。写真はリポジトリ・`public/`・プレビュー・本番ビルドに入れない。governance の画像の許可リストのテストは緩めない。記録は ASSET_LIBRARY.md の「例外」。
+- 権利表記: 写真を出すときだけ、結果の舞台の下端に素材ライブラリのカードと同じ1行を出す。担当者はマスターへの追加を承認（2026-09-26「マスターに追加」）。マスターのロック（F14 の #50、続けて #71）の間は触らず、提案を Town v2 の `task/claude/f15-pitch-photos`（`369:8216`、複製 `369:8221`）に置いた。マスターのロックが空いたら `267:9379` へ同じ帯を入れる（ADOPTED_DESIGN.md の T10 の 9）。
+- **7 のデモ用の部屋を作るとき**: 今の `lp_can_view_photos()` は開いているどの部屋の参加者でも true になる。誰でも入れるデモの部屋を足す migration では、写真をピッチの部屋（`kind = 'pitch'`）だけに絞る（許諾の範囲の確認までデモでは出さない）。
 
 ## 4. F14 サンリオの世界観（Figma）
 - 2026-09-26 に、マスター `267:8198` の全64画面と部品2点に、作業領域 `323:3796` の複製と同じ装飾を node ID・遷移を保ったまま反映した。変数のまとまりは `Lastpiece v2 / Sanrio World (F14)`（draft を外した）。記録は [ADOPTED_DESIGN のマスターの変更履歴](ADOPTED_DESIGN.md#マスターの変更履歴) と [STATUS の F14](STATUS.md)。状況は [#56](https://github.com/doc-gif/jtcc-group-e/issues/56)、マスターの編集ロックは [#50](https://github.com/doc-gif/jtcc-group-e/issues/50)。

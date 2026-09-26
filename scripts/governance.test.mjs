@@ -24,6 +24,13 @@ test('禁止語（換金・必ず当たる・還元率100%・等級の文字）�
   }
 })
 
+test('内部素材の ID・Figma のファイルと URL をアプリのコードに入れない（コメントは除く。ビルドに残るため）', async () => {
+  for (const path of sources) {
+    const code = (await read(path)).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+    expect(code.match(/\b[WPL]0\d\d\b|figma\.com|yeDF1BwhrxpXI57Daainle|MYYMoB2wL7LvA2oXZ2gxpT/g), path).toBeNull()
+  }
+})
+
 // 担当者の決定（#69）: 各画面の上部の1行は「ラストピースは開発中のサービスです」、下の注記は「商品・価格・在庫は例です」。
 test('「ラストピースは開発中のサービスです」の1行の部品があり、上部と各入口で使う', async () => {
   const chrome = await read('src/components/Chrome.tsx')
