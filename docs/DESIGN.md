@@ -18,33 +18,36 @@
 | [Archive / Adopted Snapshot v1 · T11 (rejected: green accent)](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=252-2) | 不採用。主操作を緑に塗り替えた版。元にしない |
 | [320px 幅の部品確認](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=80-2) | 長文・エラー説明・折返しのインスタンス見本 |
 
-## 初版の範囲
+## トークンの範囲
 
-2026-09-25、JTCC App の雛形について「現在のアプリの緑系を維持」を選択し、アクセント `#16634d`、背景 `#f5f7f5`、本文 `#172324` で初版を作った。以下はその初版の記録。**ラストピースの画面は、2026-09-26 の担当者の指示によりピンク基調の「さくらミルク」を正とし、緑の主操作は採用しない**（[デザインマスター](ADOPTED_DESIGN.md)）。初版の緑系トークンをピンク系へ整理する作業は後続タスク。ピッチ資料のコーラル・ラベンダーとは別の用途として管理する。
+ラストピースの画面は、2026-09-26 の担当者の指示によりピンク基調の「さくらミルク」を正とし、緑の主操作は採用しない（[デザインマスター](ADOPTED_DESIGN.md)）。`design-system/` はマスターが参照する Figma 変数の記録で、2026-09-26 に v0.2 としてピンク系へ整理した。ピッチ資料のコーラル・ラベンダーとは別の用途として管理する。
 
-- 4コレクション・57変数: Primitives 12、Color 16、Layout 17、Typography 12。各コレクション1モード。Color は Light。
-- 文字スタイル: Display 34/44、Title 24/34、Heading 20/30、Body 17/30、Label 17/24、Caption 14/22（サイズ/行高、px）。
-- 影: `JTCC/Shadow/Card`。角丸: control 12、card 20、pill 999px。
-- Button: Primary / Secondary × Default / Hover / Focus / Pressed / Disabled / Loading = 12。
-- Input: 5状態。Label、Value、Helper、Show helper、Filled value、Invalid value、Error message、Disabled reason のプロパティ。エラー説明は非表示にしない。
-- Card: 2種類。Title、Description、Show description。Card 自体は操作要素にしない。
+- 変数: `Lastpiece v2 / Primitives`（`177:15`、14変数）と `Lastpiece v2 / Tokens`（`177:16`、30変数、mode Light）。マスター `267:8198` の変数結合はすべてこの2つ。
+- 部品: `LP v2 / Button`（`179:34`、説明 `179:19`）Primary / Outline × Default / Focus / Disabled = 6、高さ48px。`LP v2 / Navigation Item`（`180:27`）Selected / Default / Focus、`LP v2 / Bottom Navigation`（`180:28`）。本体は Town v2 `134:2` にあり、マスターが live 参照する。
+- 文字スタイル: `Lastpiece v2/` の Display 32/44（Shippori Mincho Bold）、Title 24/32、Body 17/29、Label 16/24、Caption 14/22（サイズ/行高、px。Noto Sans JP）。
+- Figma に残る緑: `color/action/pressed` → `primitive/forest-deep` `#0e4b39`。マスターと部品は参照していないため、`tokens.css` に定義しない。Figma 変数はマスターの見た目に直結するので、この整理では変更していない。
+- `primitive/forest` は名前だけ旧版の名残で、値はピンク `#be6482`。
 
-これらは **Figma の設計部品**。React の共通 Button/Input/Card、業務画面、操作を実行するプロトタイプ、Dark モードはまだ実装していない。変数の WEB code syntax は CSS の実在する定義に対応するが、Code Connect の React マッピングは実装ができた時点で設定する。ファイル内の Assets で使うローカル部品であり、チーム向けの公開ライブラリ配信は行っていない。
+これらは **Figma の設計部品と参照用トークン**。React の共通部品、Dark モード、Code Connect はまだない。ファイル内のローカル部品で、公開ライブラリ配信は行っていない。
+
+### 初版（JTCC App・緑系、履歴）
+
+2026-09-25 に JTCC App の雛形として「現在のアプリの緑系を維持」を選び、アクセント `#16634d`、背景 `#f5f7f5`、本文 `#172324` で作った。4コレクション57変数（`JTCC / Primitives` ほか）、`JTCC/Button`・`Input`・`Card` の3部品。**ラストピースには使わない。** 記録は Git の `fb93ffa:design-system/figma-manifest.json` に残す。Figma 上ではこのコレクションに後から変数が追加され、`primitive/green/700`・`800` の値もピンクに変わっているため、初版の記録と一致しない。
 
 ## コードとの対応
 
-- [`../design-system/tokens.css`](../design-system/tokens.css): 57変数と影の参照用 CSS。現行アプリはまだ import していない。次の UI 実装 PR で必要な箇所へ適用し、実画面を検証する。
-- [`../design-system/figma-manifest.json`](../design-system/figma-manifest.json): ファイル、ページ、部品、変数、文字スタイル、コントラスト検証の初版スナップショット。
-- CSS 名は `var(--jtcc-<Figma の名前をハイフン区切り>)`。色の semantic layer は primitive を参照する。通常は用途別の色を使う。
-- Figma の文字寸法は px、CSS の文字寸法は16pxを基準に rem へ換算。ブラウザの文字拡大を維持する。本文は17pxが基準。
-- Figma は Noto Sans JP。現行 Web は Inter と OS の日本語フォントのスタックで、同一の字形・改行は保証しない。日本語フォントを配信するかは実装時に決め、字幅と長文を実画面で比較する。
-- 既存の雛形は数値を直書きしている。色とカードの形を継承したが、全スタイルの自動同期・移行は完了扱いにしない。
+- [`../design-system/tokens.css`](../design-system/tokens.css): `Lastpiece v2` の変数（緑の `action/pressed` を除く）と、文字スタイル・Button のフォーカスを CSS にした参照用ファイル。現行アプリはまだ import していない。次の UI 実装 PR で必要な箇所へ適用し、実画面を検証する。
+- [`../design-system/figma-manifest.json`](../design-system/figma-manifest.json): コレクション、変数の値・alias・マスターでの結合件数、部品、文字スタイル、コントラスト、現行 Web との差、初版の履歴。
+- CSS 名は Figma 変数の WEB code syntax と同じ。`--bg`・`--surface`・`--soft`・`--main`・`--deep` は `src/index.css` と同名・同値。その他は `--lp-v2-*`。初版の `--jtcc-*` は使わない。`--lp-v2-type-*` と `--lp-v2-focus-ring` は Figma 変数がないため CSS 側で名前を付けた。
+- Figma の文字寸法は px、CSS は16px基準の rem。ブラウザの文字拡大を維持する。Web は Noto Sans JP を先頭にした OS フォントのスタックで、同じ字形・改行は保証しない。
+- **現行 Web（`src/index.css`）との差:** 本文 Figma `#172324` / Web `#5C4A50`、補助文 `#52615a` / `#7D646C`、主操作 `#be6482` / `#A94A68`、フォーカス `#be6482` / `#A94A68`、区切り線 `#d8c9cf` / `#F5DDE4`。無効の塗り `#d4dcd7` とタブ選択 `#e3f1e7` は Web にない。Web 実装時にどちらへ揃えるかを決める（下の確認記録）。
+- Figma の `JTCC / Lastpiece`（`83:18`）は `src/index.css` と同じ値の変数集だが、マスターは参照していない。
 
 ## 作業者・エージェントの手順
 
 1. [開発手順](DEVELOPMENT.md)に従い最新 main から専用 worktree / ブランチを作る。他の未完了 PR を読み、Draft PR に担当ファイル、Figma の対象 node、共通部品の変更有無を書く。
 2. `Lastpiece / Town v2` に `task/<branch>` の作業領域を用意する。マスターページを直接の作業場所にしない。画面名は `<screen>/<state>`。担当者、目的、関連 PR、Draft / Ready / Implemented を明記する。同時作業の領域は分ける。
-3. 320pxと390pxを基準に、必要な通常・待機・空・失敗・完了を設計する。JTCC 変数・文字スタイル・部品インスタンスを使う。共通部品本体や変数は、担当が重複していないことを確認してから変える。既存ページの削除や全体置換をしない。
+3. 320pxと390pxを基準に、必要な通常・待機・空・失敗・完了を設計する。`Lastpiece v2` の変数・文字スタイル・マスターと同じ部品インスタンスを使う。共通部品本体や変数は、担当が重複していないことを確認してから変える。既存ページの削除や全体置換をしない。
 4. Ready にした画面の node URL、変更前後の画像、各状態の意図を PR に添える。仕様が未確定なら Draft として明記し、実装済み画面と区別する。
 5. 実装は Figma と照合し、[UI/UX 基準](UI_UX_STANDARDS.md)の全10項目をレビューする。GAME-01 の evidence に node URL と比較した画面・状態を含める。Figma の見本だけで Web のアクセシビリティ検証を済ませない。
 6. トークン変更時は CSS と manifest を更新し、値・名前・alias・色の組合せを確認する。変更した node ID と変更理由を PR に残す。`pnpm verify` に成功してから PR を Ready にする。
@@ -64,8 +67,14 @@ Figma の node URL は編集後も同じ URL になり得る。各採用 PR に�
 
 公開時には Release に採用 PR とデザイン記録の Git commit permalink を含める。実際に触れる過去 Web アプリは `/versions/vX.Y.Z/` と Release の ZIP で保持する。Figma のライブリンクだけを過去版保存の代わりにしない。
 
-## 初版の確認記録
+## トークンの確認記録
 
-色の WCAG 相対輝度計算: 本文/背景14.98:1、補助文/背景5.87:1、白/主操作7.18:1、エラー/白7.03:1、入力枠/白4.05:1。本文・操作ラベルは4.5:1、入力境界は3:1以上。`border/subtle` は非操作の区切り専用で、入力境界には使わない。
+2026-09-26、Figma を読み取り専用で確認した（変数・部品は変更していない）。WCAG 相対輝度、小数第3位切り捨て。本文・操作ラベルは4.5:1、非文字の境界は3:1以上。
 
-3部品19バリアントの塗り・線は変数へ結合し、参照切れ0件。Button は48px以上、Input の Control は48px以上。320px幅・左右20pxの余白で長いボタン文言、カード見出し、エラー説明が折り返されることを Figma のインスタンスで確認した。これは Web のキーボード・文字200%・実機セーフエリアの確認を代替しない。
+- 合格: 本文/背景15.49:1、本文/淡いピンク14.35:1、補助文/背景6.27:1、補助文/白6.52:1、補助文/淡いピンク5.81:1、ワイン `#a94a68`/白5.43:1、フォーカス線/白3.93:1。
+- **不足:** 白/主操作 `#be6482` 3.93:1（Button Primary の16px Bold ラベル）、主操作色の文字/白3.93:1（Outline のラベル）、主操作色の文字/背景3.78:1、主操作色/タブ選択 `#e3f1e7` 3.37:1（14pxラベル）。マスターの見た目のままでは操作ラベルが基準に届かない。現行 Web の主操作 `#A94A68` は白文字5.43:1で合格。Figma を直すか Web の値を正とするかは未決。
+- `border/default` `#d8c9cf`/白1.59:1 は区切り・無効枠だけに使い、操作境界に使わない。
+
+### 初版の確認記録（履歴）
+
+初版の緑系では、本文/背景14.98:1、補助文/背景5.87:1、白/主操作7.18:1、エラー/白7.03:1、入力枠/白4.05:1。3部品19バリアントの塗り・線は変数へ結合し、参照切れ0件。320px幅での折り返しを Figma のインスタンスで確認した。これは Web のキーボード・文字200%・実機セーフエリアの確認を代替しない。

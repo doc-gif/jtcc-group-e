@@ -1,6 +1,6 @@
 # T13: 共有オープニング SQL 草案のレビュー
 
-この記録は提案モックの supabase/drafts に対するものです。Supabase 本番プロジェクトへ SQL を適用していません。正式 migration は T14 で作成します。
+この記録は提案モックの supabase/drafts に対するものです。Supabase 本番プロジェクトへ SQL を適用していません。正式 migration は T14 で作成しました（[T14 の記録](SQL_MIGRATION_T14.md)）。
 
 ## 変更
 
