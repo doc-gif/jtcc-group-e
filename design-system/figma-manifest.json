@@ -5,7 +5,7 @@
   "designStatus": "adopted-master",
   "implementationStatus": "applied-to-app-css",
   "implementationNote": "アプリは tokens.css を import せず、同じ値を src/index.css に持つ（F06、2026-09-26）。対応は appMapping。F14 の Lastpiece v2 / Sanrio World (F14)（323:3784）の --lp-v2-sanrio-* も、Issue #70 のアプリ実装で src/index.css に同じ名前・同じ値で持つ（0.4.1）。見出しの Zen Maru Gothic Bold は src/fonts/ に OFL の woff2（アプリで使う文字だけの subset）を同梱。 0.5.0（#125）: #122 で Tokens に入ったアプリ由来の変数（--primary・--line・--head・--shelf-*・--art-mint・--lux-text・--disabled-soft*・--lp-v2-capsule-*・--lp-v2-radius-*・--lp-v2-action-pressed）と文字スタイル 5 種の寸法を src/index.css に同じ名前・同じ値で持つ。同名の値の一致は scripts/design-tokens.test.mjs が CI で検査する。",
-  "paletteDecision": "Pink \"Sakura Milk\" (さくらミルク) is the adopted palette (owner, 2026-09-26). Green accent version 252:2 is rejected; primary actions are not green. Primary stays #be6482 with 19px bold button labels (WCAG large text); smaller pink text uses wine #a94a68; mint #e3f1e7 is kept for the selected tab and coin badge (owner, 2026-09-26).",
+  "paletteDecision": "Pink \"Sakura Milk\" (さくらミルク) is the adopted palette (owner, 2026-09-26). Green accent version 252:2 is rejected; primary actions are not green. Primary stays #be6482 with 19px bold button labels (WCAG large text); smaller pink text uses wine #a94a68; mint #e3f1e7 is kept for the selected tab only (owner, 2026-09-26); the coin badge is white with a sanrio/melody-pink 1.5px border and wine text (owner decision B1 in #120, 2026-09-26; app change in #143).",
   "pinkTextRule": {
     "decidedOn": "2026-09-26",
     "by": "owner",
@@ -1555,7 +1555,7 @@
       "minimum": 4.5,
       "ratio": 4.65,
       "pass": true,
-      "note": "選択中のタブの文字（12〜14px）とコイン札"
+      "note": "選択中のタブの文字（12〜14px）。Web のコイン札は #143 で白地に変わるまでこの組合せ（#120 B1）"
     },
     {
       "name": "text/secondary / nav/selected",
