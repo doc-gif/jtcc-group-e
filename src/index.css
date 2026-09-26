@@ -47,9 +47,26 @@
 
 * { box-sizing: border-box; }
 
-html { min-width: 320px; font-size: 100%; }
+/*
+ * アプリのような触り心地（F16）。画面全体のピンチ・ダブルタップの拡大、引っぱって再読み込み、端のバウンドと
+ * 横スワイプの戻る/進むを止める。iOS Safari のピンチは src/app/gestures.ts の gesturestart でも止める。
+ * 文字の拡大は OS の文字サイズ（rem）に任せる。viewport の maximum-scale / user-scalable=no は使わない。
+ */
+html {
+  min-width: 320px; font-size: 100%;
+  touch-action: pan-x pan-y;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
 
-body { margin: 0; background: var(--bg); line-height: 1.7; }
+body { margin: 0; background: var(--bg); line-height: 1.7; overscroll-behavior: none; }
+
+/* 押す部品と絵は長押しのメニュー・文字選択を出さない。入力欄と本文の説明は選べるまま */
+button, [role='button'], a, img, svg {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
 
 button, input, textarea, select { font: inherit; letter-spacing: inherit; color: inherit; }
 

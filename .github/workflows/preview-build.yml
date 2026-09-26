@@ -13,8 +13,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  scope:
+    name: Change scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      docs_only: ${{ steps.scope.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # ci.yml と同じ判定（main 側のスクリプト）。文書だけの PR は画面が変わらないのでプレビューを作らない。
+      - name: Classify the PR with main's rules
+        id: scope
+        run: |
+          if git show HEAD^1:scripts/change-scope.mjs > "$RUNNER_TEMP/change-scope.mjs" 2>/dev/null; then
+            node "$RUNNER_TEMP/change-scope.mjs" HEAD^1 HEAD
+          else
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Preview build
+    needs: scope
+    if: needs.scope.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
