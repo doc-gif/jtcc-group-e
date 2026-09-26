@@ -123,14 +123,14 @@ export function demoTransport({ storage, session, isOnline = () => true, lock = 
     schedule: call(inner.schedule),
     setPitchMode: call(inner.setPitchMode),
     leave: call(inner.leave),
-    subscribe(room, refresh) {
+    subscribe(room, refresh, onStatus) {
       load()
       let stopInner = () => {}
       // 入室・準備・開始などの変化は、このタブの画面に加えてほかのタブにも知らせる。
       // snapshot だけ（接続時刻の更新）では知らせないので、タブの間で取り直しが続かない。
       // 通知は操作の保存が終わった後に出す（操作の途中で取り直すと、保存前の状態を読み込んでしまう）。
       const wake = () => queueMicrotask(() => { refresh(); storage.setItem(ROOM_DEMO_WAKE_KEY, `${room}:${newId()}`) })
-      try { stopInner = inner.subscribe(room, wake) } catch { /* 起床通知だけ。ポーリングで取得する */ }
+      try { stopInner = inner.subscribe(room, wake, onStatus) } catch { onStatus?.('down') /* 起床通知だけ。ポーリングで取得する */ }
       const stopListen = listen?.(refresh) ?? (() => {})
       return () => { stopInner(); stopListen() }
     },

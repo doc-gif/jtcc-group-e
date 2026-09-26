@@ -1,0 +1,39 @@
+name: Repo labels
+# ラベルの正はこのファイル。手で作らず、ここに足して main に入れる。
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/repo-labels.yml']
+  workflow_dispatch:
+permissions:
+  issues: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const labels = [
+              { name: 'todo', color: 'ededed', description: '着手前。マネージャーが割り当てる' },
+              { name: 'in-progress', color: 'fbca04', description: '着手中（着手コメントにチャット名・ブランチ）' },
+              { name: 'review', color: '0075ca', description: 'PR が Ready で CI・レビュー待ち' },
+              { name: 'blocked', color: 'b60205', description: '人の操作・他の Issue 待ち' },
+              { name: 'needs-owner', color: 'd93f0b', description: '担当者（人）の判断・操作待ち' },
+              { name: 'ready-to-release', color: '0e8a16', description: 'マージ済みで本番公開待ち（マネージャーが公開する）' },
+              { name: 'priority:high', color: 'e11d21', description: '急ぎ（ピッチ前に必要）' },
+              { name: 'parallel-ok', color: 'c2e0c6', description: '他のタスクと同時に進められる' },
+              { name: 'lock:supabase', color: '5319e7', description: 'Supabase の migration・本番 DB を使用中（同時に1つ）' },
+              { name: 'lock:figma-master', color: '5319e7', description: 'Figma のマスター 267:8198 を編集中（同時に1つ）' },
+              { name: 'scope:docs-only', color: 'c5def5', description: '文書だけの PR（軽い CI）' },
+              { name: 'manager', color: '1d76db', description: 'マネージャー（定期実行）が書いた記録' },
+            ]
+            const { data: existing } = await github.rest.issues.listLabelsForRepo({ ...context.repo, per_page: 100 })
+            const byName = new Map(existing.map((l) => [l.name, l]))
+            for (const l of labels) {
+              const cur = byName.get(l.name)
+              if (!cur) { await github.rest.issues.createLabel({ ...context.repo, ...l }); core.info(`created ${l.name}`); continue }
+              if (cur.color !== l.color || (cur.description ?? '') !== l.description) {
+                await github.rest.issues.updateLabel({ ...context.repo, name: l.name, color: l.color, description: l.description }); core.info(`updated ${l.name}`)
+              }
+            }

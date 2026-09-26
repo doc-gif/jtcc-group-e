@@ -49,9 +49,9 @@ function network(inner: RoomTransport, latency = 0) {
     schedule: (room, minutes) => call(() => inner.schedule(room, minutes)),
     setPitchMode: (room, on) => call(() => inner.setPitchMode(room, on)),
     leave: room => call(() => inner.leave(room)),
-    subscribe: (room, refresh) => {
+    subscribe: (room, refresh, onStatus) => {
       if (net.subscribeFails) throw new Error('realtime: unauthorized')
-      return inner.subscribe(room, refresh)
+      return inner.subscribe(room, refresh, onStatus)
     },
   }
   return { transport, net }
@@ -369,6 +369,7 @@ test('購読に失敗してもポーリングで更新し、期限切れで止�
   await host.createAsHost(KEY, 'ホスト')
   await server.asUser('friend').join(host.getState().snapshot!.invite, '友だち')
   await vi.advanceTimersByTimeAsync(0)
+  expect(host.getState()).toMatchObject({ realtime: 'polling' })
   expect(host.getState().members).toHaveLength(1)
   await vi.advanceTimersByTimeAsync(ROOM_POLL_MS)
   expect(host.getState()).toMatchObject({ phase: 'lobby', seats: { taken: 2, capacity: 100, full: false } })
@@ -376,6 +377,66 @@ test('購読に失敗してもポーリングで更新し、期限切れで止�
   await vi.advanceTimersByTimeAsync(2 * 60 * 60_000)
   expect(host.getState().phase).toBe('unavailable')
   expect(vi.getTimerCount()).toBe(0)
+})
+
+test('#68: 購読できると入室・準備・開始がポーリングを待たずに全員へ届く', async () => {
+  const { controller } = setup()
+  const host = controller('host')
+  await host.createAsHost(KEY, 'ホスト')
+  expect(host.getState().realtime).toBe('live')
+  const { invite } = host.getState().snapshot!
+  const a = controller('a')
+  await a.join(invite, 'あ')
+  expect(a.getState().realtime).toBe('live')
+  // 入室: ホストの「集まっている人」がすぐ増える
+  await vi.advanceTimersByTimeAsync(0)
+  expect(host.getState().seats.taken).toBe(2)
+  const b = controller('b')
+  await b.join(invite, 'い')
+  await vi.advanceTimersByTimeAsync(0)
+  expect(host.getState().seats.taken).toBe(3)
+  expect(a.getState().seats.taken).toBe(3)
+  // 準備: ホストの画面にすぐ出る
+  await a.setReady(true)
+  await vi.advanceTimersByTimeAsync(0)
+  expect(host.getState().readyOthers).toBe(1)
+  // 今すぐ開始: 参加者の秒読みがすぐ始まる（8 秒の秒読みを飛ばさない）
+  await host.start()
+  await vi.advanceTimersByTimeAsync(0)
+  expect(a.getState()).toMatchObject({ phase: 'countdown', secondsLeft: 8 })
+  expect(b.getState()).toMatchObject({ phase: 'countdown', secondsLeft: 8 })
+  // 退室: 人数がすぐ減る
+  await b.leave()
+  await vi.advanceTimersByTimeAsync(0)
+  expect(host.getState().seats.taken).toBe(2)
+  host.detach()
+  expect(host.getState().realtime).toBe('polling')
+})
+
+test('#68: 購読が切れたらポーリングだけに戻り、つながり直したら一度取り直す', async () => {
+  const { server } = setup()
+  const inner = server.asUser('host')
+  let status: ((value: 'live' | 'down') => void) | undefined
+  const snapshots = vi.fn(inner.snapshot)
+  const transport: RoomTransport = { ...inner, snapshot: snapshots, subscribe: (_room, _refresh, onStatus) => { status = onStatus; return () => {} } }
+  const host = createRoomController(transport, { requestId: () => 'req-1', onWake: () => () => {}, hostKeys: memoryKeys() })
+  host.attach()
+  await host.createAsHost(KEY, 'ホスト')
+  expect(host.getState().realtime).toBe('polling')
+  status!('live')
+  expect(host.getState().realtime).toBe('live')
+  expect(snapshots).not.toHaveBeenCalled()
+  status!('down')
+  expect(host.getState().realtime).toBe('polling')
+  await server.asUser('a').join(host.getState().snapshot!.invite, 'あ')
+  status!('live')
+  await vi.advanceTimersByTimeAsync(0)
+  expect(snapshots).toHaveBeenCalledTimes(1)
+  expect(host.getState()).toMatchObject({ realtime: 'live', seats: { taken: 2 } })
+  // ポーリングは購読中も残す（Realtime が黙って止まったときの保険）
+  await vi.advanceTimersByTimeAsync(ROOM_POLL_MS)
+  expect(snapshots).toHaveBeenCalledTimes(2)
+  host.detach()
 })
 
 test('退室すると最初の状態に戻り、タイマーを残さない', async () => {
