@@ -77,7 +77,8 @@ export function summarizeGa4({ landing, funnel, events, overview, total }, { dem
   const f = rowsOf(funnel)
   const demoRows = f.filter((r) => (r.d[1] ?? '').includes(demoPath))
   const toDemoSessions = demoRows.reduce((a, r) => Math.max(a, r.m[0]), 0) // 同じセッションが複数のデモページを見るので最大値を使う（下限の見積もり）
-  const toDemoSessionsUpper = demoRows.reduce((a, r) => a + r.m[0], 0)
+  // 上限 = ページ別セッション数の合計。同じセッションが複数ページを見ると重複するので、LP のセッション総数を超えない値に切る
+  const toDemoSessionsUpper = Math.min(demoRows.reduce((a, r) => a + r.m[0], 0), sessions || Infinity)
   const pages = f.map((r) => ({ path: r.d[1], sessions: r.m[0], views: r.m[1] })).sort((a, b) => b.sessions - a.sessions).slice(0, 10)
 
   const ev = Object.fromEntries(rowsOf(events).map((r) => [r.d[0], { count: r.m[0], sessions: r.m[1], users: r.m[2] }]))
@@ -98,107 +99,174 @@ export function summarizeGa4({ landing, funnel, events, overview, total }, { dem
 
 // ---------- Clarity ----------
 
-/** Clarity Data Export API の結果（metricName ごとの information 配列）を URL 別に要約する。 */
-export function summarizeClarity(payload, { lpPart = 'lastpiece-lp', demoPart = 'jtcc-group-e' } = {}) {
-  const metrics = Array.isArray(payload) ? payload : payload?.metrics ?? []
-  const byName = Object.fromEntries(metrics.map((m) => [m.metricName, m.information ?? []]))
-  const pick = (rows, part) => rows.filter((r) => (r.URL ?? r.Url ?? r.url ?? '').includes(part))
-  const total = (rows, key) => rows.reduce((a, r) => a + num(r[key]), 0)
-  const site = (part) => {
-    const traffic = pick(byName.Traffic ?? [], part)
-    const scroll = pick(byName.ScrollDepth ?? [], part)
-    const engage = pick(byName.EngagementTime ?? [], part)
-    const dead = pick(byName.DeadClickCount ?? [], part)
-    const rage = pick(byName.RageClickCount ?? [], part)
-    const sessions = total(traffic, 'totalSessionCount')
-    const scrollAvg = scroll.length ? scroll.reduce((a, r) => a + num(r.averageScrollDepth), 0) / scroll.length : null
+/**
+ * Clarity Data Export API の結果を要約する。
+ * - byUrl: dimension1=URL の結果。URL の行を LP とデモに分けて足す。同じ人が複数の URL に出ると、ユーザー数は重複して数えられる。
+ * - totals: 次元なしの結果（プロジェクト全体）。重複なしの数。LP とデモが同じ Clarity プロジェクトなら両方を含む。
+ * 平均（ページ/セッション・スクロール・デッドクリック率・イライラしたクリック率）は、行のセッション数で重み付けする。
+ */
+export function summarizeClarity(byUrl, totals = null, { lpPart = 'lastpiece-lp', demoPart = 'jtcc-group-e' } = {}) {
+  const metricsOf = (payload) => (Array.isArray(payload) ? payload : payload?.metrics ?? [])
+  const byName = (payload) => Object.fromEntries(metricsOf(payload).map((m) => [m.metricName, m.information ?? []]))
+  const urlOf = (r) => r.URL ?? r.Url ?? r.url ?? ''
+  const sum = (rows, key) => rows.reduce((a, r) => a + num(r[key]), 0)
+  // 各行の重み = その行（URL）のセッション数。Traffic の行から URL → セッション数の表を作る
+  const summarize = (m, filter) => {
+    const pick = (rows) => (rows ?? []).filter(filter)
+    const traffic = pick(m.Traffic)
+    const weightOf = Object.fromEntries(traffic.map((r) => [urlOf(r), num(r.totalSessionCount)]))
+    const weighted = (rows, key) => {
+      const rs = pick(rows).filter((r) => r[key] !== undefined && r[key] !== null)
+      const w = rs.reduce((a, r) => a + (weightOf[urlOf(r)] ?? 1), 0)
+      if (!rs.length || w === 0) return null
+      return rs.reduce((a, r) => a + num(r[key]) * (weightOf[urlOf(r)] ?? 1), 0) / w
+    }
+    const round1 = (v) => (v === null ? null : Math.round(v * 10) / 10)
+    const round2 = (v) => (v === null ? null : Math.round(v * 100) / 100)
     return {
-      sessions,
-      botSessions: total(traffic, 'totalBotSessionCount'),
-      users: total(traffic, 'distinctUserCount'),
-      pagesPerSession: traffic.length ? Math.round((traffic.reduce((a, r) => a + num(r.pagesPerSessionPercentage ?? r.PagesPerSessionPercentage), 0) / traffic.length) * 100) / 100 : null,
-      averageScrollDepth: scrollAvg === null ? null : Math.round(scrollAvg * 10) / 10,
-      activeTimeSec: total(engage, 'activeTime'),
-      deadClickRate: dead.length ? Math.round(dead.reduce((a, r) => a + num(r.sessionsWithMetricPercentage), 0) / dead.length * 10) / 10 : null,
-      rageClickRate: rage.length ? Math.round(rage.reduce((a, r) => a + num(r.sessionsWithMetricPercentage), 0) / rage.length * 10) / 10 : null,
+      sessions: sum(traffic, 'totalSessionCount'),
+      botSessions: sum(traffic, 'totalBotSessionCount'),
+      users: sum(traffic, 'distinctUserCount'),
+      pagesPerSession: round2(weighted(m.Traffic, 'pagesPerSessionPercentage') ?? weighted(m.Traffic, 'PagesPerSessionPercentage')),
+      averageScrollDepth: round1(weighted(m.ScrollDepth, 'averageScrollDepth')),
+      activeTimeSec: sum(pick(m.EngagementTime), 'activeTime'),
+      deadClickRate: round1(weighted(m.DeadClickCount, 'sessionsWithMetricPercentage')),
+      rageClickRate: round1(weighted(m.RageClickCount, 'sessionsWithMetricPercentage')),
     }
   }
-  return { lp: site(lpPart), demo: site(demoPart) }
+  const m = byName(byUrl)
+  const out = { lp: summarize(m, (r) => urlOf(r).includes(lpPart)), demo: summarize(m, (r) => urlOf(r).includes(demoPart)), project: null }
+  if (totals) out.project = summarize(byName(totals), () => true)
+  return out
 }
 
 // ---------- 表示 ----------
+// 文面は Google のテクニカルライティングの指針に合わせる: 要約を先に、1 文に 1 つの内容、用語は表で定義、能動態、値には単位。
 
-const fmtPct = (v) => (v === null || v === undefined ? '—' : `${v}%`)
-const fmtNum = (v) => (v === null || v === undefined ? '—' : String(v))
+const NA = 'データなし'
+const fmtPct = (v) => (v === null || v === undefined ? NA : `${v}%`)
+const fmtNum = (v, unit = '') => (v === null || v === undefined ? NA : `${v}${unit}`)
+const countWithRate = (count, rate) => (rate === null || rate === undefined ? `${count}` : `${count}（${rate}%）`)
 
 export function renderMarkdown({ days, ga4, clarity, errors = [] }, now = new Date()) {
-  const lines = []
-  lines.push(`## 計測の集計（${now.toISOString().slice(0, 16).replace('T', ' ')} UTC・GA4 は過去 ${days} 日、Clarity は過去 3 日）`)
-  lines.push('')
+  const stamp = now.toISOString().slice(0, 16).replace('T', ' ')
+  const L = []
+  L.push(`## 計測レポート`)
+  L.push('')
+  L.push(`- 生成: ${stamp} UTC`)
+  L.push(`- 対象期間: GA4 は昨日までの ${days} 日間。Clarity は直近 3 日間（API の上限）。`)
+  L.push(`- 対象: LP（\`${LP_PATH}\`）とデモ（\`${DEMO_PATH}\`）。どちらも同じ GA4 プロパティに送る。`)
+  L.push('')
+
+  // 要約
+  L.push('### 要約')
+  L.push('')
   if (ga4) {
-    lines.push('### GA4: LP に入ったセッション')
-    lines.push('')
-    lines.push('| 指標 | 値 |')
-    lines.push('| --- | --- |')
-    lines.push(`| セッション | ${ga4.sessions}（ユーザー ${ga4.users}、新規 ${ga4.newUsers}） |`)
-    lines.push(`| しっかり見た（エンゲージのあったセッション: 10 秒以上か 2 ページ以上） | ${ga4.engaged}（${fmtPct(ga4.engagedRate)}） |`)
-    lines.push(`| 90% までスクロールしたユーザー | ${ga4.scrolledUsers}（${fmtPct(ga4.scrolledRate)}） |`)
-    lines.push(`| 平均滞在 | ${ga4.avgDurationSec} 秒 |`)
-    lines.push(`| ページ / セッション | ${ga4.pagesPerSession} |`)
-    lines.push(`| **デモ（${DEMO_PATH}）のページも見たセッション** | **${ga4.toDemoSessions}（${fmtPct(ga4.toDemoRate)}）**${ga4.toDemoSessionsUpper > ga4.toDemoSessions ? `（デモ内の複数ページを合算すると最大 ${ga4.toDemoSessionsUpper}）` : ''} |`)
-    lines.push('')
+    L.push(`- LP に入ったセッションは **${ga4.sessions}** 件です。`)
+    L.push(`- そのうちしっかり見たセッションは **${countWithRate(ga4.engaged, ga4.engagedRate)}** です。`)
+    L.push(`- デモのページまで進んだセッションは **${countWithRate(ga4.toDemoSessions, ga4.toDemoRate)}** 以上です${ga4.toDemoSessionsUpper > ga4.toDemoSessions ? `（上限は ${ga4.toDemoSessionsUpper} 件）` : ''}。`)
+  } else L.push('- GA4 は未設定です。`GA4_PROPERTY_ID` と `GA4_SA_KEY` を設定すると LP からデモへの到達率が出ます。')
+  if (clarity) {
+    const c = clarity.project ?? clarity.lp
+    L.push(`- Clarity のセッションは **${c.sessions}** 件で、スクロールの奥行きは平均 **${fmtPct(c.averageScrollDepth)}**、デッドクリックが起きたセッションは **${fmtPct(c.deadClickRate)}** です。`)
+  } else L.push('- Clarity は未設定です。`CLARITY_TOKEN` を設定すると操作の質（スクロール・デッドクリック）が出ます。')
+  L.push('')
+
+  if (ga4) {
+    L.push('### GA4: LP に入ったセッション')
+    L.push('')
+    L.push('| 指標 | 値 | 定義 |')
+    L.push('| --- | --- | --- |')
+    L.push(`| セッション | ${ga4.sessions} 件 | 入口のページが LP だったセッションの数 |`)
+    L.push(`| ユーザー | ${ga4.users} 人（新規 ${ga4.newUsers} 人） | 上のセッションを持つユーザーの数。入口ページの行を足しているため、同じ人が別の入口から入ると重複して数える |`)
+    L.push(`| しっかり見たセッション | ${countWithRate(ga4.engaged, ga4.engagedRate)} | GA4 の「エンゲージのあったセッション」。10 秒より長く滞在した、または 2 ページ以上見たセッション。割合の分母はセッション |`)
+    L.push(`| 90% までスクロールしたユーザー | ${countWithRate(ga4.scrolledUsers, ga4.scrolledRate)} | ページの 90% の深さまでスクロールしたユーザー。割合の分母はユーザー |`)
+    L.push(`| 平均滞在時間 | ${ga4.avgDurationSec} 秒 | セッションの長さの平均。入口ページの行をセッション数で重み付けして平均する |`)
+    L.push(`| 1 セッションあたりの表示ページ数 | ${ga4.pagesPerSession} ページ | 同上の重み付け平均。LP は 1 ページの site なので、1 を超えた分はほぼデモへの移動 |`)
+    L.push('')
+
+    L.push('### GA4: LP からデモへの到達')
+    L.push('')
+    L.push(`LP に入ったセッションのうち、デモ（\`${DEMO_PATH}\` で始まるページ）を 1 回以上表示したセッションの数です。GA4 はページごとにセッション数を返すため、正確な数は次の範囲にあります。`)
+    L.push('')
+    L.push('| 値 | 件数 | 割合 | 求め方 |')
+    L.push('| --- | --- | --- | --- |')
+    L.push(`| 下限 | ${ga4.toDemoSessions} 件 | ${fmtPct(ga4.toDemoRate)} | デモのページ別セッション数の最大値。1 つのセッションは同じページを 1 回だけ数える |`)
+    L.push(`| 上限 | ${ga4.toDemoSessionsUpper} 件 | ${fmtPct(ga4.sessions ? Math.round((ga4.toDemoSessionsUpper / ga4.sessions) * 1000) / 10 : null)} | デモのページ別セッション数の合計。同じセッションが複数のページを見ると重複するため、LP のセッション総数を上限として切る |`)
+    L.push('')
+    L.push('割合の分母は「LP に入ったセッション」です。下限と上限が同じなら、その値が正確な件数です。')
+    L.push('')
     if (ga4.pages.length) {
-      lines.push('LP から入って見たページ（セッション数の多い順、上位 10）')
-      lines.push('')
-      lines.push('| ページ | セッション | 表示 |')
-      lines.push('| --- | --- | --- |')
-      for (const p of ga4.pages) lines.push(`| \`${p.path}\` | ${p.sessions} | ${p.views} |`)
-      lines.push('')
+      L.push('LP から入ったセッションが表示したページ（セッション数の多い順、上位 10 件）:')
+      L.push('')
+      L.push('| ページ | セッション | 表示回数 |')
+      L.push('| --- | --- | --- |')
+      for (const p of ga4.pages) L.push(`| \`${p.path}\` | ${p.sessions} | ${p.views} |`)
+      L.push('')
     }
     if (ga4.sessions === 0) {
-      lines.push(`LP のセッションが 0 です。プロパティ全体のセッション（同じ期間）: **${ga4.allSessions}**。`)
-      if (ga4.allSessions === 0) lines.push('プロパティ全体も 0 なので、`GA4_PROPERTY_ID` が測定 ID `G-3DDS1NJZXS` のプロパティか、LP が GA4 に送っているか、データの反映（最大 24〜48 時間）を確かめてください。')
-      else {
-        lines.push('全体には来ているので、入口の URL が `' + LP_PATH + '` と違う可能性があります。多い入口:')
-        lines.push('')
-        lines.push('| 入口（landingPage） | セッション | ユーザー |')
-        lines.push('| --- | --- | --- |')
-        for (const t of ga4.topLanding) lines.push(`| \`${t.path}\` | ${t.sessions} | ${t.users} |`)
+      L.push('#### LP のセッションが 0 件のときの確認')
+      L.push('')
+      L.push(`同じ期間のプロパティ全体のセッションは **${ga4.allSessions} 件**です。`)
+      if (ga4.allSessions === 0) {
+        L.push('プロパティ全体も 0 件です。次の 3 つを順に確かめてください。')
+        L.push('')
+        L.push('1. `GA4_PROPERTY_ID` が、測定 ID `G-3DDS1NJZXS` のデータ ストリームを持つプロパティの ID であること。')
+        L.push('2. LP のページが GA4 にデータを送っていること。')
+        L.push('3. データの反映を待つこと。GA4 は最大 24〜48 時間遅れます。')
+      } else {
+        L.push(`プロパティ全体には来ています。入口の URL が \`${LP_PATH}\` と違う可能性があります。多い入口:`)
+        L.push('')
+        L.push('| 入口のページ | セッション | ユーザー |')
+        L.push('| --- | --- | --- |')
+        for (const t of ga4.topLanding) L.push(`| \`${t.path}\` | ${t.sessions} | ${t.users} |`)
       }
-      lines.push('')
+      L.push('')
     }
+
+    L.push('### GA4: デモ内のイベント')
+    L.push('')
     const evNames = Object.keys(ga4.events)
-    lines.push('### GA4: デモ側のイベント')
-    lines.push('')
-    if (!evNames.length) lines.push('まだ届いていない（デモの計測は本番公開後に送られる。#97 の公開待ち）。')
+    if (!evNames.length) L.push('イベントはまだ届いていません。デモの計測は本番の公開後に送られます（リリース Issue #97 の公開待ち）。')
     else {
-      lines.push('| イベント | 回数 | セッション | ユーザー |')
-      lines.push('| --- | --- | --- | --- |')
-      for (const n of DEMO_EVENTS) if (ga4.events[n]) lines.push(`| ${n} | ${ga4.events[n].count} | ${ga4.events[n].sessions} | ${ga4.events[n].users} |`)
+      L.push('| イベント | 回数 | セッション | ユーザー |')
+      L.push('| --- | --- | --- | --- |')
+      for (const n of DEMO_EVENTS) if (ga4.events[n]) L.push(`| \`${n}\` | ${ga4.events[n].count} | ${ga4.events[n].sessions} | ${ga4.events[n].users} |`)
     }
-    lines.push('')
-  } else lines.push('GA4: 未設定（`GA4_PROPERTY_ID` と `GA4_SA_KEY`）。\n')
+    L.push('')
+  }
+
   if (clarity) {
-    lines.push('### Clarity（過去 3 日。API の上限）')
-    lines.push('')
-    lines.push('| 指標 | LP | デモ |')
-    lines.push('| --- | --- | --- |')
     const c = clarity
-    lines.push(`| セッション（ボット除外数） | ${c.lp.sessions}（${c.lp.botSessions}） | ${c.demo.sessions}（${c.demo.botSessions}） |`)
-    lines.push(`| ユニークユーザー | ${c.lp.users} | ${c.demo.users} |`)
-    lines.push(`| ページ / セッション | ${fmtNum(c.lp.pagesPerSession)} | ${fmtNum(c.demo.pagesPerSession)} |`)
-    lines.push(`| スクロールの奥行き（平均） | ${fmtPct(c.lp.averageScrollDepth)} | ${fmtPct(c.demo.averageScrollDepth)} |`)
-    lines.push(`| 操作していた時間（合計秒） | ${c.lp.activeTimeSec} | ${c.demo.activeTimeSec} |`)
-    lines.push(`| デッドクリック（セッション比） | ${fmtPct(c.lp.deadClickRate)} | ${fmtPct(c.demo.deadClickRate)} |`)
-    lines.push(`| イライラしたクリック（セッション比） | ${fmtPct(c.lp.rageClickRate)} | ${fmtPct(c.demo.rageClickRate)} |`)
-    lines.push('')
-  } else lines.push('Clarity: 未設定（`CLARITY_TOKEN`）。\n')
-  lines.push('注: 「1 セッションが何ページ見たか」の分布は GA4 Data API・Clarity API では取れない（BigQuery エクスポートが要る）。LP は 1 ページなので、2 ページ目以降はほぼ「デモへ進んだ」と読める。localhost・プレビュー・`?internal=1` は送信元で除外済み。')
-  if (errors.length) { lines.push(''); lines.push('### 取得できなかったもの'); for (const e of errors) lines.push(`- ${e}`) }
-  lines.push('')
-  lines.push('---')
-  lines.push('_Generated by [Claude Code](https://claude.ai/code)_')
-  return lines.join('\n')
+    L.push('### Clarity: 操作の質')
+    L.push('')
+    L.push('Clarity は直近 3 日間だけ返します。「プロジェクト全体」は重複のない数です。「LP」と「デモ」は URL 別の行を足した数なので、同じ人が複数の URL に出るとユーザー数は重複します。')
+    L.push('')
+    L.push('| 指標 | プロジェクト全体 | LP | デモ | 定義 |')
+    L.push('| --- | --- | --- | --- | --- |')
+    const P = c.project
+    const cell = (site, key, fmt) => (site ? fmt(site[key]) : NA)
+    L.push(`| セッション | ${cell(P, 'sessions', fmtNum)} | ${c.lp.sessions} | ${c.demo.sessions} | ボットを除いたセッションの数 |`)
+    L.push(`| 除外したボットのセッション | ${cell(P, 'botSessions', fmtNum)} | ${c.lp.botSessions} | ${c.demo.botSessions} | ボットと判定して除外した数 |`)
+    L.push(`| ユーザー | ${cell(P, 'users', fmtNum)} | ${c.lp.users} | ${c.demo.users} | 区別できたユーザーの数。LP とデモの列は重複を含む |`)
+    L.push(`| 1 セッションあたりの表示ページ数 | ${cell(P, 'pagesPerSession', (v) => fmtNum(v, ' ページ'))} | ${fmtNum(c.lp.pagesPerSession, ' ページ')} | ${fmtNum(c.demo.pagesPerSession, ' ページ')} | URL の行をセッション数で重み付けした平均 |`)
+    L.push(`| スクロールの奥行き | ${cell(P, 'averageScrollDepth', fmtPct)} | ${fmtPct(c.lp.averageScrollDepth)} | ${fmtPct(c.demo.averageScrollDepth)} | ページの高さに対して、平均でどこまでスクロールしたか。同上の重み付け平均 |`)
+    L.push(`| 操作していた時間 | ${cell(P, 'activeTimeSec', (v) => fmtNum(v, ' 秒'))} | ${c.lp.activeTimeSec} 秒 | ${c.demo.activeTimeSec} 秒 | 全セッションの合計。放置していた時間は含まない |`)
+    L.push(`| デッドクリックが起きたセッション | ${cell(P, 'deadClickRate', fmtPct)} | ${fmtPct(c.lp.deadClickRate)} | ${fmtPct(c.demo.deadClickRate)} | 押しても何も起きないクリックがあったセッションの割合 |`)
+    L.push(`| イライラしたクリックが起きたセッション | ${cell(P, 'rageClickRate', fmtPct)} | ${fmtPct(c.lp.rageClickRate)} | ${fmtPct(c.demo.rageClickRate)} | 同じ場所を短時間に連打したセッションの割合 |`)
+    L.push('')
+  }
+
+  L.push('### この集計の制約')
+  L.push('')
+  L.push('- 1 セッションが何ページ見たかの分布は出ません。GA4 Data API と Clarity API は分布を返しません。分布が必要なら GA4 の BigQuery エクスポートを使います。')
+  L.push('- localhost、確認用プレビュー、`?internal=1` を付けた端末からの閲覧は、送信元で除外しています。')
+  L.push('- Clarity の値は直近 3 日間です。GA4 の期間とは一致しません。')
+  if (errors.length) { L.push(''); L.push('### 取得できなかったもの'); L.push(''); for (const e of errors) L.push(`- ${e}`) }
+  L.push('')
+  L.push('---')
+  L.push('_Generated by [Claude Code](https://claude.ai/code)_')
+  return L.join('\n')
 }
 
 // ---------- Google の認証（サービスアカウント → アクセストークン） ----------
@@ -246,12 +314,18 @@ export async function fetchGa4({ propertyId, saKey, days, fetchImpl = fetch }) {
 }
 
 export async function fetchClarity({ token, fetchImpl = fetch }) {
-  // 上限: numOfDays は 1〜3、1 日 10 回まで。URL 別に 1 回だけ取る。
-  const res = await fetchImpl('https://www.clarity.ms/export-data/api/v1/project-live-insights?numOfDays=3&dimension1=URL', {
-    headers: { authorization: `Bearer ${token}`, accept: 'application/json' },
-  })
-  if (!res.ok) throw new Error(`Clarity の取得に失敗: ${res.status} ${(await res.text()).slice(0, 300)}`)
-  return summarizeClarity(await res.json())
+  // 上限: numOfDays は 1〜3、1 日 10 回まで。1 回の実行で 2 回だけ呼ぶ（URL 別と、次元なしの全体）。
+  const get = async (query) => {
+    const res = await fetchImpl(`https://www.clarity.ms/export-data/api/v1/project-live-insights?numOfDays=3${query}`, {
+      headers: { authorization: `Bearer ${token}`, accept: 'application/json' },
+    })
+    if (!res.ok) throw new Error(`Clarity の取得に失敗: ${res.status} ${(await res.text()).slice(0, 300)}`)
+    return res.json()
+  }
+  const byUrl = await get('&dimension1=URL')
+  let totals = null
+  try { totals = await get('') } catch { totals = null } // 全体が取れなくても URL 別だけで続ける
+  return summarizeClarity(byUrl, totals)
 }
 
 export async function run({ env = process.env, args = process.argv.slice(2), fetchImpl = fetch, log = console.log } = {}) {
