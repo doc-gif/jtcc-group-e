@@ -1,6 +1,12 @@
 import { expect, test } from 'vitest'
-import { errorMessage, scheduleMessage, secondsUntil, serverOffset, worldSize } from './protocol'
-import { MockRoomServer } from './mock'
+import { browserHostKeyStore, HOST_KEY_STORAGE, hostLinkHash, parseHostLink } from './hostKey'
+import {
+  cleanName, errorMessage, nameKey, nameSuggestion, RoomContractError, scheduleMessage, secondsUntil, serverOffset, worldSize,
+  type RoomTransport,
+} from './protocol'
+import { AUTO_NAME_WORDS, MockRoomServer } from './mock'
+/** Test-only key for the in-memory mock. Real keys come from scripts/host-key.mjs and are never committed. */
+const KEY = 'mock_host_key_for_tests_only_000000000001'
 test('server clock midpoint and countdown tolerate local clock drift',()=>{
  const offset=serverOffset('2026-01-01T00:00:00Z',Date.parse('2026-01-01T00:01:00Z'),Date.parse('2026-01-01T00:01:00.200Z'))
  expect(secondsUntil('2026-01-01T00:00:08Z',Date.parse('2026-01-01T00:01:00.100Z'),offset)).toBe(8)
@@ -26,11 +32,12 @@ test('mock and real contract: 100 seats, one committed result, delayed reveal an
  let now = Date.parse('2026-01-01T00:00:00Z')
  let nextId = 0
  const server = new MockRoomServer(() => now, () => `invite-${++nextId}`, () => 0)
+ server.addHostKey(KEY)
  const users = Array.from({ length: 101 }, (_, i) => server.asUser(`user-${i}`))
- const first = await users[0].create('room-1', 'ホスト')
+ const first = await users[0].create('room-1', KEY, 'ホスト')
  expect(first).toMatchObject({ scheduledAt: null, pitchMode: false, lastSchedule: null })
  expect(first.stock?.reduce((sum, stock) => sum + stock.remaining, 0)).toBe(300)
- expect((await users[0].create('room-1', 'ホスト')).id).toBe(first.id)
+ expect((await users[0].create('room-1', KEY, 'ホスト')).id).toBe(first.id)
  for (let i = 1; i < 100; i++) await users[i].join(first.invite, `友だち${i}`)
  await expect(users[100].join(first.invite, '満員')).rejects.toThrow('room-full')
  expect((await users[99].join(first.invite, '復帰')).members).toHaveLength(100)
@@ -55,14 +62,19 @@ test('mock and real contract: 100 seats, one committed result, delayed reveal an
  now += 15000
  expect((await users[1].ready(first.id, true)).members.find(member => member.id === 'user-1')?.ready).toBe(true)
  now += 46000
- expect((await users[1].claim(first.id)).host).toBe('user-1')
+ // F10: nobody takes over from an absent host.
+ const absent = await users[1].snapshot(first.id)
+ expect(absent.host).toBe('user-0')
+ expect(absent.members.find(member => member.id === 'user-0')?.online).toBe(false)
+ expect('claim' in users[1]).toBe(false)
 })
 
 test('mock shortage is atomic and ready can be cancelled', async () => {
  let now = 0
  const server = new MockRoomServer(() => now, () => 'invite', () => 0)
+ server.addHostKey(KEY)
  const users = Array.from({ length: 100 }, (_, i) => server.asUser(`user-${i}`))
- const room = await users[0].create('room-short', 'ホスト')
+ const room = await users[0].create('room-short', KEY, 'ホスト')
  for (let i = 1; i < 100; i++) await users[i].join(room.invite, `友だち${i}`)
  await expect(users[0].ready(room.id, null as unknown as boolean)).rejects.toThrow('invalid-ready')
  await expect(users[0].start(room.id, 'start', -1)).rejects.toThrow('invalid-round')
@@ -95,8 +107,9 @@ test('mock shortage is atomic and ready can be cancelled', async () => {
 test('mock schedule parity: host only, change, cancel, expiry bound, one start by any member snapshot', async () => {
  let now = Date.parse('2026-01-01T00:00:00Z')
  const server = new MockRoomServer(() => now, () => 'invite', () => 0)
+ server.addHostKey(KEY)
  const [host, friend, watcher] = ['host', 'friend', 'watcher'].map(id => server.asUser(id))
- const room = await host.create('room-s', 'ホスト')
+ const room = await host.create('room-s', KEY, 'ホスト')
  await friend.join(room.invite, '友だち')
  await watcher.join(room.invite, '見守り')
  await expect(friend.schedule(room.id, 3)).rejects.toThrow('host-required')
@@ -144,9 +157,10 @@ test('mock: every operation runs an overdue schedule first, so a late change or 
  let now = Date.parse('2026-01-01T00:00:00Z')
  let rooms = 0
  const server = new MockRoomServer(() => now, () => `invite-${++rooms}`, () => 0)
+ server.addHostKey(KEY)
  const [host, friend, watcher] = ['host', 'friend', 'watcher'].map(id => server.asUser(id))
  const open = async (id: string) => {
-   const room = await host.create(id, 'ホスト')
+   const room = await host.create(id, KEY, 'ホスト')
    await friend.join(room.invite, '友だち')
    await watcher.join(room.invite, '見守り')
    await friend.ready(id, true)
@@ -177,8 +191,9 @@ test('mock pitch mode guarantees a real top prize while stock lasts, then draws 
  let draws = 0
  // Deterministic draws that never land on the top prize by chance (always the last prize with stock).
  const server = new MockRoomServer(() => now, () => 'invite', () => { draws++; return 0.999 })
+ server.addHostKey(KEY)
  const users = Array.from({ length: 31 }, (_, i) => server.asUser(`user-${i}`))
- const room = await users[0].create('room-p', 'ホスト')
+ const room = await users[0].create('room-p', KEY, 'ホスト')
  for (let i = 1; i < users.length; i++) await users[i].join(room.invite, `友だち${i}`)
  expect((await users[0].setPitchMode(room.id, true)).pitchMode).toBe(true)
  expect((await users[5].snapshot(room.id)).pitchMode).toBe(true)
@@ -202,8 +217,9 @@ test('mock pitch mode guarantees a real top prize while stock lasts, then draws 
 
  // Draws that always hit the top prize first: round 1 empties it, round 2 is honestly not guaranteed.
  const greedy = new MockRoomServer(() => now, () => 'invite-g', () => 0)
+ greedy.addHostKey(KEY)
  const players = Array.from({ length: 31 }, (_, i) => greedy.asUser(`g-${i}`))
- const other = await players[0].create('room-g', 'ホスト')
+ const other = await players[0].create('room-g', KEY, 'ホスト')
  for (let i = 1; i < players.length; i++) await players[i].join(other.invite, `友だち${i}`)
  await players[0].setPitchMode(other.id, true)
  for (let n = 0; n < 2; n++) {
@@ -215,4 +231,137 @@ test('mock pitch mode guarantees a real top prize while stock lasts, then draws 
    expect(shown.round?.results?.filter(result => result.prize === 'plush')).toHaveLength(n === 0 ? 30 : 0)
    now += 15000
  }
+})
+
+test('host link: key in the fragment only, stored per device, tolerant of blocked storage', () => {
+ expect(parseHostLink(`#/host/${KEY}`)).toBe(KEY)
+ expect(parseHostLink(`#/host/${KEY}/`)).toBe(KEY)
+ for (const hash of ['#/host/short', `#/host/${KEY}/x`, `#/room/${KEY}`, `#/host/${KEY}!`, '']) expect(parseHostLink(hash)).toBeNull()
+ expect(hostLinkHash(KEY)).toBe(`#/host/${KEY}`)
+ expect(() => hostLinkHash('bad key')).toThrow()
+ const values = new Map<string, string>()
+ const storage = {
+  getItem: (name: string) => values.get(name) ?? null,
+  setItem: (name: string, value: string) => { values.set(name, value) },
+  removeItem: (name: string) => { values.delete(name) },
+ } as Storage
+ const store = browserHostKeyStore(() => storage)
+ expect(store.get()).toBeNull()
+ store.set(KEY)
+ expect(values.get(HOST_KEY_STORAGE)).toBe(KEY)
+ expect(store.get()).toBe(KEY)
+ values.set(HOST_KEY_STORAGE, 'tampered value')
+ expect(store.get()).toBeNull()
+ store.set(null)
+ expect(values.has(HOST_KEY_STORAGE)).toBe(false)
+ const blocked = browserHostKeyStore(() => { throw new Error('SecurityError') })
+ expect(blocked.get()).toBeNull()
+ expect(() => blocked.set(KEY)).not.toThrow()
+ expect(browserHostKeyStore(() => undefined).get()).toBeNull()
+})
+
+test('names: display form, comparison across width, case and spaces, and Japanese messages', () => {
+ expect(cleanName('  もも　 ちゃん ')).toBe('もも ちゃん')
+ for (const name of ['', '   ', 'あ'.repeat(13), 'a\u0007b', null, undefined]) expect(cleanName(name)).toBeNull()
+ expect(cleanName('あ'.repeat(12))).toBe('あ'.repeat(12))
+ expect(nameKey('Ｍｏｍｏ　２')).toBe(nameKey('momo2'))
+ expect(nameKey('ｱｲ')).toBe(nameKey('アイ'))
+ const taken = new RoomContractError('name-taken', 'もも2')
+ expect(nameSuggestion(taken)).toBe('もも2')
+ expect(nameSuggestion(new RoomContractError('invalid-name'))).toBeNull()
+ expect(errorMessage(taken)).toBe('このルームに同じニックネームの人がいます。別のニックネームにしてください。「もも2」なら使えます。')
+ expect(errorMessage(new Error('name-taken'))).not.toContain('「')
+ expect(errorMessage(new Error('host-key-invalid'))).toContain('ホスト用リンクが無効')
+ expect(errorMessage(new Error('too-many-attempts'))).toContain('1分ほど待って')
+ expect(errorMessage(new Error('no-room'))).toContain('新しくルームを作れます')
+})
+
+test('mock host key: only the key holder creates; wrong keys are limited per user; revoked keys fail', async () => {
+ let now = 0
+ const server = new MockRoomServer(() => now, () => 'invite-k', () => 0)
+ server.addHostKey(KEY)
+ expect(() => server.addHostKey('short')).toThrow()
+ const guest = server.asUser('guest')
+ for (const key of ['wrong_key_but_well_formed_000000000000001', 'short', '', null as unknown as string]) {
+  await expect(guest.create('room-x', key, 'ゲスト')).rejects.toThrow('host-key-invalid')
+ }
+ await expect(guest.resumeHost('wrong_key_but_well_formed_000000000000001', null)).rejects.toThrow('host-key-invalid')
+ await expect(guest.create('room-x', KEY, 'ゲスト')).rejects.toThrow('too-many-attempts')
+ await expect(guest.snapshot('room-x')).rejects.toThrow('room-unavailable')
+ expect((await server.asUser('owner').create('room-o', KEY, null)).host).toBe('owner')
+ now += 61_000
+ expect((await guest.create('room-x', KEY, 'ゲスト')).host).toBe('guest')
+ server.revokeHostKey(KEY)
+ await expect(server.asUser('owner').create('room-y', KEY, 'オーナー')).rejects.toThrow('host-key-invalid')
+ await expect(server.asUser('owner').resumeHost(KEY, null)).rejects.toThrow('host-key-invalid')
+})
+
+test('mock resume: the owner becomes host on a new device and keeps seats, coins and results', async () => {
+ let now = 0
+ const server = new MockRoomServer(() => now, () => 'invite-r', () => 0)
+ server.addHostKey(KEY)
+ const [laptop, phone, friend] = ['laptop', 'phone', 'friend'].map(id => server.asUser(id)) as [RoomTransport, RoomTransport, RoomTransport]
+ const room = await laptop.create('room-r', KEY, 'オーナー')
+ await friend.join(room.invite, '友だち')
+ await laptop.ready(room.id, true)
+ await friend.ready(room.id, true)
+ await laptop.start(room.id, 'start-r', 0)
+ now += 23_000
+ const before = await laptop.snapshot(room.id)
+ const friendBefore = await friend.snapshot(room.id)
+ await expect(phone.resumeHost(KEY, 'room-unknown')).rejects.toThrow('no-room')
+ const resumed = await phone.resumeHost(KEY, null)
+ expect(resumed).toMatchObject({ id: room.id, host: 'phone', self: 'phone', balance: before.balance, myResults: before.myResults })
+ expect(resumed.members.map(member => [member.id, member.nickname])).toEqual([['phone', 'オーナー'], ['friend', '友だち']])
+ expect(resumed.round?.results?.some(result => result.userId === 'laptop')).toBe(false)
+ expect(await friend.snapshot(room.id)).toMatchObject({ host: 'phone', balance: friendBefore.balance, myResults: friendBefore.myResults })
+ await expect(laptop.snapshot(room.id)).rejects.toThrow('room-unavailable')
+ expect((await phone.resumeHost(KEY, room.id)).host).toBe('phone')
+ // A device that joined as a participant keeps its own seat; the old host seat is released.
+ await laptop.join(room.invite, 'ノートPC')
+ const back = await laptop.resumeHost(KEY, room.id)
+ expect(back).toMatchObject({ host: 'laptop', balance: 3000 })
+ expect(back.members.map(member => member.nickname)).toEqual(['友だち', 'ノートPC'])
+ expect((await phone.resumeHost(KEY, room.id)).members.map(member => member.nickname)).toEqual(['オーナー', '友だち'])
+ now += 2 * 60 * 60_000
+ await expect(phone.resumeHost(KEY, null)).rejects.toThrow('no-room')
+})
+
+test('mock names: unique per room, suggestion, auto names and rename like the SQL', async () => {
+ let n = 0
+ const server = new MockRoomServer(() => 0, () => 'invite-n', () => (n++ % 7) / 7)
+ server.addHostKey(KEY)
+ const user = (id: string) => server.asUser(id)
+ const room = await user('owner').create('room-n', KEY, 'もも')
+ const taken = await user('a').join(room.invite, 'もも').catch((error: unknown) => error)
+ expect(taken).toBeInstanceOf(RoomContractError)
+ expect(nameSuggestion(taken)).toBe('もも2')
+ await user('a').join(room.invite, ' もも2 ')
+ for (const name of ['もも２', 'も も2', 'も　も２']) await expect(user('b').join(room.invite, name)).rejects.toMatchObject({ code: 'name-taken' })
+ await expect(user('b').join(room.invite, 'もも２')).rejects.toMatchObject({ suggestion: 'もも3' })
+ await user('b').join(room.invite, 'Momo')
+ await expect(user('c').join(room.invite, 'ｍｏｍｏ')).rejects.toMatchObject({ suggestion: 'ｍｏｍｏ2' })
+ await user('c').join(room.invite, 'あいうえおかきくけこさし')
+ await expect(user('d').join(room.invite, 'あいうえおかきくけこさし')).rejects.toMatchObject({ suggestion: 'あいうえおかきくけこさ2' })
+ await expect(user('d').join(room.invite, '   ')).rejects.toThrow('invalid-name')
+ expect((await user('b').rename(room.id, 'MOMO')).members.find(member => member.id === 'b')?.nickname).toBe('MOMO')
+ await expect(user('b').rename(room.id, 'もも')).rejects.toMatchObject({ code: 'name-taken', suggestion: 'もも3' })
+ await expect(user('b').rename(room.id, '')).rejects.toThrow('invalid-name')
+ await expect(user('d').rename(room.id, 'よそ者')).rejects.toThrow('room-unavailable')
+ // Without a name: a friendly unique one, kept on rejoin while free.
+ const auto = (await user('d').join(room.invite, null)).members.find(member => member.id === 'd')!.nickname
+ expect(auto).toMatch(new RegExp(`^ゲスト (${AUTO_NAME_WORDS.join('|')})\\d+$`))
+ await user('d').leave(room.id)
+ expect((await user('d').join(room.invite, null)).members.find(member => member.id === 'd')?.nickname).toBe(auto)
+ await user('a').leave(room.id)
+ await user('e').join(room.invite, 'もも2')
+ expect((await user('a').join(room.invite, null)).members.find(member => member.id === 'a')?.nickname).not.toBe('もも2')
+ // A full room of auto names stays unique even when random picks repeat.
+ const crowded = new MockRoomServer(() => 0, () => 'invite-c', () => 0)
+ crowded.addHostKey(KEY)
+ const full = await crowded.asUser('h').create('room-c', KEY, null)
+ for (let i = 1; i < 100; i++) await crowded.asUser(`u${i}`).join(full.invite, null)
+ const names = (await crowded.asUser('h').snapshot(full.id)).members.map(member => member.nickname)
+ expect(new Set(names.map(nameKey)).size).toBe(100)
+ expect(names.every(name => [...name].length <= 12)).toBe(true)
 })

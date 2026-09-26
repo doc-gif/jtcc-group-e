@@ -1,7 +1,17 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import type { HostKeyStore } from './hostKey'
 import { MockRoomServer } from './mock'
 import type { RoomTransport, Snapshot } from './protocol'
 import { createRoomController, ROOM_POLL_MS, roomErrorCode, type RoomControllerOptions } from './roomController'
+
+/** 模擬サーバー専用のキー。本物のキーは scripts/host-key.mjs で作り、リポジトリに置かない。 */
+const KEY = 'controller_host_key_for_tests_only_000001'
+
+/** 端末ごとの保存先（localStorage の代わり）。 */
+function memoryKeys(initial: string | null = null): HostKeyStore & { value: string | null } {
+  const store = { value: initial, get: () => store.value, set: (key: string | null) => { store.value = key } }
+  return store
+}
 
 const T0 = Date.parse('2026-01-01T00:00:00Z')
 const NETWORK_MESSAGE = '接続できませんでした。通信を確認して再試行してください。'
@@ -11,7 +21,7 @@ afterEach(() => { vi.useRealTimers() })
 
 /** 通信断・応答の消失・購読失敗・片道の遅延を再現する transport。 */
 function network(inner: RoomTransport, latency = 0) {
-  const net = { offline: false, loseStartResponse: false, subscribeFails: false, creates: [] as string[], starts: [] as string[] }
+  const net = { offline: false, loseStartResponse: false, subscribeFails: false, creates: [] as string[], starts: [] as string[], keys: [] as string[] }
   const wait = () => latency ? new Promise<void>(resolve => { setTimeout(resolve, latency) }) : Promise.resolve()
   const call = async <T>(run: () => Promise<T>) => {
     await wait()
@@ -21,7 +31,9 @@ function network(inner: RoomTransport, latency = 0) {
     return value
   }
   const transport: RoomTransport = {
-    create: (request, name) => { net.creates.push(request); return call(() => inner.create(request, name)) },
+    create: (request, hostKey, name) => { net.creates.push(request); net.keys.push(hostKey); return call(() => inner.create(request, hostKey, name)) },
+    resumeHost: (hostKey, room) => { net.keys.push(hostKey); return call(() => inner.resumeHost(hostKey, room)) },
+    rename: (room, name) => call(() => inner.rename(room, name)),
     join: (invite, name) => call(() => inner.join(invite, name)),
     snapshot: room => call(() => inner.snapshot(room)),
     ready: (room, ready) => call(() => inner.ready(room, ready)),
@@ -36,7 +48,6 @@ function network(inner: RoomTransport, latency = 0) {
     },
     schedule: (room, minutes) => call(() => inner.schedule(room, minutes)),
     setPitchMode: (room, on) => call(() => inner.setPitchMode(room, on)),
-    claim: room => call(() => inner.claim(room)),
     leave: room => call(() => inner.leave(room)),
     subscribe: (room, refresh) => {
       if (net.subscribeFails) throw new Error('realtime: unauthorized')
@@ -50,8 +61,9 @@ function setup(skew = 0) {
   let invites = 0
   let requests = 0
   const server = new MockRoomServer(() => Date.now() + skew, () => `invite-${++invites}`, () => 0)
+  server.addHostKey(KEY)
   const controller = (user: string, transport: RoomTransport = server.asUser(user), options: RoomControllerOptions = {}) => {
-    const created = createRoomController(transport, { requestId: () => `req-${++requests}`, onWake: () => () => {}, ...options })
+    const created = createRoomController(transport, { requestId: () => `req-${++requests}`, onWake: () => () => {}, hostKeys: memoryKeys(), ...options })
     created.attach()
     return created
   }
@@ -67,7 +79,7 @@ test('100 席で満員を示し、101 人目は上限の数字を含まない日
   const { server, controller } = setup()
   const host = controller('user-0')
   expect(host.getState().phase).toBe('idle')
-  expect(await host.create('ホスト')).toEqual({ ok: true, error: null })
+  expect(await host.createAsHost(KEY, 'ホスト')).toEqual({ ok: true, error: null })
   const { invite } = host.getState().snapshot!
   expect(host.getState()).toMatchObject({ phase: 'lobby', isHost: true, seats: { taken: 1, capacity: 100, full: false } })
   for (let i = 1; i < 100; i++) await server.asUser(`user-${i}`).join(invite, `友だち${i}`)
@@ -96,7 +108,7 @@ test('サーバー時刻のずれを補正し、startsAt まで結果を隠し�
   const host = controller('host', transport)
   const settle = async <T>(pending: Promise<T>) => { await vi.advanceTimersByTimeAsync(200); return pending }
 
-  await settle(host.create('ホスト'))
+  await settle(host.createAsHost(KEY, 'ホスト'))
   // 片道 100ms の往復でも中点で推定するので、ずれをそのまま求められる。
   expect(host.getState().serverOffset).toBe(skew)
   expect(host.serverNow()).toBe(Date.now() + skew)
@@ -138,9 +150,9 @@ test('応答を失った作成・開始は同じ request で送り直し、二�
   const host = controller('host', transport)
 
   net.offline = true
-  expect((await host.create('ホスト')).error).toEqual({ code: null, message: NETWORK_MESSAGE })
+  expect((await host.createAsHost(KEY, 'ホスト')).error).toEqual({ code: null, message: NETWORK_MESSAGE })
   net.offline = false
-  expect((await host.create('ホスト')).ok).toBe(true)
+  expect((await host.createAsHost(KEY, 'ホスト')).ok).toBe(true)
   expect(net.creates).toEqual(['req-1', 'req-1'])
   await host.setReady(true)
 
@@ -163,30 +175,106 @@ test('応答を失った作成・開始は同じ request で送り直し、二�
   expect(net.starts).toEqual(['req-2', 'req-2', 'req-3'])
 })
 
-test('ホストの接続が 45 秒を超えて途切れたら、ほかの参加者が交代できる', async () => {
+test('ホストが 45 秒を超えて不在でも交代はなく、ホスト用リンクで別の端末からホストに戻る', async () => {
   const { controller } = setup()
-  const host = controller('host')
-  await host.create('ホスト')
+  const laptopKeys = memoryKeys()
+  const host = controller('laptop', undefined, { hostKeys: laptopKeys })
+  await host.createAsHost(KEY, 'ホスト')
+  expect(laptopKeys.value).toBe(KEY)
+  expect(host.getState()).toMatchObject({ isHost: true, hostOnline: true, hostKey: KEY })
   const friend = controller('friend')
   await friend.join(host.getState().snapshot!.invite, '友だち')
   host.detach()
 
-  expect(friend.getState().canClaim).toBe(false)
-  expect((await friend.claimHost()).error).toEqual({ code: 'host-online', message: 'ホストは接続中です。' })
-  await vi.advanceTimersByTimeAsync(30_000)
-  expect(friend.getState().canClaim).toBe(false)
-  await vi.advanceTimersByTimeAsync(16_000)
-  expect(friend.getState().canClaim).toBe(true)
-  expect(friend.getState().members.find(member => member.id === 'host')?.online).toBe(false)
+  expect(friend.getState()).toMatchObject({ isHost: false, hostOnline: true, hostKey: null })
+  await vi.advanceTimersByTimeAsync(46_000)
+  expect(friend.getState()).toMatchObject({ isHost: false, hostOnline: false, startBlockedBy: 'host-required' })
+  expect('claimHost' in friend).toBe(false)
 
-  expect((await friend.claimHost()).ok).toBe(true)
-  expect(friend.getState()).toMatchObject({ isHost: true, canClaim: false, startBlockedBy: 'nobody-ready' })
+  // 別の端末（新しい匿名 ID）でホスト用リンクを開く。キーを渡さなければ保存済みのキーを使う。
+  const phoneKeys = memoryKeys(KEY)
+  const phone = controller('phone', undefined, { hostKeys: phoneKeys })
+  expect(phone.getState()).toMatchObject({ phase: 'idle', hostKey: KEY })
+  const resuming = phone.resumeHost()
+  expect(phone.getState()).toMatchObject({ phase: 'connecting', busy: 'resume' })
+  expect(await resuming).toEqual({ ok: true, error: null })
+  expect(phone.getState()).toMatchObject({ phase: 'lobby', isHost: true, hostOnline: true, self: { nickname: 'ホスト' } })
+  await friend.refresh()
+  expect(friend.getState()).toMatchObject({ isHost: false, hostOnline: true })
+  expect(friend.getState().members.map(member => member.nickname)).toEqual(['ホスト', '友だち'])
+})
+
+test('ホスト用キー: 成功したキーだけを保存し、無効なら消す。形の違うキーは送らない', async () => {
+  const { server, controller } = setup()
+  const { transport, net } = network(server.asUser('owner'))
+  const keys = memoryKeys('stale_key_that_was_revoked_00000000000001')
+  const owner = controller('owner', transport, { hostKeys: keys })
+
+  const stale = await owner.createAsHost()
+  expect(stale.error).toMatchObject({ code: 'host-key-invalid' })
+  expect(stale.error?.message).toContain('ホスト用リンクが無効')
+  expect(owner.getState()).toMatchObject({ phase: 'idle', hostKey: null })
+  expect(keys.value).toBeNull()
+
+  expect((await owner.createAsHost()).error?.code).toBe('host-key-invalid')
+  expect((await owner.resumeHost('not a key')).error?.code).toBe('host-key-invalid')
+  expect(net.keys).toEqual(['stale_key_that_was_revoked_00000000000001'])
+
+  expect((await owner.resumeHost(KEY)).error).toMatchObject({ code: 'no-room', message: 'このホスト用リンクで開いているルームはありません。新しくルームを作れます。' })
+  expect(owner.getState().phase).toBe('idle')
+  expect(await owner.createAsHost(KEY)).toEqual({ ok: true, error: null })
+  expect(keys.value).toBe(KEY)
+  expect(owner.getState()).toMatchObject({ phase: 'lobby', isHost: true, hostKey: KEY })
+  expect(owner.getState().self?.nickname).toMatch(/^ゲスト \S+\d+$/)
+  owner.forgetHostKey()
+  expect(owner.getState().hostKey).toBeNull()
+  expect(keys.value).toBeNull()
+
+  // 失敗が続いた利用者は、正しいキーでも 1 分待つ。保存済みのキーは消さない。
+  const guestKeys = memoryKeys(KEY)
+  const guest = controller('guest', undefined, { hostKeys: guestKeys })
+  for (let i = 0; i < 5; i++) await guest.resumeHost('wrong_key_but_well_formed_000000000000001')
+  expect(guestKeys.value).toBe(KEY)
+  expect((await guest.resumeHost()).error).toMatchObject({ code: 'too-many-attempts' })
+  expect(guestKeys.value).toBe(KEY)
+})
+
+test('名前を選ばずに入ると重ならない名前が付き、使われている名前には候補を出す。ロビーで変えられる', async () => {
+  const { controller } = setup()
+  const host = controller('host')
+  await host.createAsHost(KEY, 'もも')
+  const invite = host.getState().snapshot!.invite
+
+  const guest = controller('guest')
+  const taken = await guest.join(invite, 'もも')
+  expect(taken.error).toEqual({
+    code: 'name-taken', suggestion: 'もも2',
+    message: 'このルームに同じニックネームの人がいます。別のニックネームにしてください。「もも2」なら使えます。',
+  })
+  expect(guest.getState()).toMatchObject({ phase: 'idle', nameSuggestion: 'もも2', canRename: false })
+  expect((await guest.join(invite, 'ＭＯＭＯ')).ok).toBe(true)
+  expect(guest.getState()).toMatchObject({ phase: 'lobby', nameSuggestion: null, canRename: true, self: { nickname: 'ＭＯＭＯ' } })
+
+  // 名前を選ばずに入った人は、入る前に付いた名前を見て、あとから変えられる。
+  const quiet = controller('quiet')
+  expect((await quiet.join(invite, null)).ok).toBe(true)
+  const auto = quiet.getState().self!.nickname
+  expect(auto).toMatch(/^ゲスト \S+\d+$/)
+  expect((await quiet.rename('momo')).error).toMatchObject({ code: 'name-taken', suggestion: 'momo2' })
+  expect(quiet.getState()).toMatchObject({ nameSuggestion: 'momo2', self: { nickname: auto } })
+  expect((await quiet.rename(quiet.getState().nameSuggestion!)).ok).toBe(true)
+  expect(quiet.getState()).toMatchObject({ nameSuggestion: null, self: { nickname: 'momo2' } })
+  expect((await quiet.rename('   ')).error?.code).toBe('invalid-name')
+  await host.refresh()
+  expect(host.getState().members.map(member => member.nickname)).toEqual(['もも', 'ＭＯＭＯ', 'momo2'])
+  const idle = controller('idle')
+  expect(await idle.rename('だれか')).toEqual({ ok: false, error: null })
 })
 
 test('通信断のあいだは最後の状態を保ち、復帰後に見逃した自分の結果を出す', async () => {
   const { server, controller } = setup()
   const host = controller('host')
-  await host.create('ホスト')
+  await host.createAsHost(KEY, 'ホスト')
   const { transport, net } = network(server.asUser('friend'))
   let wake = () => {}
   const friend = controller('friend', transport, { onWake: next => { wake = next; return () => {} } })
@@ -200,7 +288,7 @@ test('通信断のあいだは最後の状態を保ち、復帰後に見逃し�
 
   net.offline = true
   await vi.advanceTimersByTimeAsync(40_000)
-  expect(friend.getState()).toMatchObject({ phase: 'reconnecting', canReady: false, canClaim: false })
+  expect(friend.getState()).toMatchObject({ phase: 'reconnecting', canReady: false, canRename: false })
   expect(friend.getState().snapshot?.round?.results).toBeNull()
 
   net.offline = false
@@ -218,7 +306,7 @@ test('通信断のあいだは最後の状態を保ち、復帰後に見逃し�
   expect(reopened.getState()).toMatchObject({ phase: 'lobby', unseenResults: [] })
 
   // roundNo は部屋ごとに 1 から始まる。別の部屋の round 1 は確認済みにしない。
-  await reopened.create('友だち')
+  await reopened.createAsHost(KEY, '友だち')
   await reopened.setReady(true)
   await reopened.start()
   await vi.advanceTimersByTimeAsync(9_000)
@@ -230,7 +318,7 @@ test('購読に失敗してもポーリングで更新し、期限切れで止�
   const { transport, net } = network(server.asUser('host'))
   net.subscribeFails = true
   const host = controller('host', transport)
-  await host.create('ホスト')
+  await host.createAsHost(KEY, 'ホスト')
   await server.asUser('friend').join(host.getState().snapshot!.invite, '友だち')
   await vi.advanceTimersByTimeAsync(0)
   expect(host.getState().members).toHaveLength(1)
@@ -245,7 +333,7 @@ test('購読に失敗してもポーリングで更新し、期限切れで止�
 test('退室すると最初の状態に戻り、タイマーを残さない', async () => {
   const { controller } = setup()
   const host = controller('host')
-  await host.create('ホスト')
+  await host.createAsHost(KEY, 'ホスト')
   expect(vi.getTimerCount()).toBeGreaterThan(0)
   expect(await host.leave()).toEqual({ ok: true, error: null })
   expect(host.getState()).toMatchObject({ phase: 'idle', roomId: null, snapshot: null })
@@ -256,14 +344,14 @@ test('予約した開始時刻まで補正した秒読みを出し、ホスト�
   const skew = 30_000
   const { server, controller } = setup(skew)
   const host = controller('host')
-  await host.create('ホスト')
+  await host.createAsHost(KEY, 'ホスト')
   const friend = controller('friend')
   await friend.join(host.getState().snapshot!.invite, '友だち')
   await friend.setReady(true)
   await host.setReady(true)
   expect(host.getState()).toMatchObject({ canSchedule: true, scheduleOptions: [1, 3, 5, 10], scheduledAt: null, secondsToScheduled: null })
   expect(friend.getState()).toMatchObject({ canSchedule: false, scheduleOptions: [] })
-  expect((await friend.schedule(1)).error).toEqual({ code: 'host-required', message: '開始できるのはホストだけです。' })
+  expect((await friend.schedule(1)).error).toEqual({ code: 'host-required', message: 'この操作はホストだけができます。' })
 
   expect((await host.schedule(3)).ok).toBe(true)
   expect((await host.schedule(1)).ok).toBe(true)
@@ -304,7 +392,7 @@ test('予約した開始時刻まで補正した秒読みを出し、ホスト�
 test('予約の変更・取り消し・期限の上限、時刻に誰も準備していなかった理由を出す', async () => {
   const { controller } = setup()
   const host = controller('host')
-  await host.create('ホスト')
+  await host.createAsHost(KEY, 'ホスト')
   await host.schedule(5)
   expect(host.getState().secondsToScheduled).toBe(300)
   await host.schedule(null)
@@ -334,7 +422,7 @@ test('予約の変更・取り消し・期限の上限、時刻に誰も準備�
 test('ピッチモードと目玉の確定を全員の状態に出す', async () => {
   const { controller } = setup()
   const host = controller('host')
-  await host.create('ホスト')
+  await host.createAsHost(KEY, 'ホスト')
   const friend = controller('friend')
   await friend.join(host.getState().snapshot!.invite, '友だち')
   expect(friend.getState()).toMatchObject({ pitchMode: false, canSetPitchMode: false })
@@ -369,7 +457,7 @@ test('開始できなかった案内はホストだけに出し、閉じた後�
     start: async (room, request, expected) => { const next = await inner.start(room, request, expected); return keepStale ? { ...next, lastSchedule: stale } : next },
   }
   const host = controller('host', transport)
-  await host.create('ホスト')
+  await host.createAsHost(KEY, 'ホスト')
   const friend = controller('friend')
   await friend.join(host.getState().snapshot!.invite, '友だち')
   await host.schedule(1)
@@ -393,7 +481,7 @@ test('開始できなかった案内はホストだけに出し、閉じた後�
 test('予約の時刻を過ぎた後のホストの変更は、先に予約どおり始まったことを示す', async () => {
   const { controller } = setup()
   const host = controller('host')
-  await host.create('ホスト')
+  await host.createAsHost(KEY, 'ホスト')
   const friend = controller('friend')
   await friend.join(host.getState().snapshot!.invite, '友だち')
   await friend.setReady(true)
