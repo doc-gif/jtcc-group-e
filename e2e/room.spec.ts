@@ -27,7 +27,8 @@ async function seeded(page: Page, seed: RoomSeed) {
 test('ホストが作って予約・ピッチ用・今すぐ開始、参加者は名前を選んで準備し、秒読み → 同時開封 → 結果', async ({ page, context }) => {
   // 実時間の待ちが2つある。3つ目のタブの入室はタブ間の知らせが出ない（入室の後に購読する）ので、ホストは
   // ROOM_POLL_MS（15秒）ごとのポーリングで受け取る（最大15秒）。開始後は SHARED_START_DELAY_MS（8秒）の秒読み。
-  // 合わせて最大23秒で、3つのタブの操作（WebKit で15〜20秒）を足すと既定の30秒を超えることがあるため、通常の3倍の時間を許す
+  // #88 で全員の結果まで最大10秒がさらに加わる（開ける操作がないので必ず待つ）。
+  // 合わせて最大33秒で、3つのタブの操作（WebKit で15〜20秒）を足すと既定の30秒を超えることがあるため、通常の3倍の時間を許す
   test.slow()
   const errors = watchErrors(page)
   await page.goto('./#/gacha/melody-anniv')
@@ -90,6 +91,8 @@ test('ホストが作って予約・ピッチ用・今すぐ開始、参加者�
   await expect(page.getByText('ピッチ用デモ：このラウンドは1人に目玉確定（確率表示の対象外）')).toBeVisible()
   await expect(heading(guest)).toHaveText(/もうすぐ開封！|せーので、ひらこう！/, { timeout: 20_000 })
   await expect(heading(guest)).toHaveText('せーので、ひらこう！', { timeout: 20_000 })
+  // #88: 全員の結果は、抽選に入った人が全員開けるか、10 秒たってから（この画面では開ける操作はまだない）
+  await expect(guest.getByRole('button', { name: '結果を見る' })).toBeEnabled({ timeout: 20_000 })
   await guest.getByRole('button', { name: '結果を見る' }).click()
   await expect(heading(guest)).toHaveText('みんなの結果')
   await expect(guest.getByText('YOUR PIECE')).toBeVisible()
