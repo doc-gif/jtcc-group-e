@@ -23,6 +23,8 @@ export function supabaseTransport(client: SupabaseClient): RoomTransport {
     snapshot: room => rpc('lp_snapshot', { p_room: room }),
     ready: (room, ready) => rpc('lp_ready', { p_room: room, p_ready: ready }),
     start: (room, request, expected) => rpc('lp_start', { p_room: room, p_request: request, p_expected: expected }),
+    schedule: (room, minutes) => rpc('lp_schedule', { p_room: room, p_minutes: minutes }),
+    setPitchMode: (room, on) => rpc('lp_set_pitch_mode', { p_room: room, p_on: on }),
     claim: room => rpc('lp_claim_host', { p_room: room }),
     leave: async room => { await rpc('lp_leave', { p_room: room }) },
     subscribe: (room, refresh) => {
