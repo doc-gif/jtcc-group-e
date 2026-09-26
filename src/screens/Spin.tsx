@@ -1,19 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { track, trackOnce } from '../app/analytics'
 import { useApp } from '../app/appContext'
 import { buzz, chime, CHIMES } from '../app/feedback'
 import { paths } from '../app/router'
 import { findGacha } from '../domain/catalog'
 import { spin, spinCheck, spinQuote, type SpinOutcome } from '../domain/game'
-import { coinText, OPEN_TAPS } from '../domain/odds'
+import { coinText, glowLabel, OPEN_TAPS } from '../domain/odds'
 import { TIMING, TURNS } from '../domain/spinScript'
-import type { Gacha } from '../domain/types'
-import { MockNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
+import type { Gacha, Glow } from '../domain/types'
+import { Capsule, type CapsuleStage } from '../components/Capsule'
+import { ExampleNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { Machine } from '../components/Machine'
 import { NotFound } from './NotFound'
 import './gacha.css'
 
 type Won = Extract<SpinOutcome, { ok: true }>
+
+/** 読み上げ用のカプセルの名前。画面では色と光り方で見分ける（normal は「カプセル」だけ）。 */
+const capsuleName = (glow: Glow) => (glow === 'normal' ? 'カプセル' : `${glowLabel[glow]}のカプセル`)
 /** confirm: 回す前の確認（まだコインを使わない）→ turning: 3回転 → dropping → opening: 開封 → revealed: 結果 */
 type Phase = 'confirm' | 'turning' | 'dropping' | 'opening' | 'revealed'
 
@@ -65,7 +70,12 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
     const next = turns + 1
     setTurns(next)
     ring(CHIMES.turn, next === TURNS ? [40, 60, 80] : 30)
-    if (next === TURNS) setPhase('dropping')
+    if (next === TURNS) {
+      setPhase('dropping')
+      // 計測（本番の公開 URL だけ）。目玉かどうかの真偽値だけで、賞品名・金額は送らない
+      track('spin', { mode: 'solo', featured: won.prize.glow === 'featured' })
+      trackOnce('spin_first', 'spin_first', { mode: 'solo' })
+    }
   }
 
   useEffect(() => {
@@ -84,6 +94,7 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
 
   const confirming = phase === 'confirm'
   const opened = phase === 'opening' || phase === 'revealed'
+  const dropped = phase === 'dropping' && won ? won : null
   const quote = spinQuote(state, gacha)
 
   return (
@@ -96,6 +107,8 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
           <main className="content spin-content">
             <div className="machine-wrap">
               <Machine turns={turns} label={confirming ? 'ガチャガチャ。確定すると回せます' : undefined} onHandleTap={phase === 'turning' ? oneTurn : undefined} />
+              {/* 3回転の直後、受け皿にカプセルが出る（マスター 380:3371 / 3391 / 3411）。光り方で当たりが分かる */}
+              {dropped && <Capsule glow={dropped.prize.glow} className="is-mini" />}
             </div>
             {confirming ? (
               <>
@@ -111,14 +124,14 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
             ) : (
               <>
                 <p className="turn-count" aria-live="polite">回転 {turns} / {TURNS}</p>
-                <p className="spin-lead">右のハンドルをタップして進めます</p>
+                <p className="spin-lead" aria-live="polite">{dropped ? <>カプセルが出てきました<span className="visually-hidden">（{capsuleName(dropped.prize.glow)}）</span></> : '右のハンドルをタップして進めます'}</p>
                 <p className="fine spin-sub">下のボタンでも同じように進められます。</p>
                 <p className="turn-bars" aria-hidden="true">{Array.from({ length: TURNS }, (_, i) => <span key={i} className={i < turns ? 'on' : ''} />)}</p>
                 <button ref={turnButton} type="button" className="btn btn-outline btn-block" onClick={oneTurn} disabled={phase !== 'turning'}>1タップで1回転</button>
                 <p className="fine spent">{coinText(gacha.price)}コイン使用済み・残高{coinText(state.coins)}</p>
               </>
             )}
-            <MockNotice />
+            <ExampleNotice />
           </main>
           {confirming && <TabBar active="gacha" />}
         </>
@@ -129,12 +142,12 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
 
 interface OpenProps { won: Won; gacha: Gacha; balance: number; revealed: boolean; onReveal: () => void; onTap: () => void }
 
-/** カプセルの見た目の段階（マスター 267:8387 閉じている → 8404 すきまがあく → 8421 ふたが離れる）。 */
-const CAPSULE_STAGES = ['closed', 'crack', 'apart'] as const
+const CAPSULE_STAGES: CapsuleStage[] = ['closed', 'crack', 'apart']
 
 /**
  * 開封（マスター 267:8387 / 8404 / 8421）と今回の結果（267:8438）。
- * 光り方にかかわらず、いつも3回タップで開く（カプセルの見た目も同じ）。動きを減らす設定でも、段階の絵と文字で進む。
+ * 光り方にかかわらず、いつも3回タップで開く。カプセルは光り方で3種の見た目（部品 376:11670）で、開ける前から当たりが分かる。
+ * 動きを減らす設定でも、段階の絵と文字で進む。
  * 開封の途中は戻る・下のタブを出さない。結果は保存済みなので、結果の画面からは戻れる。
  */
 function OpenScene({ won, gacha, balance, revealed, onReveal, onTap }: OpenProps) {
@@ -167,14 +180,12 @@ function OpenScene({ won, gacha, balance, revealed, onReveal, onTap }: OpenProps
         <PageHeader title="カプセルをひらく" />
         <main className="content open-stage">
           {/* 指で押しやすい大きな絵。キーボードと読み上げでは下のボタンを使う */}
-          <div className={`capsule-art stage-${stage}${taps > 0 && !opening ? ` shake-${Math.min(taps, 2)}` : ''}`} aria-hidden="true" onClick={tap}>
-            <span className="capsule-glow" /><span className="capsule-top" /><span className="capsule-bottom" /><span className="capsule-band" /><span className="capsule-knob" />
-          </div>
+          <Capsule glow={won.prize.glow} stage={stage} className={taps > 0 && !opening ? `shake-${Math.min(taps, 2)}` : ''} onClick={tap} />
           <p className="open-step" aria-live="polite">開封 {step} / {OPEN_TAPS}</p>
           <p className="open-sub">ゆっくり、好きなタイミングで。</p>
           <p className="turn-bars" aria-hidden="true">{Array.from({ length: OPEN_TAPS }, (_, i) => <span key={i} className={i < step ? 'on' : ''} />)}</p>
-          <button ref={ref} type="button" className="btn btn-main btn-block open-tap" onClick={tap} aria-label={`カプセルをタップ（あと${Math.max(OPEN_TAPS - taps, 0)}回であきます）`}>カプセルをタップ</button>
-          <MockNotice />
+          <button ref={ref} type="button" className="btn btn-main btn-block open-tap" onClick={tap} aria-label={`${capsuleName(won.prize.glow)}をタップ（あと${Math.max(OPEN_TAPS - taps, 0)}回であきます）`}>カプセルをタップ</button>
+          <ExampleNotice />
         </main>
       </>
     )
@@ -192,7 +203,7 @@ function OpenScene({ won, gacha, balance, revealed, onReveal, onTap }: OpenProps
         </article>
         {saveFailed ? <SaveWarning /> : <p className="result-saved">この1点はコレクションに保存されます。</p>}
         <a className="btn btn-main btn-block" href={paths.town}>街へ戻る</a>
-        <MockNotice />
+        <ExampleNotice />
       </main>
     </>
   )
@@ -225,11 +236,11 @@ function SpinProblem({ gacha, problem }: { gacha: Gacha; problem: NonNullable<Re
             </div>
             <h2 className="problem-title">今回は引けません</h2>
             <p className="lead problem-lead">残高はそのままです。</p>
-            <p className="fine">コインの購入や決済は、この提案モックにはありません。</p>
+            <p className="fine">コインの購入や決済は、開発中のためまだありません。</p>
           </>
         )}
         <a className="btn btn-outline btn-block" href={paths.gachaList}>ガチャ一覧に戻る</a>
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <TabBar active="gacha" />
     </div>

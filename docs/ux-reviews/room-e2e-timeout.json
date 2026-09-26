@@ -1,0 +1,58 @@
+{
+  "uiDigest": "c8a6953bf60f4f723e39e258fc9c13b56d927cc7da7e2a7575ce348d53f12873",
+  "reviewer": "Claude (#105: ルームの E2E が 30 秒の上限ぎりぎり)",
+  "reviewedAt": "2026-09-26",
+  "summary": "e2e/room.spec.ts「ホストが作って予約・ピッチ用・今すぐ開始…同時開封 → 結果」だけを test.slow()（上限90秒）にした。3つ目のタブの入室はタブ間の知らせが出ずホストは ROOM_POLL_MS（15秒）のポーリングで受け取り、開始後は SHARED_START_DELAY_MS（8秒）の秒読みがあるため、実時間の待ちだけで最大23秒あり、既定の30秒を超えることがあった（PR #96 の CI で31.2秒）。確かめる内容・20秒の上限・全5構成・retries 0 は変えていない。アプリの画面は変わらないので、各項目は対象外。ローカルで e2e/room.spec.ts 全5構成40件が成功。",
+  "criteria": [
+    {
+      "id": "HIG-01",
+      "result": "not-applicable",
+      "evidence": "画面・文言・部品・CSS・src/ は変更していない（差分は e2e/room.spec.ts のコメントと test.slow() の1行、docs/STATUS.md だけ）。文字・色・読み上げの対象に変化はない。"
+    },
+    {
+      "id": "HIG-02",
+      "result": "not-applicable",
+      "evidence": "画面・文言・部品・CSS・src/ は変更していない（差分は e2e/room.spec.ts のコメントと test.slow() の1行、docs/STATUS.md だけ）。操作できる部品・タップ領域に変化はない。"
+    },
+    {
+      "id": "HIG-03",
+      "result": "not-applicable",
+      "evidence": "画面・文言・部品・CSS・src/ は変更していない（差分は e2e/room.spec.ts のコメントと test.slow() の1行、docs/STATUS.md だけ）。レイアウト・余白・文字200%の表示に変化はない。"
+    },
+    {
+      "id": "HIG-04",
+      "result": "not-applicable",
+      "evidence": "画面・文言・部品・CSS・src/ は変更していない（差分は e2e/room.spec.ts のコメントと test.slow() の1行、docs/STATUS.md だけ）。案内文・用語に変化はない。"
+    },
+    {
+      "id": "HIG-05",
+      "result": "not-applicable",
+      "evidence": "画面・文言・部品・CSS・src/ は変更していない（差分は e2e/room.spec.ts のコメントと test.slow() の1行、docs/STATUS.md だけ）。動き・演出・秒読みの長さ（SHARED_START_DELAY_MS）は変えていない。"
+    },
+    {
+      "id": "GAME-01",
+      "result": "not-applicable",
+      "evidence": "画面・文言・部品・CSS・src/ は変更していない（差分は e2e/room.spec.ts のコメントと test.slow() の1行、docs/STATUS.md だけ）。Figma マスター 267:8198 との対応は直前の記録（issue-89-starter-coins）の状態のまま。"
+    },
+    {
+      "id": "GAME-02",
+      "result": "not-applicable",
+      "evidence": "画面・文言・部品・CSS・src/ は変更していない（差分は e2e/room.spec.ts のコメントと test.slow() の1行、docs/STATUS.md だけ）。コイン・抽選・ピッチ用の目玉確定の決まりは変えていない（E2E で引き続き確認）。"
+    },
+    {
+      "id": "GAME-03",
+      "result": "not-applicable",
+      "evidence": "画面・文言・部品・CSS・src/ は変更していない（差分は e2e/room.spec.ts のコメントと test.slow() の1行、docs/STATUS.md だけ）。通知・待ち時間・ポーリング間隔（ROOM_POLL_MS）は変えていない。"
+    },
+    {
+      "id": "GAME-04",
+      "result": "not-applicable",
+      "evidence": "画面・文言・部品・CSS・src/ は変更していない（差分は e2e/room.spec.ts のコメントと test.slow() の1行、docs/STATUS.md だけ）。着せ替え・選択肢・公開範囲は変更していない。"
+    },
+    {
+      "id": "GAME-05",
+      "result": "not-applicable",
+      "evidence": "画面・文言・部品・CSS・src/ は変更していない（差分は e2e/room.spec.ts のコメントと test.slow() の1行、docs/STATUS.md だけ）。デモであることの表示（この端末のブラウザの中だけのルーム）は変えていない。"
+    }
+  ]
+}

@@ -50,11 +50,22 @@ test('mock and real contract: 100 seats, one committed result, delayed reveal an
  expect(started.stock).toBeNull()
  expect(started.myResults).toEqual([])
  expect(started.balance).toBe(2500)
- expect(Date.parse(started.round!.nextReadyAt) - Date.parse(started.round!.startsAt)).toBe(15000)
+ // #88: all results 10 s after the capsules appear (or once everyone opened), the next ready 15 s after that.
+ expect(Date.parse(started.round!.revealAt) - Date.parse(started.round!.startsAt)).toBe(10000)
+ expect(Date.parse(started.round!.nextReadyAt) - Date.parse(started.round!.revealAt)).toBe(15000)
+ expect(started.round?.entrants).toHaveLength(100)
+ expect(started.round?.opened).toEqual([])
  expect((await users[0].start(first.id, 'start-1', 0)).balance).toBe(2500)
  await expect(users[0].start(first.id, 'start-2', 0)).rejects.toThrow('stale-round')
  await expect(users[0].ready(first.id, true)).rejects.toThrow('round-active')
  now += 8000
+ const opening = await users[1].open(first.id, 1)
+ expect(opening.round?.results).toBeNull()
+ expect(opening.stock).toBeNull()
+ expect(opening.myResults).toHaveLength(1)
+ expect(opening.round?.opened).toEqual(['user-1'])
+ expect((await users[2].snapshot(first.id)).myResults).toEqual([])
+ now += 10000
  const revealed = await users[1].snapshot(first.id)
  expect(revealed.round?.results).toHaveLength(100)
  expect(revealed.myResults).toHaveLength(1)
@@ -82,7 +93,7 @@ test('mock shortage is atomic and ready can be cancelled', async () => {
  for (let round = 0; round < 3; round++) {
    for (const user of users) await user.ready(room.id, true)
    await users[0].start(room.id, `start-${round}`, round)
-   now += 23000
+   now += 33000
  }
  const oldRetry = await users[0].start(room.id, 'start-0', 3)
  expect(oldRetry.roundNo).toBe(3)
@@ -145,7 +156,7 @@ test('mock schedule parity: host only, change, cancel, expiry bound, one start b
  await expect(host.schedule(room.id, 1)).rejects.toThrow('round-active')
 
  // Starting now replaces a schedule; the schedule must end a minute before the room expires.
- now += 23_000
+ now += 33_000
  await friend.ready(room.id, true)
  await host.schedule(room.id, 5)
  expect(await host.start(room.id, 'now', 1)).toMatchObject({ roundNo: 2, scheduledAt: null, lastSchedule: null })
@@ -201,7 +212,7 @@ test('mock pitch mode guarantees a real top prize while stock lasts, then draws 
  const round = async (n: number) => {
    for (const user of users) await user.ready(room.id, true)
    const started = await users[0].start(room.id, `p-${n}`, n)
-   now += 8000
+   now += 18000
    const shown = await users[1].snapshot(room.id)
    now += 15000
    return { started, shown }
@@ -226,7 +237,7 @@ test('mock pitch mode guarantees a real top prize while stock lasts, then draws 
  for (let n = 0; n < 2; n++) {
    for (const player of players) await player.ready(other.id, true)
    await players[0].start(other.id, `g-${n}`, n)
-   now += 8000
+   now += 18000
    const shown = await players[1].snapshot(other.id)
    expect(shown.round?.guaranteed).toBe(n === 0)
    expect(shown.round?.results?.filter(result => result.prize === 'plush')).toHaveLength(n === 0 ? 30 : 0)
@@ -389,7 +400,7 @@ test('mock parity: rename is refused while a round is active, like lp_rename', a
  await friend.ready(room.id, true)
  await owner.start(room.id, 'start-l', 0)
  for (const user of [owner, friend]) await expect(user.rename(room.id, '新しい名前')).rejects.toThrow('rename-locked')
- now += 23_000
+ now += 33_000
  const done = await friend.snapshot(room.id)
  expect(done.round?.results?.find(result => result.userId === 'friend')?.nickname).toBe('友だち')
  expect((await friend.rename(room.id, '新しい名前')).members.find(member => member.id === 'friend')?.nickname).toBe('新しい名前')
@@ -471,7 +482,7 @@ test('mock parity (F13): a due schedule waits for the second guest, starts on th
  const joined = await b.join(room.invite, 'い')
  expect(joined).toMatchObject({ roundNo: 1, scheduledAt: null, lastSchedule: { status: 'started', scheduledAt, roundNo: 1 } })
  expect(joined.round?.results).toBeNull()
- now += 8_000
+ now += 18_000
  expect((await host.snapshot(room.id)).round?.results?.map(result => result.userId)).toEqual(['host', 'a'])
  expect((await b.snapshot(room.id)).balance).toBe(3000)
 
@@ -499,4 +510,56 @@ test('mock parity (F13): a due schedule waits for the second guest, starts on th
  now += 181_000
  const cancelled = await host.schedule(third.id, null)
  expect(cancelled).toMatchObject({ roundNo: 0, scheduledAt: null, lastSchedule: { status: 'cancelled', scheduledAt: changed.scheduledAt, roundNo: null } })
+})
+
+test('mock parity (#88): each entrant opens their own capsule; all results once everyone opened or after 10 s', async () => {
+ let now = 0
+ const server = new MockRoomServer(() => now, () => 'invite-o', () => 0)
+ server.addHostKey(KEY)
+ const [host, a, b, watcher] = ['host', 'a', 'b', 'watcher'].map(id => server.asUser(id))
+ const room = await host.create('room-o', KEY, 'ホスト')
+ for (const [user, name] of [[a, 'あ'], [b, 'い'], [watcher, '見守り']] as const) await user.join(room.invite, name)
+ for (const user of [a, b]) await user.ready(room.id, true)
+ const started = await host.start(room.id, 'o-1', 0)
+ // The host did not get ready: a watcher like the others who did not.
+ expect(started.round).toMatchObject({ entrants: ['a', 'b'], opened: [], results: null })
+ await expect(a.open(room.id, 1)).rejects.toThrow('invalid-round') // before startsAt
+ now += 8000
+ await expect(watcher.open(room.id, 1)).rejects.toThrow('invalid-round')
+ await expect(host.open(room.id, 1)).rejects.toThrow('invalid-round')
+ await expect(a.open(room.id, 0)).rejects.toThrow('invalid-round')
+ const mine = await a.open(room.id, 1)
+ expect(mine.myResults.map(result => result.roundNo)).toEqual([1])
+ expect(mine).toMatchObject({ stock: null, round: { opened: ['a'], results: null } })
+ // Nobody else sees a's prize yet, and a retry changes nothing.
+ expect((await b.snapshot(room.id)).myResults).toEqual([])
+ expect((await watcher.snapshot(room.id)).round?.results).toBeNull()
+ expect((await a.open(room.id, 1)).round?.revealAt).toBe(started.round?.revealAt)
+ now += 3000
+ const all = await b.open(room.id, 1)
+ // Everyone opened: all results now, the next ready 15 s later instead of at the 10 s deadline + 15 s.
+ expect(all.round?.results?.map(result => result.userId)).toEqual(['a', 'b'])
+ expect(all.round?.revealAt).toBe(new Date(now).toISOString())
+ expect(all.round?.nextReadyAt).toBe(new Date(now + 15_000).toISOString())
+ expect(all.stock).not.toBeNull()
+ expect((await watcher.snapshot(room.id)).round?.results).toHaveLength(2)
+ now += 15_000
+
+ // Nobody opens: all results at startsAt + 10 s.
+ for (const user of [a, b]) await user.ready(room.id, true)
+ await host.start(room.id, 'o-2', 1)
+ now += 8000 + 9999
+ expect((await watcher.snapshot(room.id)).round?.results).toBeNull()
+ now += 1
+ expect((await watcher.snapshot(room.id)).round?.results).toHaveLength(2)
+ now += 15_000
+
+ // An entrant who leaves without opening is not waited for.
+ for (const user of [a, b]) await user.ready(room.id, true)
+ await host.start(room.id, 'o-3', 2)
+ now += 8000
+ await a.open(room.id, 3)
+ expect((await watcher.snapshot(room.id)).round?.results).toBeNull()
+ await b.leave(room.id)
+ expect((await watcher.snapshot(room.id)).round?.results).toHaveLength(2)
 })

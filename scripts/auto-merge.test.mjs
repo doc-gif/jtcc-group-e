@@ -57,10 +57,10 @@ test('draft, behind and conflicted PRs stay open', async () => {
   expect(await execute()).toContain('draft')
   pr.draft = false
   comparison.behind_by = 1
-  expect(await execute()).toContain('update branch')
+  expect(await execute()).toContain('behind main')
   comparison.behind_by = 0
   pr.mergeable = false
-  expect(await execute()).toContain('update branch')
+  expect(await execute()).toContain('behind main')
   expect(github.rest.pulls.createReview).not.toHaveBeenCalled()
 })
 test('missing protection fails closed and self-approval is skipped', async () => {

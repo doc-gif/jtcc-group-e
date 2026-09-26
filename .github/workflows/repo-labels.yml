@@ -29,6 +29,8 @@ jobs:
               { name: 'lock:supabase', color: '5319e7', description: 'Supabase の migration・本番 DB を使用中（同時に1つ）' },
               { name: 'lock:figma-master', color: '5319e7', description: 'Figma のマスター 267:8198 を編集中（同時に1つ）' },
               { name: 'scope:docs-only', color: 'c5def5', description: '文書だけの PR（軽い CI）' },
+              { name: 'env:cloud-ok', color: '0052cc', description: 'クラウドの Claude Code で進められる（本番 DB・Figma の共有リソース・実機が不要）。マネージャーが自分でセッションを起動する' },
+              { name: 'env:local-only', color: '5c5c5c', description: 'ローカルの Claude Code でだけ進める（Supabase 本番・Figma マスターの変更・実機確認が要る）。起動は担当者' },
               { name: 'manager', color: '1d76db', description: 'マネージャー（定期実行）が書いた記録' },
             ]
             const { data: existing } = await github.rest.issues.listLabelsForRepo({ ...context.repo, per_page: 100 })

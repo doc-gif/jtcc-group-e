@@ -3,7 +3,7 @@ import './shelf.css'
 import { useApp } from '../app/appContext'
 import { paths } from '../app/router'
 import { ownedItems, shelfOf, slotOf, slotText, toggleFavorite, type ShelfSlot } from '../domain/shelf'
-import { MockNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
+import { ExampleNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { ShelfGrid, type ShelfEntry } from '../components/ShelfGrid'
 
@@ -46,7 +46,7 @@ export function Shelf() {
           ? <a className="btn btn-main btn-block" href={paths.gachaList}>ガチャのお店へ</a>
           : <a className="btn btn-main btn-block" href={paths.shelfShare}>友だちからの見え方を見る</a>}
         <SaveWarning />
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <TabBar active="collection" />
     </div>
@@ -105,7 +105,7 @@ export function ShelfItemScreen({ id }: { id: string }) {
           </>
         )}
         <SaveWarning />
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <TabBar active="collection" />
     </div>
@@ -131,7 +131,7 @@ export function ShelfShare() {
         <ShelfGrid slots={toEntries(slots, 'あなたの品')} label="友だちから見えるあなたの棚（プレビュー）" emptyTitle="未入手" emptyNote={(index) => slots[index].prize.name} />
         <p className="fine">見せる範囲と招待は後続で決めます。</p>
         <a className="btn btn-main btn-block" href={paths.together}>友だち一覧へ</a>
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <TabBar active="collection" />
     </div>

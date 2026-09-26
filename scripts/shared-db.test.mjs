@@ -9,7 +9,7 @@ const KEY=createHostKey()
 const users=Array.from({length:102},()=>randomUUID())
 const room=randomUUID()
 let invite
-const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql','supabase/migrations/20260926025335_lp_name_chars_create_retry.sql','supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql','supabase/migrations/20260926033821_lp_min_guests.sql','supabase/migrations/20260926052120_lp_pitch_goods_photos.sql','supabase/migrations/20260926075123_lp_realtime_wake.sql']
+const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql','supabase/migrations/20260926025335_lp_name_chars_create_retry.sql','supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql','supabase/migrations/20260926033821_lp_min_guests.sql','supabase/migrations/20260926052120_lp_pitch_goods_photos.sql','supabase/migrations/20260926075123_lp_realtime_wake.sql','supabase/migrations/20260926104012_lp_open_each.sql']
 // Supabase Storage is not in PGlite. A minimal stand-in (F15): the real schema has more columns; the grants mirror Supabase (RLS decides).
 const STORAGE_STUB=`create schema storage;
  create table storage.buckets(id text primary key,name text not null,public boolean default false,file_size_limit bigint,allowed_mime_types text[]);
@@ -53,11 +53,12 @@ test('100 seats, idempotent joins, atomic shared results, reconnect and private 
  const start=await call(users[0],'select public.lp_start($1,$2,0) result',[room,request])
  await expect(call(users[0],'select public.lp_ready($1,true) result',[room])).rejects.toThrow('round-active')
  expect(start.balance).toBe(2500);expect(start.round.results).toBeNull();expect(start.stock).toBeNull();expect(start.myResults).toEqual([])
- expect(Date.parse(start.round.nextReadyAt)-Date.parse(start.round.startsAt)).toBe(15000)
+ expect(Date.parse(start.round.revealAt)-Date.parse(start.round.startsAt)).toBe(10000)
+ expect(Date.parse(start.round.nextReadyAt)-Date.parse(start.round.revealAt)).toBe(15000)
  const repeated=await call(users[0],'select public.lp_start($1,$2,0) result',[room,request])
  expect(repeated.roundNo).toBe(1);expect(repeated.balance).toBe(2500)
  await expect(call(users[0],'select public.lp_start($1,$2,0) result',[room,randomUUID()])).rejects.toThrow('stale-round')
- await db.exec("update public.lp_rounds set starts_at=now()-interval '30 seconds', next_ready_at=now()-interval '15 seconds'")
+ await db.exec("update public.lp_rounds set starts_at=now()-interval '30 seconds',reveal_at=now()-interval '20 seconds',next_ready_at=now()-interval '15 seconds'")
  const views=[]
  for(let i=0;i<100;i++) views.push(await call(users[i],'select public.lp_snapshot($1) result',[room]))
  expect(views.every(v=>JSON.stringify(v.round)===JSON.stringify(views[0].round))).toBe(true)
@@ -111,7 +112,8 @@ test('#68: only room members may receive, and the receive policy is created once
  const rows=(await db.query("select cmd,roles::text roles from pg_policies where schemaname='realtime' and tablename='messages'")).rows
  // SELECT for signed-in users only. No INSERT policy: clients cannot send on lp:<roomId>.
  expect(rows).toEqual([{cmd:'SELECT',roles:'{authenticated}'}])
- await db.exec(await readFile('supabase/migrations/20260926075123_lp_realtime_wake.sql','utf8'))
+ // Re-apply #68 and the migrations after it (they replace lp_wake and lp_leave again, #88).
+ for(const file of migrations.slice(migrations.indexOf('supabase/migrations/20260926075123_lp_realtime_wake.sql'))) await db.exec(await readFile(file,'utf8'))
  expect((await db.query("select count(*)::int count from pg_policies where schemaname='realtime' and tablename='messages'")).rows[0].count).toBe(1)
  const id=randomUUID()
  const {invite:inv}=await call(users[0],'select public.lp_create($1,$3,$2) result',[id,'ホスト',KEY])
@@ -189,7 +191,7 @@ describe('F07: scheduled start and pitch mode', () => {
   return id
  }
  const due=id=>db.query("update public.lp_rooms set scheduled_at=now()-interval '1 second' where id=$1 and scheduled_at is not null",[id])
- const finishRound=id=>db.query("update public.lp_rounds set starts_at=now()-interval '30 seconds',next_ready_at=now()-interval '15 seconds' where room=$1",[id])
+ const finishRound=id=>db.query("update public.lp_rounds set starts_at=now()-interval '30 seconds',reveal_at=now()-interval '20 seconds',next_ready_at=now()-interval '15 seconds' where room=$1",[id])
  const balances=async id=>Object.fromEntries((await db.query('select user_id,balance from public.lp_members where room=$1',[id])).rows.map(row=>[row.user_id,row.balance]))
 
  test('only the host schedules, changes or cancels a start before expiry; everyone sees it', async()=>{
@@ -449,7 +451,7 @@ describe('F10: owner-only host key and unique names', () => {
   await join(watcher,created.invite,'見守り')
   for(const user of [laptop,friend]) await call(user,'select public.lp_ready($1,true) result',[id])
   await call(laptop,'select public.lp_start($1,$2,0) result',[id,randomUUID()])
-  await db.query("update public.lp_rounds set starts_at=now()-interval '30 seconds',next_ready_at=now()-interval '15 seconds' where room=$1",[id])
+  await db.query("update public.lp_rounds set starts_at=now()-interval '30 seconds',reveal_at=now()-interval '20 seconds',next_ready_at=now()-interval '15 seconds' where room=$1",[id])
   const before=await snap(laptop,id)
   expect(before.myResults).toHaveLength(1)
   const friendBefore=await snap(friend,id)
@@ -547,7 +549,7 @@ describe('F10: owner-only host key and unique names', () => {
   await call(friend,'select public.lp_ready($1,true) result',[id])
   await call(owner,'select public.lp_start($1,$2,0) result',[id,randomUUID()])
   for(const user of [owner,friend]) expect((await failure(rename(user,id,'新しい名前'))).message).toBe('rename-locked')
-  await db.query("update public.lp_rounds set starts_at=now()-interval '30 seconds',next_ready_at=now()-interval '15 seconds' where room=$1",[id])
+  await db.query("update public.lp_rounds set starts_at=now()-interval '30 seconds',reveal_at=now()-interval '20 seconds',next_ready_at=now()-interval '15 seconds' where room=$1",[id])
   const done=await snap(friend,id)
   expect(done.round.results.find(result=>result.userId===friend).nickname).toBe('友だち')
   expect((await rename(friend,id,'新しい名前')).members.find(member=>member.id===friend).nickname).toBe('新しい名前')
@@ -849,3 +851,64 @@ describe('F15: private goods photos are readable only inside an open room', () =
   expect(rows).toEqual([{prosecdef:true,proconfig:['search_path=""']}])
  })
 })
+test('#88: each entrant opens their own capsule; all results once everyone opened, after 10 s, or when the last one left', async()=>{
+ const id=randomUUID()
+ // An earlier test made realtime.send fail; wakes are counted here, so restore the recording stand-in.
+ await db.exec("create or replace function realtime.send(payload jsonb,event text,topic text,private boolean) returns void language sql as $$insert into realtime.messages(extension,topic,event,payload,private) values('broadcast',topic,event,payload,private)$$")
+ const [host,a,b,watcher]=[users[0],users[1],users[2],users[3]]
+ const {invite:inv}=await call(host,'select public.lp_create($1,$3,$2) result',[id,'ホスト',KEY])
+ for(const [user,name] of [[a,'あ'],[b,'い'],[watcher,'見守り']]) await call(user,'select public.lp_join($1,$2) result',[inv,name])
+ const round=async n=>{
+  for(const user of [a,b]) await call(user,'select public.lp_ready($1,true) result',[id])
+  const started=await call(host,'select public.lp_start($1,$2,$3) result',[id,randomUUID(),n-1])
+  expect(started.round).toMatchObject({number:n,entrants:[a,b],opened:[],results:null})
+  return started
+ }
+ const open=(user,n)=>call(user,'select public.lp_open($1,$2) result',[id,n])
+ // The latest round's capsules appear now (its reveal and next ready stay in the future).
+ const capsules=()=>db.query('update public.lp_rounds set starts_at=now()-interval \'1 second\' where room=$1 and number=(select round_no from public.lp_rooms where id=$1)',[id])
+ const started=await round(1)
+ await expect(open(a,1)).rejects.toThrow('invalid-round') // before startsAt
+ await capsules()
+ for(const [user,n] of [[watcher,1],[host,1],[a,0],[a,null]]) await expect(open(user,n)).rejects.toThrow('invalid-round')
+ const mine=await open(a,1)
+ expect(mine.myResults.map(r=>r.roundNo)).toEqual([1])
+ expect(mine).toMatchObject({stock:null,round:{opened:[a],results:null}})
+ expect((await call(b,'select public.lp_snapshot($1) result',[id])).myResults).toEqual([])
+ expect((await call(watcher,'select public.lp_snapshot($1) result',[id])).round.results).toBeNull()
+ // A retry changes nothing and sends no second wake.
+ const wakes=async()=>(await db.query("select count(*)::int count from realtime.messages where topic=$1 and payload->>'reason'='open'",[`lp:${id}`])).rows[0].count
+ expect(await wakes()).toBe(1)
+ expect((await open(a,1)).round.revealAt).toBe(started.round.revealAt)
+ expect(await wakes()).toBe(1)
+ const all=await open(b,1)
+ expect(all.round.results.map(r=>r.userId)).toEqual([a,b])
+ expect(Date.parse(all.round.revealAt)).toBeLessThan(Date.parse(started.round.revealAt))
+ expect(Date.parse(all.round.nextReadyAt)-Date.parse(all.round.revealAt)).toBe(15000)
+ expect(all.stock).not.toBeNull()
+ expect((await call(watcher,'select public.lp_snapshot($1) result',[id])).round.results).toHaveLength(2)
+ await db.query("update public.lp_rounds set starts_at=now()-interval '30 seconds',reveal_at=now()-interval '20 seconds',next_ready_at=now()-interval '5 seconds' where room=$1",[id])
+
+ // Nobody opens: the deadline alone reveals, with no write.
+ await round(2)
+ await db.query("update public.lp_rounds set starts_at=now()-interval '11 seconds',reveal_at=now()-interval '1 second',next_ready_at=now()+interval '14 seconds' where room=$1 and number=2",[id])
+ expect((await call(watcher,'select public.lp_snapshot($1) result',[id])).round.results).toHaveLength(2)
+ await expect(call(a,'select public.lp_ready($1,true) result',[id])).rejects.toThrow('round-active')
+ await db.query("update public.lp_rounds set next_ready_at=now()-interval '1 second' where room=$1",[id])
+
+ // The last unopened entrant leaves: not waited for.
+ await round(3)
+ await capsules()
+ await open(a,3)
+ expect((await call(watcher,'select public.lp_snapshot($1) result',[id])).round.results).toBeNull()
+ await call(b,'select public.lp_leave($1) result',[id])
+ expect((await call(watcher,'select public.lp_snapshot($1) result',[id])).round.results).toHaveLength(2)
+
+ // Internal functions stay private; only signed-in users may open.
+ await db.exec('set role authenticated')
+ await expect(db.query('select public.lp_settle_open($1)',[id])).rejects.toThrow('permission denied')
+ await db.exec('reset role')
+ await db.exec('set role anon')
+ await expect(db.query('select public.lp_open($1,1)',[id])).rejects.toThrow('permission denied')
+ await db.exec('reset role')
+},30000)

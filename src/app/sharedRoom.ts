@@ -122,6 +122,7 @@ export function demoTransport({ storage, session, isOnline = () => true, lock = 
     start: call(inner.start),
     schedule: call(inner.schedule),
     setPitchMode: call(inner.setPitchMode),
+    open: call(inner.open),
     leave: call(inner.leave),
     subscribe(room, refresh, onStatus) {
       load()
