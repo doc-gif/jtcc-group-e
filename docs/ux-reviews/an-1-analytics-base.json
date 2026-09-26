@@ -1,0 +1,58 @@
+{
+  "uiDigest": "fe8eb4189a2e53f6979cbfcc24f4c6a37ad12b40d726d932393078db99a3cf75",
+  "reviewer": "Claude (AN-1 / #42: analytics base)",
+  "reviewedAt": "2026-09-26",
+  "summary": "#42 の計測基盤。src/app/analytics.ts（shouldTrack・initAnalytics・track・trackOnce）を追加し、src/main.tsx で initAnalytics() を 1 回呼ぶ。GA4（G-3DDS1NJZXS、Google シグナル・広告向け機能オフ）は本番の公開 URL（doc-gif.github.io/jtcc-group-e/ 配下）でだけ gtag.js を動的に挿入し、localhost・127.0.0.1・自動操作・jsdom・確認用プレビュー・?internal=1（LP と同じ lp_internal）では何も読み込まない。ハッシュが変わるたびに page_view を送り（page_path は固定版でも /jtcc-group-e/#/... にそろえ、page_location に版のパスを残す）、招待コード・ホストキーは #/room/:invite・#/host/:key に伏せる。画面・CSS・文言・遷移は変更していない（320px で街・ガチャ・ルームを作る・マイページを見て、表示と JS エラーなしを確認）。",
+  "criteria": [
+    {
+      "id": "HIG-01",
+      "result": "not-applicable",
+      "evidence": "画面・文字・色を変更していない。320px で街・ガチャ一覧・ルームを作る・マイページを開き、以前と同じ表示で JS エラーがないことを確認した。"
+    },
+    {
+      "id": "HIG-02",
+      "result": "not-applicable",
+      "evidence": "操作要素・フォーカス順・読み上げを変更していない。gtag.js は <head> への非表示の script で、画面の要素を増やさない。"
+    },
+    {
+      "id": "HIG-03",
+      "result": "not-applicable",
+      "evidence": "レイアウトを変更していない。e2e/analytics.spec.ts を既存の 5 端末構成（320px・Android・iPhone・横向き・デスクトップ）で実行し、画面の移動で見出しが表示され JS エラーがないことを確認した。"
+    },
+    {
+      "id": "HIG-04",
+      "result": "pass",
+      "evidence": "計測は画面の処理から独立し、例外はすべて握りつぶす。gtag が壊れていても track・trackOnce・ハッシュの移動は例外を返さない（analytics.test.ts「gtag が壊れていても画面の処理に例外を返さない」）。gtag.js は async で読み込み、画面の表示を待たせない。"
+    },
+    {
+      "id": "HIG-05",
+      "result": "not-applicable",
+      "evidence": "演出・音・動きを追加していない。動きを減らす設定の扱いも変更しておらず、既存の画面の動きはそのまま。"
+    },
+    {
+      "id": "GAME-01",
+      "result": "not-applicable",
+      "evidence": "見た目・画面構成・状態を変えていないため、Figma マスター 267:8198 の変更や照合は不要。計測の公表文（マイページ「きまり」）は #46 で Figma と合わせて扱う。"
+    },
+    {
+      "id": "GAME-02",
+      "result": "pass",
+      "evidence": "コイン・在庫・ルームの状態を読まず、変えない。送るのは画面の場所とイベント名・呼び出し側が渡す値だけで、招待コード・ホストキーは伏せる（analytics.test.ts「招待コードとホストキーを伏せ…」、本物の gtag.js を本番 URL に見立てて読み込み、送信を止めた確認で dl・dp にキーや招待コードが入らないことを確かめた）。"
+    },
+    {
+      "id": "GAME-03",
+      "result": "pass",
+      "evidence": "通知・バッジ・催促を追加していない。?internal=1 でいつでも計測から外れ、?internal=0 で戻せる（analytics.test.ts、e2e/analytics.spec.ts）。Google シグナルと広告のパーソナライズはオフ。"
+    },
+    {
+      "id": "GAME-04",
+      "result": "not-applicable",
+      "evidence": "着せ替え・選択肢・公開範囲は変更していない。計測に使う値（ニックネームなど）を画面から集めることもしていない。"
+    },
+    {
+      "id": "GAME-05",
+      "result": "not-applicable",
+      "evidence": "画面の文言を追加していない。外部送信の説明（公表文）は #46 と docs/PRODUCT.md で扱う。"
+    }
+  ]
+}
