@@ -258,10 +258,10 @@ test('ひとりで回す：詳細 → 3回転 → 開封 → 当てたもの →
   expect(errors).toEqual([])
 })
 
-test('右のハンドルをタップして回せる（マスター 267:8348）。押せる範囲は44px以上', async ({ page }) => {
+test('つまみをタップして回せる（マスター 267:8348）。押せる範囲は44px以上', async ({ page }) => {
   await page.goto('./#/gacha/sanrio-capsule/spin')
   await confirmSpin(page)
-  const handle = page.locator('.m-handle-hit')
+  const handle = page.locator('.m-knob-hit')
   await handle.scrollIntoViewIfNeeded()
   const box = (await handle.boundingBox())!
   expect(box.width).toBeGreaterThanOrEqual(44)
@@ -271,6 +271,96 @@ test('右のハンドルをタップして回せる（マスター 267:8348）�
     if (turn < 3) await expect(page.getByText(`回転 ${turn} / 3`)).toBeVisible()
   }
   await expect(page.getByRole('button', { name: /カプセルをタップ/ })).toBeVisible()
+})
+
+/** つまみの中心と、なぞる円の半径（押せる範囲 160×160 の内側） */
+async function knobCircle(page: Page) {
+  const hit = page.locator('.m-knob-hit')
+  await hit.scrollIntoViewIfNeeded()
+  const box = (await hit.boundingBox())!
+  const cx = box.x + box.width / 2
+  const cy = box.y + box.height / 2
+  const r = box.width * 0.4
+  return { box, at: (degrees: number) => ({ x: cx + r * Math.cos((degrees * Math.PI) / 180), y: cy + r * Math.sin((degrees * Math.PI) / 180) }) }
+}
+
+/** つまみの見た目の回転（度、0 以上 360 未満）。CSS の transform の行列から読むので、ブラウザの丸めで 1° ほどずれる */
+const knobRotation = (page: Page) => page.locator('.m-knob').evaluate((el) => {
+  const m = new DOMMatrixReadOnly(getComputedStyle(el).transform)
+  return (((Math.atan2(m.b, m.a) * 180) / Math.PI) + 360) % 360
+})
+/** つまみの向きが期待の角度（0 以上 360 未満）に 2° 以内で合う */
+async function expectKnobRotation(page: Page, degrees: number) {
+  const actual = await knobRotation(page)
+  const diff = Math.abs(((actual - degrees + 540) % 360) - 180)
+  expect(diff, `つまみの向き ${actual.toFixed(1)}° は ${degrees}° のはず`).toBeLessThanOrEqual(2)
+}
+
+test('つまみを指で右に丸くなぞって回す（#115、マスター 421:9251・421:9270）：左回りは進まず、1 周で 1 回転、3 回転でカプセルが出る', async ({ page, browserName, hasTouch }) => {
+  // 3 周分（100 点以上）ポインタを動かすので、通常の 3 倍の時間を許す
+  test.slow()
+  const errors = watchErrors(page)
+  await page.goto('./#/gacha/sanrio-capsule/spin')
+  await confirmSpin(page)
+  const { box, at } = await knobCircle(page)
+  // 押せる範囲はマスターの 160×160（画面の幅に合わせて縮むが 44px 以上）
+  expect(box.width).toBeGreaterThanOrEqual(44)
+  expect(Math.abs(box.width - box.height)).toBeLessThanOrEqual(1)
+  // なぞる前: 右回りの矢印と案内（turn1）
+  await expect(page.locator('.m-hint')).toBeVisible()
+  await expect(page.getByText('つまみを右にくるっと回そう')).toBeVisible()
+  await expect(page.getByText('右回りに一周で 1 回転。ボタンでも回せます。')).toBeVisible()
+  const moveTo = async (degrees: number) => { const p = at(degrees); await page.mouse.move(p.x, p.y) }
+  await moveTo(0)
+  await page.mouse.down()
+  // 左回りに 1 周: 進まない。なぞっている間は矢印が消え、本文が「そのまま右にぐるっと一周！」（dragging）
+  for (let d = -10; d >= -360; d -= 10) await moveTo(d)
+  await expect(page.getByText('そのまま右にぐるっと一周！')).toBeVisible()
+  await expect(page.locator('.m-hint')).toHaveCount(0)
+  await expect(page.getByText('回転 0 / 3')).toBeVisible()
+  await expectKnobRotation(page, 0)
+  // 右回りに半周: まだ進まないが、つまみは指に追従して回っている
+  for (let d = 10; d <= 180; d += 10) await moveTo(d)
+  await expect(page.getByText('回転 0 / 3')).toBeVisible()
+  await expectKnobRotation(page, 180)
+  // 残りの半周で 1 回転。「カチッ」（click1）
+  for (let d = 190; d <= 360; d += 10) await moveTo(d)
+  await expect(page.getByText('回転 1 / 3')).toBeVisible()
+  await expect(page.getByText('1 回転、できた！')).toBeVisible()
+  await expect(page.getByText('つづけて右に回そう。')).toBeVisible()
+  await expect(page.locator('.m-click')).toBeVisible()
+  await page.mouse.up()
+  // 離すと矢印が戻る（turn2）
+  await expect(page.locator('.m-hint')).toBeVisible()
+  await expect(page.getByText('つまみを右にくるっと回そう')).toBeVisible()
+  // 2 周目: タッチのある Chromium（Android 相当）では CDP で実際の指のタッチの列を送り、ページが動かないこと（touch-action: none）と
+  // 指が押せる範囲から少し外れても続くこと（setPointerCapture）を確かめる。ほかの構成はマウスで同じ 1 周（iPhone の実際の指は実機で確かめる。MULTI_DEVICE.md）
+  if (browserName === 'chromium' && hasTouch) {
+    const scrollBefore = await page.evaluate(() => window.scrollY)
+    const cdp = await page.context().newCDPSession(page)
+    const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', degrees?: number) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: degrees === undefined ? [] : [{ ...at(degrees), id: 1 }] })
+    await touch('touchStart', 90)
+    for (let d = 100; d <= 90 + 360; d += 10) await touch('touchMove', d)
+    await expect(page.getByText('回転 2 / 3')).toBeVisible()
+    await touch('touchEnd')
+    expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore)
+    await cdp.detach()
+  } else {
+    await moveTo(90)
+    await page.mouse.down()
+    for (let d = 100; d <= 90 + 360; d += 10) await moveTo(d)
+    await expect(page.getByText('回転 2 / 3')).toBeVisible()
+    await page.mouse.up()
+  }
+  // 3 周目でカプセルが出る
+  await moveTo(90)
+  await page.mouse.down()
+  for (let d = 100; d <= 90 + 360; d += 10) await moveTo(d)
+  await page.mouse.up()
+  await expect(page.getByText('回転 3 / 3')).toBeVisible()
+  await expect(page.getByText(/カプセルが出てきました/)).toBeVisible()
+  await expect(page.getByRole('button', { name: /カプセルをタップ/ })).toBeVisible()
+  expect(errors).toEqual([])
 })
 
 /** 演出の途中の状態も、WCAG AA・44px・横はみ出しなしを確かめて画像を残す */

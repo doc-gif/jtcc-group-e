@@ -23,7 +23,7 @@ export function Together() {
   const { state } = useApp()
   const friends = friendsOf(state)
   return (
-    <div className="screen">
+    <div className="screen world-sky">
       <PageHeader title="フレンド" back={paths.town} />
       <main className="content">
         {friends.length === 0 ? (

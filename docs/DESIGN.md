@@ -20,10 +20,10 @@
 
 ## トークンの範囲
 
-ラストピースの画面は、2026-09-26 の担当者の指示によりピンク基調の「さくらミルク」を正とし、緑の主操作は採用しない（[デザインマスター](ADOPTED_DESIGN.md)）。`design-system/` はマスターが参照する Figma 変数の記録で、2026-09-26 に v0.2 としてピンク系へ整理し、現行のスナップショットは v0.4（`figma-manifest.json` 0.4.0、F14 の色を追加。F14 の色はアプリ未実装）。ピッチ資料のコーラル・ラベンダーとは別の用途として管理する。
+ラストピースの画面は、2026-09-26 の担当者の指示によりピンク基調の「さくらミルク」を正とし、緑の主操作は採用しない（[デザインマスター](ADOPTED_DESIGN.md)）。`design-system/` はマスターが参照する Figma 変数の記録で、2026-09-26 に v0.2 としてピンク系へ整理し、現行のスナップショットは v0.4（`figma-manifest.json` 0.4.1、F14 の色を追加。F14 の色は #70 でアプリにも反映）。ピッチ資料のコーラル・ラベンダーとは別の用途として管理する。
 
 - 変数: `Lastpiece v2 / Primitives`（`177:15`、14変数）、`Lastpiece v2 / Tokens`（`177:16`、30変数、mode Light）、`Lastpiece v2 / Sanrio World (F14)`（`323:3784`、11色、2026-09-26 の F14 で採用）。マスター `267:8198` の変数結合はすべてこの3つ。F14 の色は空色・クリーム・ラベンダーの地とリボン・キャラクターの色で、文字に使えるのは `sanrio/kuromi-ink` と `sanrio/cocoa` だけ。
-- 世界観（F14、2026-09-26）: 画面の見出しは Zen Maru Gothic Bold（文字スタイルなし）。キャラクターの絵と © 表記の札は内部検討用で Figma だけに置き、アプリ・公開リポジトリ・プレビューに入れない（[ADOPTED_DESIGN.md の実装時の境界](ADOPTED_DESIGN.md#実装時の境界)）。
+- 世界観（F14、2026-09-26）: 画面の見出しは Zen Maru Gothic Bold（文字スタイルなし）。キャラクターの絵と © 表記の札は内部検討用で Figma だけに置き、アプリ・公開リポジトリ・プレビューに入れない（[ADOPTED_DESIGN.md の実装時の境界](ADOPTED_DESIGN.md#実装時の境界)）。アプリは #70 で色・リボン・丸い見出し・レイアウトだけを実装した（下の「コードとの対応」）。
 - 部品: `LP v2 / Button`（`179:34`、説明 `179:19`）Primary / Outline × Default / Focus / Disabled = 6、高さ48px。`LP v2 / Navigation Item`（`180:27`）Selected / Default / Focus、`LP v2 / Bottom Navigation`（`180:28`）。本体は Town v2 `134:2` にあり、マスターが live 参照する。
 - 文字スタイル: `Lastpiece v2/` の Display 32/44（Shippori Mincho Bold）、Title 24/32、Body 17/29、Label 16/24、**Button 19/28（Bold）**、Caption 14/22（サイズ/行高、px。Noto Sans JP）の6種。Button は 2026-09-26 に追加し、Button 部品の6状態に適用した（マスター内 90 か所）。
 - 色の使い分け（担当者の判断、2026-09-26。Figma を先に直し、F06 で Web に反映）: `color/action/primary` `#be6482` は主ボタンの塗りと、枠ボタンの文字・枠だけに使う。ボタンの文字は 19px 太字で WCAG の「大きい文字」（18.66px 以上の太字）に当たるので、白/`#be6482` の 3.94:1 が 3:1 の基準を満たす。基準は下げていない。19px 太字より小さいピンクの文字はすべて `color/accent/wine` `#a94a68`。下のタブの選択中はミント `color/nav/selected` `#e3f1e7` の地にワインの文字。
@@ -43,6 +43,7 @@
 - CSS 名は Figma 変数の WEB code syntax と同じ。`--bg`・`--surface`・`--soft`・`--main`・`--deep` は `src/index.css` と同名・同値。その他は `--lp-v2-*`。初版の `--jtcc-*` は使わない。`--lp-v2-type-*` と `--lp-v2-focus-ring` は Figma 変数がないため CSS 側で名前を付けた。
 - Figma の文字寸法は px、CSS は16px基準の rem。ブラウザの文字拡大を維持する。Web は Noto Sans JP を先頭にした OS フォントのスタックで、同じ字形・改行は保証しない。
 - **Web（`src/index.css`）との対応（F06、2026-09-26）:** `--text` #172324（text/primary）、`--sub` #52615a（text/secondary・disabled）、`--primary` #be6482（action/primary）、`--deep` #a94a68（accent/wine）、`--mint` #e3f1e7（nav/selected）、`--disabled` #d4dcd7（action/disabled）、`--disabled-line` #d8c9cf（border/default、無効の枠だけ）、`--button-size`/`--button-line` 1.1875rem/1.75rem（Button 19/28）。旧名 `--wine` は見出し用で値は `--text` と同じ（Figma の accent/wine は `--deep`）。
+- **F14 の世界観（#70）:** `src/index.css` に Figma と同じ名前 `--lp-v2-sanrio-*`（11色）と `--petal`。画面の地は `.screen` の水玉（クリーム＋ピンク）に `.world-lavender`・`.world-sky` を重ねて T07〜T10 の地を分ける。雲・リボン・ハートと星は `src/components/Chrome.tsx` の `Cloud`・`Bow`・`Sparkles`（コードで描いた図形）、レースのスカラップ・日よけ・題のリボンの帯・ルームの花は CSS。見出しのフォント `--font-heading` は Zen Maru Gothic Bold を `src/fonts/zen-maru-gothic.css` で同梱（Google Fonts 配布の OFL 1.1 の ZenMaruGothic-Bold.ttf から、アプリで使う文字だけを HarfBuzz で切り出した 1 つの woff2 約 150 KB。ライセンスは `src/fonts/zen-maru-gothic/OFL.txt`。外部サービスへは通信せず、最初の画面のあとは取りに行かない。切り出し方は同 CSS の先頭のコメント）。同梱にない文字は丸ゴシック系の OS フォントで出る。
 - **残る差:** フォーカス線は Web が `#a94a68` の 3px（Button の Focus の外側リングと同じ色。Figma の `border/focus` は `#be6482`）。区切り線は Web が `--line` #F5DDE4（Figma `#d8c9cf`）。どちらも操作の境界や文字ではなく、コントラスト基準に影響しない。
 - Figma の `JTCC / Lastpiece`（`83:18`）は `src/index.css` と同じ値の変数集だが、マスターは参照していない。
 

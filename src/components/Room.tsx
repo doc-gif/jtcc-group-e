@@ -91,7 +91,11 @@ export function RoomStage({ caption, variant = 'gift', faces = [], crowd = 0, co
   const people = faces.length > 0 ? Math.max(crowd, faces.length) : 0
   return (
     <figure className={`room-stage stage-${variant}${people > 0 ? ` crowd-${crowdLevel(people)}` : ''}${compact ? ' is-compact' : ''}`}>
-      <figcaption className="room-stage-caption">{caption}</figcaption>
+      <figcaption className="room-stage-caption">
+        <span className="stage-flower is-left" aria-hidden="true" />
+        {caption}
+        <span className="stage-flower is-right" aria-hidden="true" />
+      </figcaption>
       <div className="room-stage-body">
         <svg className="room-stage-art" viewBox="0 0 340 170" aria-hidden="true" focusable="false">
           <ellipse cx="170" cy="150" rx="120" ry="14" className="stage-shadow" />

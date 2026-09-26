@@ -437,7 +437,8 @@ describe('復帰・ホスト不在・期限', () => {
 
   test('#88: まだ回していない人は、みんなの結果が出た後も回す画面のまま。回し終えると自分の当たりが出る', async () => {
     const { host, invite } = await hostRoom()
-    open(`#/room/${invite}`, sessionFor('guest'))
+    const guest = sessionFor('guest')
+    open(`#/room/${invite}`, guest)
     await joinAs('ゆい')
     await click('抽選に参加する')
     await addGuests(invite, ['さき'])
@@ -453,6 +454,9 @@ describe('復帰・ホスト不在・期限', () => {
     expect(screen.getByRole('heading', { name: /^説明用/ })).toBeVisible()
     await click('みんなの結果を見る')
     expect(heading()).toHaveTextContent('みんなのピース')
+    // 後のテストで時間を大きく進めても、このルームのポーリングを回さない
+    host.controller.detach()
+    guest.controller.detach()
   })
 
   test('ホストが同じ端末で開き直すと「ホストとして戻りました」', async () => {
@@ -491,7 +495,9 @@ describe('復帰・ホスト不在・期限', () => {
     const guest = sessionFor('guest')
     open(`#/room/${invite}`, guest)
     await joinAs('ゆい')
-    await advance(2 * 60 * 60_000)
+    // 2 時間後の最初の取り直しで終了を知る（途中の 480 回のポーリングは進めない。画面の CSS が多いと jsdom で遅くなる）
+    vi.setSystemTime(Date.now() + 2 * 60 * 60_000)
+    await advance(ROOM_POLL_MS)
     expect(heading()).toHaveTextContent('ルームは終了しました')
     expect(screen.getByText('有効期限が過ぎました')).toBeVisible()
     expect(guest.records.getItem(ROOM_RECORDS_KEY)).toBe('{}')

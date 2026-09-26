@@ -20,18 +20,31 @@
   margin: 0; overflow: hidden; border-radius: 22px; border: 1px solid var(--line);
   background: var(--room-mint);
 }
+/* 幕（267:8925 curtain）: 淡いピンクに petal の縁、両端に小さな花（267:8927〜 flower）。F14 で petal の縁と花にした */
 .room-stage-caption {
-  background: var(--soft); border-bottom: 6px solid var(--line);
-  text-align: center; font-weight: 800; font-size: 1.0625rem; color: var(--deep); padding: 0.35rem 1rem;
+  position: relative; background: var(--soft); border-bottom: 6px solid var(--petal);
+  text-align: center; font-weight: 800; font-size: 1.0625rem; color: var(--deep); padding: 0.35rem 2rem;
 }
+.stage-flower {
+  position: absolute; top: 50%; width: 1.125rem; height: 1.125rem; transform: translateY(-50%); pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 22%, var(--lp-v2-sanrio-melody-pink) 0.22rem, transparent calc(0.22rem + 1px)),
+    radial-gradient(circle at 50% 78%, var(--lp-v2-sanrio-melody-pink) 0.22rem, transparent calc(0.22rem + 1px)),
+    radial-gradient(circle at 22% 50%, var(--lp-v2-sanrio-melody-pink) 0.22rem, transparent calc(0.22rem + 1px)),
+    radial-gradient(circle at 78% 50%, var(--lp-v2-sanrio-melody-pink) 0.22rem, transparent calc(0.22rem + 1px)),
+    radial-gradient(circle, var(--lp-v2-sanrio-purin-yellow) 0.16rem, transparent calc(0.16rem + 1px));
+}
+.stage-flower.is-left { left: 0.6rem; }
+.stage-flower.is-right { right: 0.6rem; }
 .room-stage-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; min-height: 11rem; padding: 0.5rem 0.75rem 3rem; }
 .room-stage.is-compact .room-stage-body { min-height: 8rem; padding-bottom: 2.5rem; }
 .room-stage-art { grid-area: 1 / 1; width: 100%; max-width: 22rem; height: auto; }
 .room-stage.is-compact .room-stage-art { max-width: 15rem; }
 .stage-shadow { fill: var(--line); }
 .house-wall { fill: var(--surface); stroke: var(--line); stroke-width: 2; }
-.house-roof { fill: var(--head); }
-.house-door { fill: var(--deep); opacity: 0.85; }
+/* 小さな家（267:8962〜）: F14 で屋根は petal、扉は主操作色、窓はミント。筐体のドームのリボンは Machine.tsx */
+.house-roof { fill: var(--petal); }
+.house-door { fill: var(--primary); }
 .stage-halo { fill: var(--surface); opacity: 0.9; }
 /* 真ん中のガチャ筐体（部品 267:10520 と同じ Machine）。飾りなので押せず、指の縦スクロールも止めない */
 .room-machine { grid-area: 1 / 1; align-self: start; width: min(44%, 9.5rem); pointer-events: none; }
@@ -138,9 +151,10 @@
 .room-line { font-size: 0.9375rem; color: var(--text); padding: 0 0.5rem; }
 
 /* 小札・題・説明・一言の札 */
+/* F14: 白地に melody-pink の点線（267:8979 Decision card） */
 .room-card {
   display: flex; flex-direction: column; align-items: stretch; gap: 0.6rem;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 1rem;
+  background: var(--surface); border: 2.5px dashed var(--lp-v2-sanrio-melody-pink); border-radius: 20px; padding: 1rem;
 }
 .room-kicker {
   align-self: flex-start; background: var(--soft); color: var(--deep); font-weight: 800; font-size: 0.875rem;

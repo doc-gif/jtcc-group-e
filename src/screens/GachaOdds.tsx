@@ -22,7 +22,7 @@ export function GachaOdds({ id }: { id: string }) {
   const byId = new Map(rows.map((row) => [row.prize.id, row]))
   const ordered = gacha.prizes.flatMap((prize) => byId.get(prize.id) ?? [])
   return (
-    <div className="screen">
+    <div className="screen world-lavender">
       <PageHeader title="中身と確率" back={paths.gacha(gacha.id)} />
       <main className="content">
         <div className="odds-intro">

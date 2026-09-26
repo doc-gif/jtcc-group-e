@@ -82,6 +82,8 @@ export const uxScenarios: Array<{
   { name: 'room-guest-schedule-waiting', path: roomPath, scalableText: '.room-body', room: roomSeed({ members: [{ id: 'host', nickname: 'ミオ' }, { id: 'me', nickname: 'もも', ready: true }], scheduledAt: ROOM_T0, pitchMode: true }), heading: /になりました$/ },
   { name: 'room-host-link-invalid', path: './#/host/old-key', scalableText: '.room-body', heading: 'ホスト用リンクが無効です' },
   { name: 'spin-solo-confirm', path: './#/gacha/melody-anniv/spin', scalableText: '.confirm-lead' },
+  // 回転 1（なぞる前、マスター 267:8348）: つまみの上に右回りの矢印。なぞる操作そのものは e2e/app.spec.ts で確かめる
+  { name: 'spin-turning', path: './#/gacha/sanrio-capsule/spin', scalableText: '.spin-lead', steps: [{ click: /使って1回引く/ }], heading: 'ハンドルを回す' },
   { name: 'spin-sold-out', path: './#/gacha/sanrio-capsule/spin', scalableText: '.problem-lead', seed: gachaState({ stock: soldOutStock }) },
   { name: 'spin-insufficient-coins', path: './#/gacha/sanrio-capsule/spin', scalableText: '.problem-lead', seed: gachaState({ coins: 100 }) },
   { name: 'gacha-detail-insufficient-coins', path: './#/gacha/sanrio-capsule', scalableText: '.detail-lead', seed: gachaState({ coins: 100 }) },

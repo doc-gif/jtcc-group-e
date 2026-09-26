@@ -147,8 +147,8 @@ describe('ひとりで回す: spin と spin_first', () => {
   test('右のハンドルのタップで回しても、3 回転目で同じイベントを送る', () => {
     start('#/gacha/melody-anniv/spin')
     fireEvent.click(button(/使って1回引く/))
-    // 指で押す範囲（`.m-handle-hit`）。読み上げ・キーボードは「1タップで1回転」のボタン
-    const handle = document.querySelector('.m-handle-hit')
+    // 指で押す範囲（`.m-knob-hit`）。読み上げ・キーボードは「1タップで1回転」のボタン
+    const handle = document.querySelector('.m-knob-hit')
     expect(handle).not.toBeNull()
     for (let i = 0; i < TURNS; i += 1) fireEvent.click(handle!)
     expect(sentEvents()).toEqual(['spin', 'spin_first'])

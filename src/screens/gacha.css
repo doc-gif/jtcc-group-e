@@ -2,20 +2,31 @@
  * 文字とボタンの色は src/index.css のトークンと共通のボタンクラスだけを使う（マスターの配色への切り替えは F06 でまとめて行う）。
  * ここに直接書く色は、カプセルの絵（マスター 267:8387 の塗りと部品 376:11670 の3種）と、友達と回す（デモ）の確定演出の暗い背景の上の白文字（既存の App.css と同じ）だけ。 */
 
-/* 筐体（マスターの部品 267:10520）。静止の絵で、ハンドルの十字だけが回る。指で押せるのは右のハンドル */
+/* 筐体（マスターの部品 T08 / Gacha Machine 419:10377、350×424）。静止の絵で、つまみ（Knob v2）だけが回る。
+ * 指で押せるのはつまみの 160×160（.m-knob-hit。筐体の上に重ねた HTML の丸で、Machine.tsx が位置と touch-action: none をインラインで持つ）。
+ * 筐体のほかの部分は manipulation のままにして、ページのスクロールを妨げない。 */
 .machine { cursor: default; touch-action: manipulation; }
+.machine-wrap .m-knob-hit { position: absolute; aspect-ratio: 1; border-radius: 50%; cursor: grab; }
+.machine-wrap .m-knob-hit.is-dragging { cursor: grabbing; }
 .machine .m-bg { fill: var(--soft); }
-.machine .m-handle { transform-box: view-box; transform-origin: 237px 261px; transition: transform 0.35s ease-out; }
-.machine .m-handle-hit { cursor: pointer; }
+/* タップで回したときは 0.35 秒で 1 回転。指でなぞっている間は遅らせずに追従する（動きを減らす設定では src/index.css で止まる） */
+.machine .m-knob { transform-box: view-box; transform-origin: 175px 316px; transition: transform 0.35s ease-out; }
+.machine.is-dragging .m-knob { transition: none; }
+.machine .m-click text { font-family: inherit; }
 .spin-content .machine-wrap { width: min(100%, 22rem); }
 
-/* ガチャ詳細（267:8279）：ガチャの名前 */
-.detail-title { font-size: 1.25rem; font-weight: 800; color: var(--text); line-height: 1.45; }
+/* ガチャ詳細（267:8279）：ガチャの名前。F14 はリボンの帯（360:5835 Ribbon banner）の上に書く */
+.detail-title {
+  align-self: flex-start; max-width: 100%; margin-left: -0.5rem; padding: 0.15rem 1.5rem; overflow-wrap: anywhere;
+  font-size: 1.125rem; font-weight: 700; color: var(--text); line-height: 1.6;
+  background: var(--lp-v2-sanrio-melody-pink);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 0.6rem) 50%, 100% 100%, 0 100%, 0.6rem 50%);
+}
 
-/* ガチャ詳細（267:8279）：目玉の候補 */
+/* ガチャ詳細（267:8279）：目玉の候補。F14 は白地に lavender-deep の点線、左上にラベンダーのリボン */
 .gacha-feature {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 0.9rem;
+  position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem;
+  background: var(--surface); border: 2.5px dashed var(--lp-v2-sanrio-lavender-deep); border-radius: 20px; padding: 0.9rem;
 }
 .gacha-feature .goods-lg { width: 8rem; height: 8rem; }
 .gacha-feature-text { flex: 1 1 9rem; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
@@ -25,7 +36,8 @@
 .gacha-feature-odds b { font-size: 1.375rem; font-variant-numeric: tabular-nums; }
 
 /* 支払う金額（詳細 267:8279・回す前 267:8335） */
-.pay-card { display: flex; flex-direction: column; gap: 0.3rem; background: var(--soft); border-radius: 18px; padding: 0.9rem 1rem; }
+/* F14: 白地に melody-pink の枠（267:8292 Price before commitment） */
+.pay-card { display: flex; flex-direction: column; gap: 0.3rem; background: var(--surface); border: 2px solid var(--lp-v2-sanrio-melody-pink); border-radius: 20px; padding: 0.9rem 1rem; }
 .pay-kicker { font-size: 1.0625rem; font-weight: 800; color: var(--text); }
 .pay-price, .pay-need { font-size: 1.0625rem; font-weight: 700; color: var(--deep); }
 .pay-price b { font-size: 1.625rem; font-variant-numeric: tabular-nums; margin-right: 0.15rem; }
@@ -51,13 +63,17 @@
 .confirm-title { font-size: 1.5rem; font-weight: 800; color: var(--text); line-height: 1.4; }
 .confirm-lead { color: var(--sub); }
 
-/* ハンドルを回す（267:8348 / 8361 / 8374） */
+/* ハンドルを回す（267:8348 / 8361 / 8374、なぞり中 421:9251、カチッ 421:9270） */
 .turn-count { font-size: 1.5rem; font-weight: 800; color: var(--text); line-height: 1.4; }
 .turn-bars { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0.6rem; }
 .turn-bars span { display: block; height: 0.35rem; border-radius: 99px; background: var(--line); }
 .turn-bars span.on { background: var(--deep); }
+/* 回す画面の進み具合バー: 到達 --primary / 未到達 --soft。1 周した瞬間は --main で点灯してから落ち着く */
+.spin-content .turn-bars span { background: var(--soft); transition: background 0.4s; }
+.spin-content .turn-bars span.on { background: var(--primary); }
+.spin-content .turn-bars span.on.is-new { background: var(--main); }
 .spin-content .spin-lead { font-size: 1.0625rem; color: var(--text); }
-.spin-content .spin-sub { margin-top: -0.6rem; }
+.spin-content .spin-sub { margin-top: -0.6rem; font-size: 0.875rem; }
 .spin-screen.is-kakutei .turn-count { color: #fff; }
 .spin-screen.is-kakutei .turn-bars span { background: rgba(255, 255, 255, 0.35); }
 .spin-screen.is-kakutei .turn-bars span.on { background: #fff; }
@@ -112,7 +128,8 @@
 /* 3回転の直後、筐体の受け皿に出る小さいカプセル（マスター 380:3371 / 3391 / 3411 の位置と大きさ） */
 .capsule-art.is-mini {
   --cap-line: 2px; --cap-band: 0.25rem; --cap-hi: 0.2rem; --cap-halo: 6px;
-  position: absolute; left: 38.6%; top: 74.9%; width: 22.9%; margin: 0; cursor: default; pointer-events: none;
+  /* 受け皿（部品 419:10377 の (250,392) 76×14）の上。筐体は 350×424 なので、横は幅・縦は高さに対する割合 */
+  position: absolute; left: 74.3%; top: 79.5%; width: 16%; margin: 0; cursor: default; pointer-events: none;
   animation: drop 0.5s cubic-bezier(0.3, 1.5, 0.5, 1) both;
 }
 /* #88: ルームでは受け皿のカプセルを1回タップして開ける（ひとりで回すの受け皿は飾りのまま） */

@@ -57,7 +57,7 @@
 
   /* Lastpiece v2 / Sanrio World (F14) (323:3784), mode Value。2026-09-26 にマスターへ反映（担当者承認）。
    * 空色・クリーム・ラベンダーの地、リボンの赤、キャラクターの色。文字に使えるのは kuromi-ink と cocoa だけ（TEXT_FILL）。
-   * キャラクターの絵はアプリに入れない（Figma だけ）。アプリへの反映は別タスク。 */
+   * キャラクターの絵はアプリに入れない（Figma だけ）。アプリは Issue #70 で src/index.css に同じ名前で持つ（地・水玉・枠・リボン・飾り）。 */
   --lp-v2-sanrio-sky: #ddf1fb;
   --lp-v2-sanrio-sky-deep: #a6d6f0;
   --lp-v2-sanrio-cream: #fff6e0;
@@ -72,7 +72,7 @@
 
   /* 文字スタイル「Lastpiece v2/*」由来（Figma 変数ではない。CSS 側で付けた名前）。
    * Display は Shippori Mincho Bold、他は Noto Sans JP（Title・Label・Button は Bold、Body・Caption は Regular）。
-   * F14 で画面の見出しは Zen Maru Gothic Bold 24px（文字スタイルなし）になった。 */
+   * F14 で画面の見出しは Zen Maru Gothic Bold 24px（文字スタイルなし）になった（アプリは --font-heading、src/fonts/ に OFL の woff2 を同梱）。 */
   --lp-v2-type-display-size: 2rem;        /* 32px */
   --lp-v2-type-display-line: 2.75rem;     /* 44px */
   --lp-v2-type-title-size: 1.5rem;        /* 24px */

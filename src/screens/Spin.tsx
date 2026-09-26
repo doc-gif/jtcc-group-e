@@ -9,9 +9,10 @@ import { coinText, glowLabel, OPEN_TAPS } from '../domain/odds'
 import { TIMING, TURNS } from '../domain/spinScript'
 import type { Gacha, Glow } from '../domain/types'
 import { Capsule, type CapsuleStage } from '../components/Capsule'
-import { ExampleNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
+import { Bow, ExampleNotice, PageHeader, SaveWarning, Sparkles, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { Machine } from '../components/Machine'
+import { useKnobDrag } from '../components/useKnobDrag'
 import { NotFound } from './NotFound'
 import './gacha.css'
 
@@ -21,6 +22,8 @@ type Won = Extract<SpinOutcome, { ok: true }>
 const capsuleName = (glow: Glow) => (glow === 'normal' ? 'カプセル' : `${glowLabel[glow]}のカプセル`)
 /** confirm: 回す前の確認（まだコインを使わない）→ turning: 3回転 → dropping → opening: 開封 → revealed: 結果 */
 type Phase = 'confirm' | 'turning' | 'dropping' | 'opening' | 'revealed'
+/** 1 周した瞬間の「カチッ」（マスターの state=click1）を見せる時間（ミリ秒、0.3〜0.5 秒） */
+const CLICK_MS = 400
 
 export function Spin({ id }: { id: string }) {
   const gacha = findGacha(id)
@@ -29,8 +32,9 @@ export function Spin({ id }: { id: string }) {
 }
 
 /**
- * ひとりで回す画面。デザインマスター T08（回す前 267:8335・回転 267:8348〜8374・開封 267:8387〜8421・結果 267:8438）に合わせる。
- * 筐体は静止の絵（267:10520）で、回転・開封の途中は戻る・下のタブを出さない。右のハンドルか「1タップで1回転」で進める。
+ * ひとりで回す画面。デザインマスター T08（回す前 267:8335・回転 267:8348〜8374・なぞり中 421:9251・カチッ 421:9270・開封 267:8387〜8421・結果 267:8438）に合わせる。
+ * 筐体は静止の絵（部品 419:10377）で、回転・開封の途中は戻る・下のタブを出さない。
+ * 主の操作はつまみを指で右に丸くなぞること（1 周で 1 回転、#115）。つまみのタップと「1タップで1回転」でも進める。
  * 友達といっしょに開ける体験は、共有ルーム（T10・F05、src/screens/Room.tsx）で行う。
  */
 function SpinStage({ gacha }: { gacha: Gacha }) {
@@ -38,6 +42,8 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
   const [won, setWon] = useState<Won | null>(null)
   const [turns, setTurns] = useState(0)
   const [phase, setPhase] = useState<Phase>('confirm')
+  /** 直前に 1 周した回転の番号。CLICK_MS の間だけ「カチッ」を見せる（3 回転目はカプセルが出るので出さない） */
+  const [clicked, setClicked] = useState<number | null>(null)
   const turnButton = useRef<HTMLButtonElement>(null)
   const problem = won ? null : spinCheck(state, gacha.id)
   const { soundOn } = state
@@ -63,13 +69,16 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
     if (phase === 'turning' && turns === 0) turnButton.current?.focus()
   }, [phase, turns])
 
-  /** 右のハンドルか「1タップで1回転」で、1回転ずつ進める。 */
-  // 1 回転ごとに音（ON のときだけ）とハンドルの動きだけ。筐体・背景は変えない
+  /** つまみを 1 周なぞる・つまみのタップ・「1タップで1回転」のどれでも、1回転ずつ進める。 */
+  // 1 回転ごとに音（ON のときだけ）・短い振動（対応端末）・つまみの動きと「カチッ」だけ。筐体・背景は変えない
   const oneTurn = () => {
     if (phase !== 'turning' || !won || turns >= TURNS) return
     const next = turns + 1
     setTurns(next)
-    ring(CHIMES.turn, next === TURNS ? [40, 60, 80] : 30)
+    if (soundOn) chime(CHIMES.turn)
+    buzz(next === TURNS ? [40, 60, 80] : 30)
+    // 3 回転目はカプセルが出る（#116 の click3）ので「カチッ」は出さず、残っていれば消す
+    setClicked(next < TURNS ? next : null)
     if (next === TURNS) {
       setPhase('dropping')
       // 計測（本番の公開 URL だけ）。目玉かどうかの真偽値だけで、賞品名・金額は送らない
@@ -77,6 +86,14 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
       trackOnce('spin_first', 'spin_first', { mode: 'solo' })
     }
   }
+
+  const knob = useKnobDrag(phase === 'turning' ? oneTurn : undefined)
+
+  useEffect(() => {
+    if (clicked === null) return
+    const timer = window.setTimeout(() => setClicked(null), CLICK_MS)
+    return () => window.clearTimeout(timer)
+  }, [clicked])
 
   useEffect(() => {
     if (phase !== 'dropping' || !won) return
@@ -96,9 +113,16 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
   const opened = phase === 'opening' || phase === 'revealed'
   const dropped = phase === 'dropping' && won ? won : null
   const quote = spinQuote(state, gacha)
+  const turning = phase === 'turning'
+  // 本文（マスター turn1〜3 / dragging / click1）。3 回転の直後はカプセルが出た案内（#86）
+  const lead = dropped ? <>カプセルが出てきました<span className="visually-hidden">（{capsuleName(dropped.prize.glow)}）</span></>
+    : clicked !== null ? `${clicked} 回転、できた！`
+    : knob.dragging ? 'そのまま右にぐるっと一周！'
+    : 'つまみを右にくるっと回そう'
+  const sub = clicked !== null ? 'つづけて右に回そう。' : '右回りに一周で 1 回転。ボタンでも回せます。'
 
   return (
-    <div className={`screen spin-screen${confirming ? ' is-confirm' : ''}`}>
+    <div className={`screen spin-screen ${phase === 'revealed' ? 'world-sky' : 'world-lavender'}${confirming ? ' is-confirm' : ''}`}>
       {won && opened ? (
         <OpenScene won={won} gacha={gacha} balance={state.coins} onReveal={onReveal} onTap={() => ring(CHIMES.tap, 30)} revealed={phase !== 'opening'} />
       ) : (
@@ -106,7 +130,10 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
           <PageHeader title={confirming ? '回す前に' : 'ハンドルを回す'} back={confirming ? paths.gacha(gacha.id) : undefined} />
           <main className="content spin-content">
             <div className="machine-wrap">
-              <Machine turns={turns} label={confirming ? 'ガチャガチャ。確定すると回せます' : undefined} onHandleTap={phase === 'turning' ? oneTurn : undefined} />
+              <Machine
+                turns={turns} progress={knob.progress} dragging={knob.dragging} hint={turning && !knob.dragging && clicked === null} click={clicked !== null}
+                label={confirming ? 'ガチャガチャ。確定すると回せます' : undefined} onHandleTap={turning ? oneTurn : undefined} knob={knob.handlers}
+              />
               {/* 3回転の直後、受け皿にカプセルが出る（マスター 380:3371 / 3391 / 3411）。光り方で当たりが分かる */}
               {dropped && <Capsule glow={dropped.prize.glow} className="is-mini" />}
             </div>
@@ -116,7 +143,7 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
                 <div className="pay-card confirm-card">
                   <p className="pay-need">必要 <b>{coinText(quote.price)}</b> デモコイン</p>
                   <p className="pay-balance">所持 {coinText(quote.balance)} <span aria-hidden="true">→</span><span className="visually-hidden">から</span> 確定後 {coinText(quote.after)}</p>
-                  <p className="fine confirm-lead">確定後に{TURNS}回転。ハンドルかボタンで進めます。</p>
+                  <p className="fine confirm-lead">確定後に{TURNS}回転。つまみを右に丸くなぞるか、ボタンで進めます。</p>
                   <p className="fine">確率と在庫は確定直前に再確認。</p>
                 </div>
                 <button type="button" className="btn btn-main btn-block" onClick={confirm}>{coinText(quote.price)}使って1回引く</button>
@@ -124,9 +151,10 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
             ) : (
               <>
                 <p className="turn-count" aria-live="polite">回転 {turns} / {TURNS}</p>
-                <p className="spin-lead" aria-live="polite">{dropped ? <>カプセルが出てきました<span className="visually-hidden">（{capsuleName(dropped.prize.glow)}）</span></> : '右のハンドルをタップして進めます'}</p>
-                <p className="fine spin-sub">下のボタンでも同じように進められます。</p>
-                <p className="turn-bars" aria-hidden="true">{Array.from({ length: TURNS }, (_, i) => <span key={i} className={i < turns ? 'on' : ''} />)}</p>
+                <p className="spin-lead" aria-live="polite">{lead}</p>
+                <p className="fine spin-sub">{sub}</p>
+                {/* 1 周した瞬間、その分のバーが --main で点灯してから --primary に落ち着く */}
+                <p className="turn-bars" aria-hidden="true">{Array.from({ length: TURNS }, (_, i) => <span key={i} className={i < turns ? (clicked === i + 1 ? 'on is-new' : 'on') : ''} />)}</p>
                 <button ref={turnButton} type="button" className="btn btn-outline btn-block" onClick={oneTurn} disabled={phase !== 'turning'}>1タップで1回転</button>
                 <p className="fine spent">{coinText(gacha.price)}コイン使用済み・残高{coinText(state.coins)}</p>
               </>
@@ -195,7 +223,9 @@ function OpenScene({ won, gacha, balance, revealed, onReveal, onTap }: OpenProps
       <PageHeader title="今回の結果" back={paths.gacha(gacha.id)} />
       <main className="content result-content">
         <p className="fine result-kicker">デモ・結果は抽選ごとに変わります</p>
-        <article className="result-card" aria-labelledby="result-name">
+        <article className="result-card has-bow" aria-labelledby="result-name">
+          <Bow className="card-bow bow-top" />
+          <Sparkles />
           <GoodsImage art={won.prize.art} glow={won.prize.glow} size="lg" />
           <h2 id="result-name" className="reveal-name">{won.prize.name}</h2>
           <p className="result-sub">{gacha.title}で獲得</p>
@@ -215,7 +245,7 @@ function SpinProblem({ gacha, problem }: { gacha: Gacha; problem: NonNullable<Re
   const quote = spinQuote(state, gacha)
   const soldOut = problem !== 'insufficient-coins'
   return (
-    <div className="screen">
+    <div className="screen world-lavender">
       <PageHeader title={soldOut ? '売り切れ' : 'コイン不足'} back={paths.gacha(gacha.id)} />
       <main className="content problem-content">
         {soldOut ? (
