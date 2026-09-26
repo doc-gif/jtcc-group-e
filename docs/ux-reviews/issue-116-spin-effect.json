@@ -1,0 +1,58 @@
+{
+  "uiDigest": "3bcdf573b71fc9a57972105c7bd2de12a5bb5ded2a07c98266ef142300441994",
+  "reviewer": "Claude (cloud #116 spin effect)",
+  "reviewedAt": "2026-09-26",
+  "summary": "#116: ひとりで回す画面（T08）に 1 回転ごとの演出を加えた。純粋関数 src/components/spinEffect.ts の spinEffect(turns, glow) が部品 T08 / Gacha Machine（419:10377）の state（turn1 / turn2 / turn3 / click3）と glow、星の位置・揺れ・取り出し口の光・つや・暖かい光・画面の背景・札を返し、筐体 Machine.tsx は別の層 .m-fx（aria-hidden）に className（state-turn2 glow-featured のように部品と同じ名前）で描く。1 回転目は glow によらず演出なし。1 周の後は星 3 つ（turn2）、2 周の後は星 5 つと筐体がぷるっと揺れる（turn3）、3 周目の後は「カチッ」と取り出し口に光が集まり星が寄る（click3）→ カプセルが開口から出て受け皿に着地して光る（S1〜S5、CSS の keyframes capsule-out 1.61 秒。Figma のプロトタイプの待ち・時間・イージングそのまま）→ 0.35 秒見せて開封へ。glow 別: normal は petal・rose の星だけで背景・札・金色を一切出さない。sparkle は白・melody-pink・sky-deep の星が増え、粒とドームの真珠色のつや。featured は金の星、turn2 から画面の背景を sanrio/cream、turn3 から筐体の後ろの暖かい光と「回転 3 / 3」の右の札「きらきら… いい予感！」、click3 で光の筋 4 本、揺れ線・カチッも金。動きを減らす設定では星・揺れ・光の動きを止め、色の変化と静止の星だけ、カプセルは 1 段のフェード。音・振動・spinScript・src/domain は変えていない。Figma はクラウドから開けないため、Issue #116 のコメント（[local #114] 2026-09-26 13:46）の state / glow 別の星・揺れ・光・カプセルの座標・色・時間を仕様にし、Pixel 7・320px の実画面（turn2・turn3・click3・S2・S5 を normal / sparkle / featured で、動きを減らす設定の turn3、文字 200%）を撮って照合した。",
+  "criteria": [
+    {
+      "id": "HIG-01",
+      "result": "pass",
+      "evidence": "追加した文字は札「きらきら… いい予感！」（14px 太字、cocoa #7a4a28 を白地 #fffdfa に。約 7.3:1。札は不透明度で出さず大きさだけで出す。フェードだと途中の混ざった色を axe が拾い 3.1:1 になった）と本文「カプセルが出てくるよ…」「そのまま待ってね。」（既存の 17px --text と 14px --sub）。featured のクリームの背景 #fff6e0 でも --text 14.6:1・--sub 6.0:1・進み具合バーは絵。演出の段階は色だけでなく文字（回転 N / 3・本文・札）で伝わり、当たりは最後にカプセルの読み上げ用の名前（目玉のカプセル）で伝える。星・光・カプセルの動きは飾りで aria-hidden。axe（WCAG 2.1 AA）は spin-turn-2/3-normal/sparkle/featured の 6 場面 × Chromium 3 構成で違反 0。"
+    },
+    {
+      "id": "HIG-02",
+      "result": "pass",
+      "evidence": "操作は変えていない（つまみをなぞる・タップ・「1タップで1回転」）。演出の層 .m-fx は SVG の中の絵で押せる範囲 .m-knob-hit と重ならず、ux.spec の 44px の検査（ボタン・リンク）は 6 場面で合格。カプセルが出る間はボタンが無効で、出終わったら自動で開封へ進む（押す手間は増えない）。キーボードと読み上げは従来どおり「1タップで1回転」ボタン。"
+    },
+    {
+      "id": "HIG-03",
+      "result": "pass",
+      "evidence": "320px・Pixel 7・デスクトップで横はみ出しなし（ux.spec の scrollWidth 検査、6 場面）。筐体の演出は 350×424 の viewBox の中に収め（暖かい光・揺れ線は枠で切る）、札は turn-row の flex-wrap で 320px では「回転 3 / 3」の下に折り返す（キャプチャ w320-featured-turn3）。文字 200% で本文（.spin-lead）と札（.turn-tag、spin-turn-3-featured の scalableText）が 1.9 倍以上になり横はみ出しなし（キャプチャ w320-featured-turn3-200）。"
+    },
+    {
+      "id": "HIG-04",
+      "result": "pass",
+      "evidence": "画面の流れ・戻る・下のタブは変えていない（回転・開封の途中は出さない。src/App.test.tsx で確認）。3 周目の後の本文は「カプセルが出てくるよ…／そのまま待ってね。」→「カプセルが出てきました」→ 開封の順で、次に何が起きるかが分かる。開封へ進む時間は capsuleDropMs（TIMING.drop 0.9 秒を下限に、カプセルが光ってから 0.35 秒。約 2 秒）で、E2E のひとりで回す → 開封 → 交換の流れは既存のまま通る。"
+    },
+    {
+      "id": "HIG-05",
+      "result": "pass",
+      "evidence": "動きは星のまたたき（不透明度）・turn3 の 0.5 秒の揺れ・光の脈打ち・寄る星・カプセルが出る 1.61 秒だけで、いずれも src/index.css の動きを減らす設定で止まり、色の変化と静止の星・光・揺れ線が残る（キャプチャ pixel7-*-turn3-reduced）。カプセルは S1〜S4 を飛ばし 0.2 秒待って 0.2 秒のフェード（gacha.css の @media で全体の停止より優先）。e2e/app.spec.ts の featured の場面は reduced-motion で 100ms を超えて動く animation が 0、normal の場面は通常の設定で星がまたたく（animation あり）ことを確かめる。ux.spec の 6 場面も HIG-05 の検査に合格。点滅・強い発光はなく、音・振動は既存のまま（spinScript を変えていない）。"
+    },
+    {
+      "id": "GAME-01",
+      "result": "pass",
+      "evidence": "Issue #116 のコメント（[local #114]）の説明と実画面を照合: 星は四芒星（内側の半径 0.42）で turn2 (24,88) 12px・(326,102) 14px・(338,166) 9px、turn3 で (16,210) 10px・(334,42) 12px、sparkle / featured で (8,142) 8px・(348,244) 10px・(38,32) 9px と粒 (30,124)・(320,192)・(20,276)。色は normal petal #f7cbd9（線 #de7f9c）・rose、sparkle 白・#f8bcd0・#a6d6f0、featured #e2a94f・#f0c27c・#fff6de の順。揺れ線は胴の両脇 y 312〜372 に 2 本ずつ 3px 50%（featured は #e2a94f）。取り出し口の光は中心 (287,332) の放射グラデーション 150×90（featured 190×110）で、白 → petal／#f8bcd0 → #efe7f9／金 #f9dfa8 95% → 40%、寄る星は上半分の弧（半径 x 58・y 46）に 4・6・8 個、featured は 200°・240°・300°・340° の光の筋 4 本 #f0c27c 3px。sparkle のつやは (35,40) 280×202 の横グラデーション（白 35% → #f6c4d8 22% → #a6d6f0 20%）、featured の暖かい光は中心 (175,212) 470×470 #f9dfa8 65%、背景 #fff6e0、札は白地 #fffdfa・線 #f0c27c 1.5px・文字 #7a4a28 14px 太字・角丸 999。カプセルは既存の T08 / Capsule の closed をそのまま使い、S1 (287,328) 42px −10° → S2 (300,344) 56px +25° → S3 (288,366) 0°（衝撃線）→ S4 (288,344) −12° → S5 (288,366) で光の輪（120px / featured 150px）と星。画面の地は F14（#102、main）のラベンダーの水玉（.world-lavender）で、featured の turn2 からは --world-bg だけを sanrio/cream に変えて水玉は残す（Figma の「水玉はそのまま」）。違い: 札のフォントは本文のフォントの太字。キャラクターの絵・Sanrio の画像は入れていない。"
+    },
+    {
+      "id": "GAME-02",
+      "result": "pass",
+      "evidence": "1 回転ごとに星が増え、2 周の後は揺れ、3 周目の後は光と「カチッ」で、回した結果が筐体でも分かる。当たりの回は途中から特別感（sparkle は真珠色、featured は金と背景と札）が出るが、normal では背景・札・金色を一切出さず「当たりっぽい」演出で期待させない（spinEffect.test.ts と App.test.tsx で確認）。1 回転目は当たりでも演出なし。抽選の結果は回す前に決まっている（pickPrize）ので演出と結果が食い違わない。責める文言はない。"
+    },
+    {
+      "id": "GAME-03",
+      "result": "not-applicable",
+      "evidence": "通知・時間制限・催促・連続で回す機能は追加していない。演出は回した結果に対する飾りで、途中で止めても進みは残る。"
+    },
+    {
+      "id": "GAME-04",
+      "result": "not-applicable",
+      "evidence": "選択肢・公開範囲・着せ替えは変更していない。"
+    },
+    {
+      "id": "GAME-05",
+      "result": "pass",
+      "evidence": "追加した文言は札「きらきら… いい予感！」（当たりの回だけ、マスターどおり）と「カプセルが出てくるよ…」「そのまま待ってね。」だけ。やさしく具体的で、決めつけ・専門用語・強制のチュートリアルはない。演出は説明なしで分かる飾りで、案内文（つまみを右にくるっと回そう）は変えていない。"
+    }
+  ]
+}
