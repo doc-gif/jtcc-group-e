@@ -1,0 +1,18 @@
+{
+  "uiDigest": "0a3d5f68477b1c8afde3800645ce9560f03a48b2143b9fe913083e00ec03039e",
+  "reviewer": "Claude (F05a room state review)",
+  "reviewedAt": "2026-09-26",
+  "summary": "F05a は 40人ルームの状態層（src/realtime/roomController.ts・useSharedRoom.ts）とテストの追加だけで、画面・CSS・遷移は変更していない。どの画面からも import しておらず、pnpm build の JS/CSS は main と同じ index-Cv1M6jo3.js / index-BtalajBo.css。表示される UI は直前のレビューと同じなので、実画面の評価は F05 で画面に接続するときに行う。",
+  "criteria": [
+    { "id": "HIG-01", "result": "not-applicable", "evidence": "画面を追加・変更していない。状態管理のみで、文字の大きさ・コントラスト・色に頼らない表示は F05 の画面実装時に評価する。" },
+    { "id": "HIG-02", "result": "not-applicable", "evidence": "画面を追加・変更していない。操作領域・アイコンの名前・キーボード操作は F05 の画面実装時に評価する。" },
+    { "id": "HIG-03", "result": "not-applicable", "evidence": "画面を追加・変更していない。320px・横向き・文字200%・セーフエリアは F05 の画面実装時に評価する。" },
+    { "id": "HIG-04", "result": "not-applicable", "evidence": "画面を追加・変更していない。見出し・戻る/閉じる・フォーカス移動は F05 で評価する。状態層は満員・期限切れ・ホスト不在の理由を startBlockedBy と error.code で画面に渡す。" },
+    { "id": "HIG-05", "result": "not-applicable", "evidence": "画面・演出・音を追加していない。秒読みと開封演出の動きを減らす設定への対応は F05 の画面実装時に評価する。" },
+    { "id": "GAME-01", "result": "not-applicable", "evidence": "画面を追加・変更していないため、Figma マスター 267:8198 の T10 状態との照合は F05 で行う。状態名は ADOPTED_DESIGN.md の T10 の状態（ロビー・準備完了・カウントダウン・同時開封・結果・再接続・ホスト交代・期限切れ）に合わせた。" },
+    { "id": "GAME-02", "result": "pass", "evidence": "失敗は errorMessage の日本語だけを返し、SQL や通信の生の文言を出さない（roomController.test.ts の「応答を失った作成・開始は同じ request で送り直し…」で通信断の案内を確認）。応答を失った開始は同じ request で送り直し、コインは 1 回だけ減る。結果は startsAt 後の snapshot だけで公開し先見えしない。画面の文言と演出は F05 で評価する。" },
+    { "id": "GAME-03", "result": "pass", "evidence": "通信断の間は最後の状態を保って reconnecting にし、1〜15 秒の間隔とタブ復帰・オンライン復帰で取り直す。復帰後は最新のロビーか開封に戻り、見逃した自分の結果を unseenResults で出す（「通信断のあいだは最後の状態を保ち、復帰後に見逃した自分の結果を出す」）。通知やバッジは追加していない。" },
+    { "id": "GAME-04", "result": "not-applicable", "evidence": "画面を追加・変更していない。招待を知る人だけの参加や見守り参加の表示、準備の取り消しの画面は F05 で評価する。状態層は setReady(false) で準備を取り消せる。" },
+    { "id": "GAME-05", "result": "not-applicable", "evidence": "画面・説明文を追加していない。初回の説明と言葉づかいは F05 の画面実装時に評価する。エラー文言は既存の errorMessage をそのまま使う。" }
+  ]
+}
