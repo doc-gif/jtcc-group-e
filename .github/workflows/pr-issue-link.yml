@@ -1,0 +1,17 @@
+name: PR links an Issue
+# PR は必ず Issue に結びつける（Closes #N か Refs #N）。マージで Issue が自動で閉じ、進捗が Issue に集まる。
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+permissions:
+  pull-requests: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const body = context.payload.pull_request.body ?? ''
+            const ok = /\b(Closes|Fixes|Resolves|Refs)\s+(doc-gif\/[\w.-]+)?#\d+/i.test(body)
+            if (!ok) core.setFailed('PR 本文に「Closes #N」（または Refs #N）がありません。担当の Issue を書いてください（#53 の進め方）。')
