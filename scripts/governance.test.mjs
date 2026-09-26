@@ -55,8 +55,10 @@ test('コインの交換率は一律 20%、出金不可と取り消し不可を�
   expect(sheet).toContain('交換は取り消せません')
 })
 
-test('ガチャ詳細に残り口数の数字（◯/◯）を出さない', async () => {
-  const detail = await read('src/screens/GachaDetail.tsx')
-  expect(detail).not.toMatch(/remaining\}\s*\/|残り\s*\{/)
-  expect(detail).toContain('<RemainBar')
+test('ガチャ詳細・中身と確率に残り口数の数字（◯/◯）を出さない。残りは一覧のカードで数字なしのバーと言葉で出す', async () => {
+  for (const file of ['src/screens/GachaDetail.tsx', 'src/screens/GachaOdds.tsx']) {
+    expect(await read(file)).not.toMatch(/remaining\}\s*\/|残り\s*\{/)
+  }
+  // 担当者の決定（2026-09-26）でガチャ詳細はマスター 267:8279 に合わせ、残りバーは一覧のカード（マスター 267:8266「残り たっぷり」）で出す
+  expect(await read('src/screens/GachaList.tsx')).toContain('<RemainBar')
 })

@@ -16,6 +16,10 @@
   --primary: #BE6482;   /* color/action/primary */
   --deep: #A94A68;      /* color/accent/wine */
   --mint: #E3F1E7;      /* color/nav/selected（選択中のタブ・コイン札） */
+  /* 絵の色。Figma では変数でない塗りなので design-system/ には置かない。文字には使わない（F11） */
+  --shelf-wood: #C99C87;      /* T09 267:8476 の木の棚板 */
+  --shelf-slot-line: #CFBFBA; /* 棚の空き枠の線 */
+  --art-mint: #D3E8DD;        /* 267:8884 フレンドなしの絵の右の顔 */
   --disabled: #D4DCD7;  /* color/action/disabled */
   --disabled-line: #D8C9CF; /* color/border/default（無効の枠） */
   --text: #172324;      /* color/text/primary */

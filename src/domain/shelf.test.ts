@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { exchange, createInitialState } from './game'
-import { cleanFavorites, cleanReactions, findFriend, friendsOf, hasReacted, ownedItems, sendReaction, SHELF_SIZE, shelfSlots, slotOf, slotText, toggleFavorite } from './shelf'
+import { cleanFavorites, cleanReactions, DEFAULT_SHELF_GACHA, findFriend, FRIEND_SHELF_SIZE, friendsOf, hasReacted, ownedItems, sendReaction, shelfGacha, shelfOf, shelfSlots, slotOf, slotText, toggleFavorite } from './shelf'
 import { parseState } from './storage'
 import type { AppState, WinRecord } from './types'
 
@@ -14,16 +14,38 @@ const win = (prizeId: string, extra: Partial<WinRecord> = {}): WinRecord => {
 const withWins = (...wins: WinRecord[]): AppState => ({ ...createInitialState(), wins: [...wins].reverse() })
 
 describe('わたしの棚', () => {
-  test('持っている品を種類ごとにまとめ、先に当てた順に並べる。空き枠は null で9枠', () => {
+  test('棚の枠は1つのガチャの中身の種類と同じ数・同じ並び。まだ回していなければマスターと同じ9種のガチャ', () => {
+    const empty = shelfOf(createInitialState())
+    expect(empty.gacha.id).toBe(DEFAULT_SHELF_GACHA)
+    expect(empty.slots.map((slot) => slot.prize.name)).toEqual(['ぬいぐるみマスコット', 'ミニぬいぐるみ', 'アクリルスタンド', 'ミニポーチ', 'ヘアゴム', 'メモ帳', 'ミニマグ', 'ハンドタオル', '缶バッジ'])
+    expect(empty.slots.every((slot) => slot.item === null)).toBe(true)
+    expect(empty.owned).toBe(0)
+    expect(slotText(2, 9)).toBe('02 / 09')
+    expect(slotText(10, 12)).toBe('10 / 12')
+  })
+
+  test('持っている種類は決まった枠に入り、同じ品は1つにまとめる（先に当てた順）', () => {
     const state = withWins(win('sanrio-capsule-3'), win('sanrio-capsule-1'), win('sanrio-capsule-3'))
-    const items = ownedItems(state)
-    expect(items.map((item) => [item.prize.id, item.count])).toEqual([['sanrio-capsule-3', 2], ['sanrio-capsule-1', 1]])
-    const slots = shelfSlots(items)
-    expect(slots).toHaveLength(SHELF_SIZE)
-    expect(slots.filter((slot) => slot === null)).toHaveLength(7)
-    expect(slotOf(state, 'sanrio-capsule-1')).toBe(2)
-    expect(slotOf(state, 'sanrio-capsule-9')).toBeNull()
-    expect(slotText(2)).toBe('02 / 09')
+    expect(ownedItems(state).map((item) => [item.prize.id, item.count])).toEqual([['sanrio-capsule-3', 2], ['sanrio-capsule-1', 1]])
+    const { slots, owned } = shelfOf(state)
+    expect(owned).toBe(2)
+    expect(slots.map((slot) => slot.item?.prize.id ?? null)).toEqual(['sanrio-capsule-1', null, 'sanrio-capsule-3', null, null, null, null, null, null])
+    expect(slotOf(state, 'sanrio-capsule-1')).toBe(1)
+    expect(slotOf(state, 'sanrio-capsule-3')).toBe(3)
+  })
+
+  test('棚はいちばん最近に回したガチャの中身。ほかのガチャの品は棚の外', () => {
+    const state = withWins(win('sanrio-capsule-1'), win('melody-anniv-12'))
+    expect(shelfGacha(state).id).toBe('melody-anniv')
+    const { slots, owned } = shelfOf(state)
+    expect(slots).toHaveLength(12)
+    expect(owned).toBe(1)
+    expect(slots[11].item?.prize.id).toBe('melody-anniv-12')
+    expect(slotOf(state, 'sanrio-capsule-1')).toBeNull()
+    // 交換した後でも、最後に回したガチャの棚のまま
+    const exchanged = exchange(state, [state.wins[0].id])
+    expect(shelfGacha(exchanged).id).toBe('melody-anniv')
+    expect(shelfOf(exchanged).owned).toBe(0)
   })
 
   test('コインに交換した品は棚から外れ、届け待ちの品は並ぶ', () => {
@@ -31,25 +53,24 @@ describe('わたしの棚', () => {
     const b = win('sanrio-capsule-2', { status: 'delivery' })
     const state = exchange(withWins(a, b), [a.id])
     expect(ownedItems(state).map((item) => item.prize.id)).toEqual(['sanrio-capsule-2'])
+    expect(shelfOf(state).slots.map((slot) => Boolean(slot.item))).toEqual([false, true, false, false, false, false, false, false, false])
   })
 
-  test('10種類以上あっても棚は9枠。10番目は棚の外', () => {
-    const ids = Array.from({ length: 10 }, (_, index) => `melody-anniv-${index + 1}`)
-    const state = withWins(...ids.map((id) => win(id)))
-    expect(shelfSlots(ownedItems(state)).every((slot) => slot !== null)).toBe(true)
-    expect(slotOf(state, 'melody-anniv-10')).toBeNull()
-  })
-
-  test('お気に入りは棚の前に並び、もう一度押すと外せる。持っていない品には付けない', () => {
+  test('お気に入りは付けても外しても枠の位置は変わらない。持っていない品には付けない', () => {
     const state = withWins(win('sanrio-capsule-1'), win('sanrio-capsule-2'))
     const liked = toggleFavorite(state, 'sanrio-capsule-2')
     expect(liked.favorites).toEqual(['sanrio-capsule-2'])
-    expect(ownedItems(liked).map((item) => [item.prize.id, item.favorite])).toEqual([['sanrio-capsule-2', true], ['sanrio-capsule-1', false]])
-    expect(slotOf(liked, 'sanrio-capsule-2')).toBe(1)
+    expect(ownedItems(liked).map((item) => [item.prize.id, item.favorite])).toEqual([['sanrio-capsule-1', false], ['sanrio-capsule-2', true]])
+    expect(slotOf(liked, 'sanrio-capsule-2')).toBe(2)
+    expect(shelfOf(liked).slots[1].item?.favorite).toBe(true)
     const undone = toggleFavorite(liked, 'sanrio-capsule-2')
     expect(undone.favorites).toEqual([])
-    expect(ownedItems(undone)[0].prize.id).toBe('sanrio-capsule-1')
     expect(toggleFavorite(state, 'sanrio-capsule-9')).toBe(state)
+  })
+
+  test('友だち（デモ）の棚は9枠で、飾っている順に前から詰める', () => {
+    expect(FRIEND_SHELF_SIZE).toBe(9)
+    expect(shelfSlots(['a', 'b'])).toEqual(['a', 'b', null, null, null, null, null, null, null])
   })
 })
 

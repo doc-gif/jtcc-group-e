@@ -2,38 +2,46 @@ import { useState } from 'react'
 import './shelf.css'
 import { useApp } from '../app/appContext'
 import { paths } from '../app/router'
-import { ownedItems, SHELF_SIZE, shelfSlots, slotOf, slotText, toggleFavorite, type ShelfItem } from '../domain/shelf'
-import { BackBar, MockNotice, SaveWarning, TabBar } from '../components/Chrome'
+import { ownedItems, shelfOf, slotOf, slotText, toggleFavorite, type ShelfSlot } from '../domain/shelf'
+import { MockNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { ShelfGrid, type ShelfEntry } from '../components/ShelfGrid'
 
-const toEntry = (item: ShelfItem, note: string): ShelfEntry => ({ id: item.prize.id, name: item.prize.name, art: item.prize.art, glow: item.prize.glow, note })
+/** 棚の枠を表示用にする。持っていない種類は null（空き枠）。 */
+const toEntries = (slots: ShelfSlot[], note: string): Array<ShelfEntry | null> =>
+  slots.map(({ item }) => item ? { id: item.prize.id, name: item.prize.name, art: item.prize.art, glow: item.prize.glow, note } : null)
 
-/** わたしの棚（T09 267:8476 空・267:8550 所有あり）。下のタブ「コレクション」の行き先。文言はマスターに合わせる。 */
+/**
+ * 棚の上のまとめ。マスターにはないが、棚の枠は最後に回したガチャの中身なので、どのガチャの棚かを文字で示す（Figma 修正待ち）。
+ */
+function ShelfSet({ title, size }: { title: string; size: number }) {
+  return <p className="fine shelf-set">{title}の中身{size}種の棚</p>
+}
+
+/**
+ * わたしの棚（T09 267:8476 空・267:8550 所有あり）。下のタブ「コレクション」の行き先。
+ * 枠はガチャ1つ分の中身の種類で、持っている種類は絵と「持っている」、まだの種類は「＋」と「未入手」と中身の名前で示す。
+ */
 export function Shelf() {
   const { state } = useApp()
-  const items = ownedItems(state)
-  const shown = Math.min(items.length, SHELF_SIZE)
-  const slots = shelfSlots(items.map((item) => toEntry(item, '持っている')))
-  const empty = items.length === 0
+  const { gacha, slots, owned } = shelfOf(state)
+  const empty = owned === 0
+  const size = slots.length
   return (
     <div className="screen">
-      <BackBar title="わたしの棚" back={paths.town} backLabel="戻る" />
+      <PageHeader title="わたしの棚" back={paths.town} />
       <main className="content">
         <p className="lead shelf-lead">{empty ? 'ここから、好きな品で棚をつくろう。' : 'お気に入りを並べて、わたしだけの棚に。'}</p>
         <div className="shelf-summary">
           <div className="shelf-summary-text">
-            <p><b className="shelf-count">{shown} / {SHELF_SIZE} 枠</b>{!empty && <b className="shelf-count">を展示中</b>}</p>
-            <p className="fine">{empty ? '絵のある枠は、当てた後に飾られます。' : '持っている品を表示'}</p>
+            <p><b className="shelf-count">{owned} / {size} 枠</b>{!empty && <b className="shelf-count">を展示中</b>}</p>
+            <p className="fine">{empty ? '絵のある枠は獲得後に飾られます。' : '持っている品を表示'}</p>
+            <ShelfSet title={gacha.title} size={size} />
           </div>
           {!empty && <a className="btn btn-outline" href={paths.collection}><span><span className="visually-hidden">当てたもの</span>一覧</span></a>}
         </div>
-        <ShelfGrid slots={slots} label={`わたしの棚（${SHELF_SIZE}枠）`} emptyTitle="未入手" emptyNote="空き枠" hrefFor={(entry) => paths.shelfItem(entry.id)} />
-        <p className="fine">{empty
-          ? '空き枠にも「未入手」と表示します。'
-          : items.length > SHELF_SIZE
-            ? `全${SHELF_SIZE}枠。ほかの${items.length - SHELF_SIZE}点は「一覧」で見られます。`
-            : `全${SHELF_SIZE}枠・下へスクロールして見られます。`}</p>
+        <ShelfGrid slots={toEntries(slots, '持っている')} label="わたしの棚" emptyTitle="未入手" emptyNote={(index) => slots[index].prize.name} hrefFor={(entry) => paths.shelfItem(entry.id)} />
+        <p className="fine">{empty ? '空き枠にも「未入手」と表示します。' : `全${size}枠・下へスクロールして見られます。`}</p>
         {empty
           ? <a className="btn btn-main btn-block" href={paths.gachaList}>ガチャのお店へ</a>
           : <a className="btn btn-main btn-block" href={paths.shelfShare}>友だちからの見え方を見る</a>}
@@ -50,8 +58,10 @@ export function ShelfItemScreen({ id }: { id: string }) {
   const { state, update } = useApp()
   const [message, setMessage] = useState('')
   const item = ownedItems(state).find((entry) => entry.prize.id === id)
+  const { slots } = shelfOf(state)
   const slot = slotOf(state, id)
-  const slotLabel = slot ? `棚 ${slotText(slot)}` : '棚の外（一覧にあります）'
+  // いまの棚は最後に回したガチャの中身なので、ほかのガチャの品は棚の外（当てたものの記録で見られる）
+  const slotLabel = slot ? `棚 ${slotText(slot, slots.length)}` : '棚の外（当てたもので見られます）'
 
   const toggle = () => {
     const next = !item?.favorite
@@ -67,7 +77,7 @@ export function ShelfItemScreen({ id }: { id: string }) {
 
   return (
     <div className="screen">
-      <BackBar title={item?.favorite ? 'お気に入りの1点' : 'わたしの1点'} back={paths.shelf} backLabel="戻る" />
+      <PageHeader title={item?.favorite ? 'お気に入りの1点' : 'わたしの1点'} back={paths.shelf} />
       <main className="content">
         {!item ? (
           <>
@@ -105,21 +115,20 @@ export function ShelfItemScreen({ id }: { id: string }) {
 /** 友だちからの見え方（T09 267:8694）。見え方を確かめるだけで、どこにも公開しない。 */
 export function ShelfShare() {
   const { state } = useApp()
-  const items = ownedItems(state)
-  const shown = Math.min(items.length, SHELF_SIZE)
-  const slots = shelfSlots(items.map((item) => toEntry(item, 'あなたの品')))
+  const { gacha, slots, owned } = shelfOf(state)
   return (
     <div className="screen">
-      <BackBar title="友だちからの見え方" back={paths.shelf} backLabel="戻る" />
+      <PageHeader title="友だちからの見え方" back={paths.shelf} />
       <main className="content">
         <p className="lead share-lead">これはあなたの棚のプレビューです。</p>
         <div className="shelf-summary">
           <div className="shelf-summary-text">
-            <p><b className="shelf-count">あなたの棚・{shown} / {SHELF_SIZE} 枠</b></p>
+            <p><b className="shelf-count">あなたの棚・{owned} / {slots.length} 枠</b></p>
             <p className="fine">共有はまだ実行していません。</p>
+            <ShelfSet title={gacha.title} size={slots.length} />
           </div>
         </div>
-        <ShelfGrid slots={slots} label="友だちから見えるあなたの棚（プレビュー）" emptyTitle="未入手" emptyNote="空き枠" />
+        <ShelfGrid slots={toEntries(slots, 'あなたの品')} label="友だちから見えるあなたの棚（プレビュー）" emptyTitle="未入手" emptyNote={(index) => slots[index].prize.name} />
         <p className="fine">見せる範囲と招待は後続で決めます。</p>
         <a className="btn btn-main btn-block" href={paths.together}>友だち一覧へ</a>
         <MockNotice />
