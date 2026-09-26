@@ -1,10 +1,8 @@
 import { asset } from '../app/appContext'
-import { remainingRatio, remainLabel, remainLevel } from '../domain/odds'
+import { glowLabel, remainingRatio, remainLabel, remainLevel } from '../domain/odds'
 import type { Gacha, GoodsArt, Glow, Stock } from '../domain/types'
 
-/** 画面に等級の文字は出さず、光り方で見分ける。読み上げでは区別できるよう隠し文字で伝える。 */
-const glowLabel: Record<Glow, string> = { featured: '目玉', sparkle: 'キラキラ', normal: '' }
-
+/** 画面に等級の文字は出さず、光り方で見分ける。読み上げでは区別できるよう隠し文字で伝える（glowLabel）。 */
 export function GoodsImage({ art, glow, size = 'md' }: { art: GoodsArt; glow: Glow; size?: 'sm' | 'md' | 'lg' }) {
   return (
     <span className={`goods goods-${size} glow-${glow}`}>
