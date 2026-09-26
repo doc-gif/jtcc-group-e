@@ -446,7 +446,7 @@ details p { font-size: 0.9375rem; padding-bottom: 0.5rem; }
 .town-disclaimer { flex: 1 1 100%; font-size: 0.875rem; color: var(--sub); line-height: 1.6; }
 .town-header .coin-pill { background: var(--soft); color: var(--deep); border: 1px solid var(--line); }
 .town-header .icon-link { background: var(--soft); }
-.coin-demo { font-size: 0.8125rem; }
+.coin-demo { font-size: 0.8125rem; white-space: nowrap; }
 .town-main { display: flex; flex-direction: column; }
 .town-area { position: relative; }
 .town-viewport {
