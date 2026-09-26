@@ -520,6 +520,15 @@ details p { font-size: 0.9375rem; padding-bottom: 0.5rem; }
 /* デモコインの札（マスター 267:8207 Demo coin badge）: 白地に melody-pink の枠、ワインの文字 */
 .coin-pill { background: var(--surface); border: 1.5px solid var(--lp-v2-sanrio-melody-pink); font-size: 0.9375rem; }
 .town-header .icon-link { background: var(--surface); border: 1.5px solid var(--lp-v2-sanrio-melody-pink); }
+/* 街の上部（マスター 267:8204 と F14 / BG 360:989）: 空色の帯 360:990 に白の水玉、雲 360:992・360:993。文字は帯の上 */
+.town-header {
+  position: relative; background-color: var(--lp-v2-sanrio-sky);
+  background-image: radial-gradient(circle, var(--surface) 0 1.6px, transparent 2.2px), radial-gradient(circle, var(--surface) 0 1.6px, transparent 2.2px);
+  background-size: 24px 24px; background-position: 4px 4px, 16px 16px;
+}
+.town-header > :not(.deco-cloud) { position: relative; z-index: 1; }
+.town-header > .town-cloud-1 { right: 4.5rem; top: 2.1rem; width: 4.375rem; }
+.town-header > .town-cloud-2 { right: 11rem; top: 0.5rem; width: 2.875rem; }
 /* 街の題の横の小さなリボン（マスター 360:34 のロゴの飾り） */
 .town-header h1 { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
 .town-header h1 .bow { width: 1.75rem; flex: none; }

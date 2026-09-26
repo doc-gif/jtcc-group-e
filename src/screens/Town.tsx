@@ -4,7 +4,7 @@ import { OPENING_TIMING, shouldShowOpening } from '../app/opening'
 import { LOADING_DELAY, useAssetStatus, useDelayed, type AssetGate } from '../app/assets'
 import { paths } from '../app/router'
 import { townFeature } from '../app/townAssets'
-import { Bow, CoinPill, ExampleNotice, SaveWarning, ServiceNotice, TabBar } from '../components/Chrome'
+import { Bow, Cloud, CoinPill, ExampleNotice, SaveWarning, ServiceNotice, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { TownMapLayer, TownViewport } from '../components/TownMap'
 
@@ -136,6 +136,9 @@ function TownHome() {
   return (
     <div className="screen town-screen">
       <header className="town-header">
+        {/* 空色の帯と2つの雲（マスター 360:990〜360:993 の F14 / BG） */}
+        <Cloud className="town-cloud-1" />
+        <Cloud className="town-cloud-2" />
         <h1 id="page-title" tabIndex={-1}>ラストピース<Bow /></h1>
         <CoinPill demo />
         <ServiceNotice className="town-disclaimer" />
