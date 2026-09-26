@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import './App.css'
 import { AppProvider } from './app/AppProvider'
 import type { AssetGate } from './app/assets'
+import { CharacterProvider } from './app/pitchCharacters'
 import { useRoute, type Route } from './app/router'
 import { RoomSessionContext, type RoomSession } from './app/sharedRoom'
 import { townAssets } from './app/townAssets'
@@ -64,7 +65,9 @@ function App({ storage, assets = townAssets, roomSession }: { storage?: Pick<Sto
   return (
     <AppProvider storage={storage}>
       <RoomSessionContext.Provider value={roomSession ?? null}>
-        <Router assets={assets} />
+        <CharacterProvider>
+          <Router assets={assets} />
+        </CharacterProvider>
       </RoomSessionContext.Provider>
     </AppProvider>
   )
