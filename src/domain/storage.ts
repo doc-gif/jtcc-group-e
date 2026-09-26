@@ -1,5 +1,6 @@
 import { catalog, findPrize } from './catalog'
 import { createInitialState, initialStock } from './game'
+import { cleanFavorites, cleanReactions } from './shelf'
 import type { AppState, WinRecord } from './types'
 
 /** Preview runs must not read or overwrite production/browser demo progress. */
@@ -40,7 +41,9 @@ export function parseState(raw: string | null): AppState {
       }
     }
     const known = data.wins.filter((win) => findPrize(win.gachaId, win.prizeId) !== undefined)
-    return { version: 1, coins: data.coins, nickname: data.nickname || 'あなた', stock, wins: known, forceFeaturedNext: data.forceFeaturedNext, nextWinSeq: data.nextWinSeq, welcomed: flag(data.welcomed), voiceOn: flag(data.voiceOn), soundOn: flag(data.soundOn) }
+    return { version: 1, coins: data.coins, nickname: data.nickname || 'あなた', stock, wins: known, forceFeaturedNext: data.forceFeaturedNext, nextWinSeq: data.nextWinSeq, welcomed: flag(data.welcomed), voiceOn: flag(data.voiceOn), soundOn: flag(data.soundOn),
+      // F04 で追加。前の版の保存データにはないので、なければ空にする（同じ version 1 のまま読める）
+      favorites: cleanFavorites(data.favorites), reactions: cleanReactions(data.reactions) }
   } catch {
     return createInitialState()
   }
