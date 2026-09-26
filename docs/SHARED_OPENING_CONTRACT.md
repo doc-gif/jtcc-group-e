@@ -35,6 +35,6 @@
 
 ## 今回の検証境界と体験レビュー
 
-コアの SQL は T14 で正式 migration（`supabase/migrations/`）にし、専用の検証プロジェクトに適用した（[T14 の記録](SQL_MIGRATION_T14.md)）。Realtime の受信ポリシー `supabase/drafts/optional_broadcast.sql` は、Realtime の初期化後に適用する草案のまま。SQL と模擬 transport はローカル検証対象。Supabase 実プロジェクトへの migration 適用、40 台の実接続、実 iPhone の遅延・再接続は未検証で、後続タスクで確認する。`supabaseTransport` は型上の共通実装で、現行画面の旧 `useSimulatedRoom` はまだそれへ接続していない。旧画面はデモ表示を維持する。
+コアの SQL は T14 で正式 migration（`supabase/migrations/`）にし、専用の検証プロジェクトに適用した（[T14 の記録](SQL_MIGRATION_T14.md)）。Realtime の受信ポリシー `supabase/drafts/optional_broadcast.sql` は、Realtime の初期化後に適用する草案のまま。公開アプリ（本番・確認用プレビュー）はまだこの検証プロジェクトに接続していない。ブラウザからの HTTP 経路、40 台の実接続、実 iPhone の遅延・再接続は未検証で、後続タスクで確認する。`supabaseTransport` は型上の共通実装で、現行画面の旧 `useSimulatedRoom` はまだそれへ接続していない。旧画面はデモ表示を維持する。
 
 **AI 非視覚レビュー:** 全員同時の公開時刻、再接続後の本人の当たり、ホスト不在からの回復を定義した。結果の先見え・二重減算・40 人目の入室失敗を防ぐことで、友達と開ける期待を損なわない。対象ファンの行動観察は未実施。
