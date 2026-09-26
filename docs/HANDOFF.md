@@ -1,6 +1,6 @@
 # 引き継ぎ・タスク指示書（クラウド → ローカル Claude Code）
 
-2026-09-26 に書いた予定。作業が進んだら、このファイルを更新する（終わった項目は消すか「完了」にする）。書いた後に状態が変わっていることがあるので、始める前に GitHub（main・PR・Releases）・本番の `deployment.json`・Supabase の migration で実態を確かめ、違えば実態を正としてこのファイルを直す。ホスト用キーの本体など秘密は書かない。
+2026-09-26 に書いた予定。作業が進んだら、このファイルを更新する（終わった項目は消すか「完了」にする）。書いた後に状態が変わっていることがあるので、始める前に `node scripts/live-state.mjs`（main・本番の版・実行中の公開・開いている PR・PR のない最近のブランチ・main にない migration）と Supabase MCP の `list_migrations` で実態を確かめ、違えば実態を正としてこのファイルを直す（[AGENTS.md の「情報の鮮度」](../AGENTS.md)）。ホスト用キーの本体など秘密は書かない。
 
 ローカルの作業フォルダ: `C:\Users\IshitobiHyo\IdeaProjects\jtcc-group-e`（repo `doc-gif/jtcc-group-e`）
 最初に `git fetch origin` し、**AGENTS.md と CLAUDE.md を読んで従う**こと（作業はタスクごとに `origin/main` から専用のブランチ・worktree を作る。main に直接コミットしない）。
@@ -10,7 +10,7 @@
 並列にするときは、6 の「共有資源のロック」と「担当の宣言」の規則が入るまで、Supabase・Figma のマスター・同じ文書の表を触る作業を同時に走らせない。
 
 ## 本番と公開手順
-- 今の main の SHA・本番の版はここに書き写さない（すぐ古くなる）。main は GitHub、本番は https://doc-gif.github.io/jtcc-group-e/deployment.json と [Releases](https://github.com/doc-gif/jtcc-group-e/releases) で確かめる。
+- 今の main の SHA・本番の版はここに書き写さない（すぐ古くなる）。`node scripts/live-state.mjs` で確かめる（本番は https://doc-gif.github.io/jtcc-group-e/deployment.json と [Releases](https://github.com/doc-gif/jtcc-group-e/releases) を読む）。公開の前に、同じスクリプトで待機中・実行中の公開がないことも確かめる。
 - 公開手順: docs/DEPLOYMENT.md（`release-pages.yml` を main で workflow_dispatch、version は未使用の vX.Y.Z）。担当者から「本番まで出す」指示あり。公開後は Release の SHA と pages-history の `site/deployment.json` を確かめ、URL と QR（`pnpm qr <URL> <png>`）を担当者に渡す。
 
 ## 1. 複数端末対応（#41 でマージ、v0.3.1 で本番公開 2026-09-26 05:52 UTC）→ 実機確認
