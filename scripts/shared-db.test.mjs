@@ -9,7 +9,7 @@ const KEY=createHostKey()
 const users=Array.from({length:102},()=>randomUUID())
 const room=randomUUID()
 let invite
-const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql','supabase/migrations/20260926025335_lp_name_chars_create_retry.sql','supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql','supabase/migrations/20260926033821_lp_min_guests.sql','supabase/migrations/20260926052120_lp_pitch_goods_photos.sql']
+const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql','supabase/migrations/20260926025335_lp_name_chars_create_retry.sql','supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql','supabase/migrations/20260926033821_lp_min_guests.sql','supabase/migrations/20260926052120_lp_pitch_goods_photos.sql','supabase/migrations/20260926075123_lp_realtime_wake.sql']
 // Supabase Storage is not in PGlite. A minimal stand-in (F15): the real schema has more columns; the grants mirror Supabase (RLS decides).
 const STORAGE_STUB=`create schema storage;
  create table storage.buckets(id text primary key,name text not null,public boolean default false,file_size_limit bigint,allowed_mime_types text[]);
@@ -26,9 +26,9 @@ beforeAll(async()=>{
  db=new PGlite()
  await db.exec(`create role anon; create role authenticated;
  create schema auth; create function auth.uid() returns uuid language sql as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
- create schema realtime;create table realtime.messages(extension text,topic text,payload jsonb);
+ create schema realtime;create table realtime.messages(extension text,topic text,event text,payload jsonb,private boolean,at serial);
  create function realtime.topic() returns text language sql as $$select current_setting('realtime.topic',true)$$;
- create function realtime.send(payload jsonb,event text,topic text,private boolean) returns void language sql as $$insert into realtime.messages values('broadcast',topic,payload)$$;`)
+ create function realtime.send(payload jsonb,event text,topic text,private boolean) returns void language sql as $$insert into realtime.messages(extension,topic,event,payload,private) values('broadcast',topic,event,payload,private)$$;`)
  await db.exec(STORAGE_STUB)
  for(const file of migrations) await db.exec(await readFile(file,'utf8'))
  await db.exec(hostKeySql('test',hostKeyRecord(KEY)))
@@ -65,7 +65,12 @@ test('100 seats, idempotent joins, atomic shared results, reconnect and private 
  expect(views[0].round.guaranteed).toBe(false)
  expect(views[0].myResults).toHaveLength(1)
  expect(views[0].stock.reduce((sum,s)=>sum+s.remaining,0)).toBe(200)
- expect((await db.query('select count(*)::int count from realtime.messages')).rows[0].count).toBe(1)
+ // #68: every join and ready woke the room once, the start once, all on the private channel of this room.
+ const sent=(await db.query("select event,topic,private,payload->>'reason' reason from realtime.messages")).rows
+ expect(sent.filter(m=>m.reason==='join')).toHaveLength(100)
+ expect(sent.filter(m=>m.reason==='ready')).toHaveLength(100)
+ expect(sent.filter(m=>m.reason==='start')).toHaveLength(1)
+ expect(sent.every(m=>m.event==='round'&&m.topic===`lp:${room}`&&m.private===true)).toBe(true)
  await call(users[99],'select public.lp_leave($1) result',[room])
  const late=await call(users[100],'select public.lp_join($1,$2) result',[invite,'遅れて参加'])
  expect(late.round.results.some(r=>r.userId===users[100])).toBe(false)
@@ -102,14 +107,43 @@ test('optional notification failure does not roll back an authoritative round', 
  expect(started.stock).toBeNull()
  expect((await db.query('select count(*)::int count from public.lp_rounds where room=$1',[freshRoom])).rows[0].count).toBe(1)
 })
-test('optional Broadcast policy is rerunnable and refuses absent Realtime', async()=>{
- const policy=await readFile('supabase/drafts/optional_broadcast.sql','utf8')
- await db.exec(policy)
- await db.exec(policy)
- const rows=(await db.query("select count(*)::int count from pg_policies where schemaname='realtime' and tablename='messages' and policyname='lp_receive_round'")).rows
- expect(rows[0].count).toBe(1)
- await db.exec('drop table realtime.messages cascade')
- await expect(db.exec(policy)).rejects.toThrow('Realtime is not initialized')
+test('#68: only room members may receive, and the receive policy is created once', async()=>{
+ const rows=(await db.query("select cmd,roles::text roles from pg_policies where schemaname='realtime' and tablename='messages'")).rows
+ // SELECT for signed-in users only. No INSERT policy: clients cannot send on lp:<roomId>.
+ expect(rows).toEqual([{cmd:'SELECT',roles:'{authenticated}'}])
+ await db.exec(await readFile('supabase/migrations/20260926075123_lp_realtime_wake.sql','utf8'))
+ expect((await db.query("select count(*)::int count from pg_policies where schemaname='realtime' and tablename='messages'")).rows[0].count).toBe(1)
+ const id=randomUUID()
+ const {invite:inv}=await call(users[0],'select public.lp_create($1,$3,$2) result',[id,'ホスト',KEY])
+ await call(users[1],'select public.lp_join($1,$2) result',[inv,'ゲストA'])
+ for(const [user,topic,allowed] of [[users[0],`lp:${id}`,true],[users[1],`lp:${id}`,true],[users[2],`lp:${id}`,false],
+  [users[1],`lp:${id.toUpperCase()}`,false],[users[1],`lp:${id}x`,false],[users[1],'lp:not-a-room',false],[users[1],null,false]]) {
+  expect(await call(user,'select public.lp_can_receive($1) result',[topic])).toBe(allowed)
+ }
+ // Through the policy itself, as Realtime authorizes a join: SELECT as the authenticated role with RLS on.
+ await db.exec(`alter table realtime.messages enable row level security;
+  grant usage on schema realtime to authenticated; grant select,insert on realtime.messages to authenticated;
+  grant usage on sequence realtime.messages_at_seq to authenticated`)
+ // An earlier test makes realtime.send fail on purpose, so write the room's message as the owner (bypasses RLS).
+ await db.query("insert into realtime.messages(extension,topic,event,payload,private) values('broadcast',$1,'round','{}',true)",[`lp:${id}`])
+ const visible=async(user,topic)=>{
+  await db.query("select set_config('request.jwt.claim.sub',$1,false),set_config('realtime.topic',$2,false)",[user,topic])
+  await db.exec('set role authenticated')
+  try { return (await db.query('select count(*)::int count from realtime.messages where topic=$1',[`lp:${id}`])).rows[0].count }
+  finally { await db.exec('reset role') }
+ }
+ expect(await visible(users[0],`lp:${id}`)).toBeGreaterThan(0)
+ expect(await visible(users[1],`lp:${id}`)).toBeGreaterThan(0)
+ expect(await visible(users[2],`lp:${id}`)).toBe(0)
+ // A member of this room cannot read it through another topic, and nobody can send.
+ expect(await visible(users[1],`lp:${randomUUID()}`)).toBe(0)
+ await db.query("select set_config('request.jwt.claim.sub',$1,false),set_config('realtime.topic',$2,false)",[users[1],`lp:${id}`])
+ await db.exec('set role authenticated')
+ try { await expect(db.query("insert into realtime.messages(extension,topic,event,payload,private) values('broadcast',$1,'round','{}',true)",[`lp:${id}`])).rejects.toThrow('row-level security') }
+ finally { await db.exec('reset role') }
+ await call(users[1],'select public.lp_leave($1) result',[id])
+ expect(await call(users[1],'select public.lp_can_receive($1) result',[`lp:${id}`])).toBe(false)
+ expect(await visible(users[1],`lp:${id}`)).toBe(0)
 })
 test('core room ledger works before Realtime initializes and blocks a departed member', async()=>{
  const isolated=new PGlite()
@@ -682,6 +716,65 @@ describe('F13: a round needs at least 2 active guests besides the host', () => {
   expect(cancelled).toMatchObject({roundNo:0,scheduledAt:null,lastSchedule:{status:'cancelled',roundNo:null}})
   expect(Date.parse(cancelled.lastSchedule.scheduledAt)).toBe(at.getTime())
   expect(await rounds(id)).toBe(0)
+ },30000)
+})
+
+describe('#68: every room change wakes the room once, with nothing secret in the message', () => {
+ const [host,a,b]=[randomUUID(),randomUUID(),randomUUID()]
+ // An earlier test makes realtime.send fail on purpose. Record messages again for these tests.
+ beforeAll(async()=>{
+  await db.exec(`create or replace function realtime.send(payload jsonb,event text,topic text,private boolean) returns void language sql as
+   $$insert into realtime.messages(extension,topic,event,payload,private) values('broadcast',topic,event,payload,private)$$`)
+ })
+ const mark=async()=>(await db.query('select coalesce(max(at),0)::int at from realtime.messages')).rows[0].at
+ const since=async at=>(await db.query('select topic,event,private,payload from realtime.messages where at>$1 order by at',[at])).rows
+ const reasons=async(at,run)=>{ await run(); return (await since(at)).map(m=>m.payload.reason) }
+
+ test('join, ready, leave, start, schedule, pitch mode, rename and resume each send one message', async()=>{
+  const id=randomUUID()
+  const start=await mark()
+  const {invite}=await call(host,'select public.lp_create($1,$3,$2) result',[id,'ホスト',KEY])
+  expect(await since(start)).toEqual([])
+  expect(await reasons(await mark(),()=>call(a,'select public.lp_join($1,$2) result',[invite,'あいう']))).toEqual(['join'])
+  expect(await reasons(await mark(),()=>call(b,'select public.lp_join($1,$2) result',[invite,null]))).toEqual(['join'])
+  expect(await reasons(await mark(),()=>call(a,'select public.lp_ready($1,true) result',[id]))).toEqual(['ready'])
+  expect(await reasons(await mark(),()=>call(a,'select public.lp_rename($1,$2) result',[id,'かきく']))).toEqual(['rename'])
+  expect(await reasons(await mark(),()=>call(host,'select public.lp_set_pitch_mode($1,true) result',[id]))).toEqual(['pitch-mode'])
+  expect(await reasons(await mark(),()=>call(host,'select public.lp_schedule($1,3) result',[id]))).toEqual(['schedule'])
+  expect(await reasons(await mark(),()=>call(host,'select public.lp_schedule($1,null) result',[id]))).toEqual(['schedule'])
+  expect(await reasons(await mark(),()=>call(host,'select public.lp_resume_host($1,$2) result',[KEY,id]))).toEqual(['host'])
+  expect(await reasons(await mark(),()=>call(host,'select public.lp_start($1,$2,0) result',[id,randomUUID()]))).toEqual(['start'])
+  expect(await reasons(await mark(),()=>call(b,'select public.lp_leave($1) result',[id]))).toEqual(['leave'])
+  // A refused change sends nothing: the message is part of the rolled-back transaction.
+  const refused=await mark()
+  await expect(call(a,'select public.lp_ready($1,true) result',[id])).rejects.toThrow('round-active')
+  expect(await since(refused)).toEqual([])
+
+  const all=await since(start)
+  expect(all.every(m=>m.topic===`lp:${id}`&&m.event==='round'&&m.private===true)).toBe(true)
+  for(const m of all) {
+   expect(Object.keys(m.payload).sort()).toEqual(['reason','roomId','roundNo'])
+   expect(m.payload.roomId).toBe(id)
+  }
+  expect(all.find(m=>m.payload.reason==='start').payload.roundNo).toBe(1)
+  // No names, invite code, host key, user ids or results leave the database in a message.
+  const text=JSON.stringify(all)
+  for(const secret of [invite,KEY,'ホスト','あいう','かきく','ゲスト',host,a,b,'plush','pouch','badge']) expect(text).not.toContain(secret)
+ },30000)
+
+ test('a due schedule sends once when it starts and once when it cannot start', async()=>{
+  const id=randomUUID()
+  const {invite}=await call(host,'select public.lp_create($1,$3,$2) result',[id,'ホスト',KEY])
+  await call(a,'select public.lp_join($1,$2) result',[invite,'あ'])
+  await call(b,'select public.lp_join($1,$2) result',[invite,'い'])
+  await call(host,'select public.lp_schedule($1,1) result',[id])
+  await db.query("update public.lp_rooms set scheduled_at=now()-interval '1 second' where id=$1",[id])
+  // Nobody is ready: the schedule ends as nobody-ready and the room hears about it.
+  expect(await reasons(await mark(),()=>call(a,'select public.lp_snapshot($1) result',[id]))).toEqual(['schedule'])
+  await call(a,'select public.lp_ready($1,true) result',[id])
+  await call(host,'select public.lp_schedule($1,1) result',[id])
+  await db.query("update public.lp_rooms set scheduled_at=now()-interval '1 second' where id=$1",[id])
+  expect(await reasons(await mark(),()=>call(b,'select public.lp_snapshot($1) result',[id]))).toEqual(['start'])
  },30000)
 })
 
