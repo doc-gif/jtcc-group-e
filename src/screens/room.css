@@ -82,7 +82,7 @@
   --face: min(2.6rem, 12vw);
   position: relative; display: grid; place-items: center; width: var(--face); height: var(--face); border-radius: 50%;
   border: 2px solid var(--surface); font-weight: 800; font-size: 0.9375rem; color: var(--text); background: var(--head);
-  animation: room-bob 3s ease-in-out infinite;
+  animation: room-bob 3s ease-in-out 2;
 }
 /* ほっぺ */
 .face::before, .face::after {
