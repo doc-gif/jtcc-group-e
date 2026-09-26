@@ -53,14 +53,14 @@ function DemoLine({ demo }: { demo: boolean }) {
   return <p className="room-demo">デモ：この端末のブラウザの中だけのルームです（別のスマホとはつながりません）</p>
 }
 
-function RoomFrame({ layout, demo, faces, children }: { layout: Layout; demo: boolean; faces: string[]; children?: ReactNode }) {
+function RoomFrame({ layout, demo, faces, crowd = 0, children }: { layout: Layout; demo: boolean; faces: string[]; crowd?: number; children?: ReactNode }) {
   return (
     <div className="screen room-screen">
       <RoomHeader title={layout.title} sub={layout.sub} back={layout.back} />
       <main className="content room-content">
         <DemoLine demo={demo} />
         {layout.pitchTop && <PitchLabel>{layout.pitchTop}</PitchLabel>}
-        {layout.stage && <RoomStage {...layout.stage} faces={faces} />}
+        {layout.stage && <RoomStage {...layout.stage} faces={faces} crowd={crowd} />}
         {layout.stats && <RoomStats items={layout.stats} />}
         {layout.note && <p className="room-line">{layout.note}</p>}
         {layout.card}
@@ -202,7 +202,7 @@ export function Room({ invite }: { invite: string }) {
 
   const busy = state.busy !== null
   const self = state.self
-  const faces = state.members.slice(0, 4).map((member) => faceOf(member.nickname))
+  const faces = state.members.slice(0, 10).map((member) => faceOf(member.nickname))
   const title = snapshot ? roomTitle(state) : 'ラストピースの開封ルーム'
 
   const setWatching = (value: boolean) => {
@@ -317,7 +317,7 @@ export function Room({ invite }: { invite: string }) {
     case 'invite':
       layout = {
         title: 'ルームへの招待', sub: 'ラストピースの開封ルーム', back: toLobby,
-        stage: { caption: 'いっしょに開けよう' },
+        stage: { caption: 'みんなでカプセルを開けよう' },
         stats: [{ label: '集まっている人', value: '入室後に表示', plain: true }, { label: '抽選の準備', value: '入室後に選べます', plain: true }],
         note: '招待リンクから入室できます',
         card: (
@@ -336,7 +336,7 @@ export function Room({ invite }: { invite: string }) {
       layout = {
         title: renaming ? '名前を変える' : 'ルームへの招待', sub: renaming ? title : 'ラストピースの開封ルーム',
         back: { onClick: () => { setNameStep(null); setTaken(null) } },
-        stage: { caption: 'いっしょに開けよう', compact: true },
+        stage: { caption: 'みんなでカプセルを開けよう', compact: true },
         stats: renaming ? stats : [{ label: '集まっている人', value: '入室後に表示', plain: true }, { label: '抽選の準備', value: '入室後に選べます', plain: true }],
         note: 'ルームの中で表示される名前です',
         card: (
@@ -361,7 +361,7 @@ export function Room({ invite }: { invite: string }) {
     case 'nameAuto':
       layout = {
         title: 'ルームへの招待', sub: title, back: { onClick: () => setAutoNamed(false) },
-        stage: { caption: 'いっしょに開けよう', compact: true },
+        stage: { caption: 'みんなでカプセルを開けよう', compact: true },
         stats, note: '名前は自動で付けました',
         card: (
           <RoomCard kicker="INVITE" title={`「${self?.nickname ?? ''}」で入ります`} labelledBy="room-card-title" note="ロビーからいつでも変えられます">
@@ -571,7 +571,7 @@ export function Room({ invite }: { invite: string }) {
       // 人数が足りないとき（F13）は 312:6410「あと N 人で始められます」
       layout = needed > 0 ? {
         title: `あと${needed}人で始められます`, sub: 'あなたが進行役 · ルームへようこそ', back: toLobby,
-        stage: { caption: 'みんなを招いて開けよう' }, stats, note: 'ホストのほかに2人以上集まると開始できます',
+        stage: { caption: 'みんなを呼んで開けよう' }, stats, note: 'ホストのほかに2人以上集まると開始できます',
         card: (
           <RoomCard kicker="HOST" title={`あと${needed}人で始められます`} labelledBy="room-card-title" note="予約はいまのうちに決めておけます">
             <p className="room-body">ホストのほかに2人以上集まると「開封をはじめる」を押せます。招待リンクで友だちを呼べます。</p>
@@ -586,7 +586,7 @@ export function Room({ invite }: { invite: string }) {
         secondary: <Secondary onClick={() => setShare(true)}>招待リンクを共有</Secondary>,
       } : {
         title: '開封の準備ができたよ', sub: 'あなたが進行役 · ルームへようこそ', back: toLobby,
-        stage: { caption: 'みんなを招いて開けよう' }, stats, note: 'ホストのほかに2人以上・準備完了が1人以上なら開始',
+        stage: { caption: 'みんなを呼んで開けよう' }, stats, note: 'ホストのほかに2人以上・準備完了が1人以上なら開始',
         card: (
           <RoomCard kicker="HOST" title="そろそろ始めよう" labelledBy="room-card-title" note="結果は約8秒後に同時公開">
             <p className="room-body">開始時にオンラインで準備完了の人だけが抽選に参加します。見守りは無料です。</p>
@@ -605,7 +605,7 @@ export function Room({ invite }: { invite: string }) {
     case 'hostSchedule':
       layout = {
         title: '開始を予約しよう', sub: 'あなたが進行役 · 会場の準備に合わせて', back: { onClick: () => setScheduleSetup(false) },
-        stage: { caption: 'みんなを招いて開けよう', compact: true }, stats, note: '準備完了の人が1人以上いれば予約どおり始まります',
+        stage: { caption: 'みんなを呼んで開けよう', compact: true }, stats, note: '準備完了の人が1人以上いれば予約どおり始まります',
         card: (
           <RoomCard kicker="HOST" title="何分後に始める？" labelledBy="room-card-title" note="時刻になると、あなたがいなくても自動で始まります">
             {scheduleChoices(chosen, setMinutes)}
@@ -624,7 +624,7 @@ export function Room({ invite }: { invite: string }) {
       layout = state.scheduleWaiting ? {
         // 予約の時刻を過ぎたが人数待ち（F13、312:6562）。2人目が入るとサーバーが始める
         title: `${at} になりました`, sub: `あと${needed}人で始まります · あなたが進行役`, back: toLobby,
-        stage: { caption: 'みんなを招いて開けよう', compact: true }, stats,
+        stage: { caption: 'みんなを呼んで開けよう', compact: true }, stats,
         note: 'ホストのほかに2人以上そろうと、すぐ始まります',
         card: (
           <RoomCard kicker="人数待ち" title={`あと${needed}人で始まります`} labelledBy="room-card-title">
@@ -638,7 +638,7 @@ export function Room({ invite }: { invite: string }) {
         secondary: <Secondary onClick={() => void schedule(null)} disabled={busy}>予約を取り消す</Secondary>,
       } : {
         title: `${at} に開始`, sub: `あと ${left} · あなたが進行役`, back: toLobby,
-        stage: { caption: 'みんなを招いて開けよう', compact: true }, stats,
+        stage: { caption: 'みんなを呼んで開けよう', compact: true }, stats,
         note: `準備完了 ${state.readyOnline}人 · 開始の時点でオンラインの人が参加`,
         card: (
           <RoomCard kicker="予約中" title={`あと ${left} で開始`} labelledBy="room-card-title">
@@ -662,7 +662,7 @@ export function Room({ invite }: { invite: string }) {
         : `${state.scheduleNotice?.message ?? ''}コインは減っていません。`
       layout = {
         title: '開始できませんでした', sub: `${at} · ${reason}`, back: { onClick: () => controller.dismissScheduleNotice() },
-        stage: { caption: 'みんなを招いて開けよう', compact: true }, stats, note: `準備完了 ${state.readyOnline}人`,
+        stage: { caption: 'みんなを呼んで開けよう', compact: true }, stats, note: `準備完了 ${state.readyOnline}人`,
         card: (
           <RoomCard kicker="HOST" title="もう一度予約しよう" labelledBy="room-card-title">
             <p className="room-body" role="status">{body}</p>
@@ -681,7 +681,7 @@ export function Room({ invite }: { invite: string }) {
       layout = {
         // 予約の時刻を過ぎたが人数待ち（F13、312:6648）
         title: waiting ? `${at} になりました` : `${at} に開始`, sub: waiting ? `あと${needed}人で始まります · ${title}` : `あと ${left} · ${title}`, back: toLobby,
-        stage: { caption: 'みんなを招いて開けよう', compact: true }, stats,
+        stage: { caption: 'みんなを呼んで開けよう', compact: true }, stats,
         note: waiting ? `あと${needed}人集まると、すぐ始まります` : 'ホストがいなくても時刻になると始まります',
         card: (
           <RoomCard kicker={waiting ? '人数待ち' : 'まもなく開始'} title={waiting ? `あと${needed}人で始まります` : `あと ${left} で開始`} labelledBy="room-card-title" note={self?.ready ? 'あなたは準備完了です' : undefined}>
@@ -743,7 +743,7 @@ export function Room({ invite }: { invite: string }) {
       const others = Math.max(0, state.seats.taken - 1)
       layout = {
         title: 'みんなの開封ルーム', sub: `${title} · ${state.seats.taken}人が集まっています`, back: toLobby,
-        stage: { caption: '街の開封広場で待とう' }, stats,
+        stage: { caption: 'ガチャの前にみんな集合！' }, stats,
         // 人数が足りないとき（F13、312:6486）は「あと N 人で始められます」
         note: needed > 0 ? 'ホストのほかに2人以上で始められます' : others > 0 ? `ほか${others}人も一緒に待っています` : '招待した友だちを待っています',
         card: (
@@ -761,10 +761,12 @@ export function Room({ invite }: { invite: string }) {
 
   // 名前の変更はロビーの画面から（開封中・結果・復帰の案内では出さない）
   const showRename = inRoom && self !== null && state.canRename && ['lobby', 'watching', 'ready', 'guestScheduled', 'hostStart', 'hostSchedule', 'hostScheduled'].includes(view)
+  // ルームの外の画面（招待・名前・満員・終了）には、集まっている人を出さない（マスター T10 の 01・04・12・22〜24）
+  const outside = view === 'invite' || view.startsWith('name') || view === 'full' || view === 'expired'
   if (connecting && !waitedLong) return <div className="screen room-screen" aria-busy="true" />
   return (
     <>
-      <RoomFrame layout={layout} demo={demo} faces={view === 'invite' || view.startsWith('name') || view === 'full' ? [] : faces}>
+      <RoomFrame layout={layout} demo={demo} faces={outside ? [] : faces} crowd={state.seats.taken}>
         {showRename && renameLine}
         {!view.startsWith('name') && errorLine}
       </RoomFrame>
@@ -808,7 +810,7 @@ export function RoomCreate({ hostKey = null }: { hostKey?: string | null }) {
       <RoomHeader title="ルームを作る" sub={canCreate ? 'あなたが進行役（ホスト）になります' : 'ホスト用リンクを持つ人が作ります'} back={{ href: paths.gachaList }} />
       <main className="content room-content">
         <DemoLine demo={demo} />
-        <RoomStage caption="みんなを招いて開けよう" />
+        <RoomStage caption="みんなを呼んで開けよう" />
         {canCreate ? (
           <RoomCard kicker="HOST" title="どんな名前で始める？" labelledBy="room-create-title" note="見守る人はコインを使いません">
             <p className="room-body room-create-lead">
@@ -895,7 +897,7 @@ export function HostLink({ hostKey }: { hostKey: string | null }) {
     secondary: <DockNote>通信が戻るまで待つ</DockNote>,
   } : {
     title: 'ホスト用リンクが無効です', sub: 'ラストピースの開封ルーム', back: { href: paths.town },
-    stage: { caption: 'いっしょに開けよう' },
+    stage: { caption: 'みんなでカプセルを開けよう' },
     stats: [{ label: 'ルームの状態', value: '確認できません', plain: true }, { label: 'ホスト', value: 'なれません', plain: true }],
     note: 'ホストになれるのはホスト用リンクを持つ人だけです',
     card: (
