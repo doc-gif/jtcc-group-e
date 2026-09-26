@@ -7,8 +7,8 @@ on:
   push:
     branches: [main]
   workflow_call:
-  # マージのキュー（scripts/auto-merge.mjs の advanceQueue）が、main を取り込んだ PR のブランチで起動する。
-  # GITHUB_TOKEN の push では pull_request の CI が動かないため。結果は PR の head の SHA に付き、必須チェックになる。
+  # 手での確認用。マージのキュー（scripts/auto-merge.mjs の advanceQueue）はもう起動しない: Bot の push の pull_request の
+  # CI は承認待ちで作られ、保護ルールはその suite を見るので、ここで起動した結果ではマージできない。キューはその run を承認する（#147）。
   workflow_dispatch:
     inputs:
       queue_base:
