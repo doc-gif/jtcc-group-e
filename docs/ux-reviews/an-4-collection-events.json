@@ -7,7 +7,7 @@
     {
       "id": "HIG-01",
       "result": "not-applicable",
-      "evidence": "画面・文字・色を変更していない。320px で当てたもの（一覧・交換のシート・届けてもらうのシート・確定後の通知）を開き、以前と同じ表示で JS エラーがないことを確認した。"
+      "evidence": "画面・文字・色を変更していない。ローカルの 320px（Chromium）で当てたもの（一覧・交換のシート・届けてもらうのシート・確定後の通知）を開き、以前と同じ表示で横スクロールがなく（scrollWidth 320）、JS エラーと googletagmanager.com への通信がないことを確認した。"
     },
     {
       "id": "HIG-02",
@@ -17,7 +17,7 @@
     {
       "id": "HIG-03",
       "result": "not-applicable",
-      "evidence": "レイアウトを変更していない。e2e/app.spec.ts・e2e/ux.spec.ts を既存の 5 端末構成（320px・Android・iPhone・横向き・デスクトップ）で実行し、当てたものの操作が以前と同じに通ることを確認した。"
+      "evidence": "レイアウトを変更していない。CI run 36232942148（2026-09-26 09:37 UTC 完了）で e2e/app.spec.ts・e2e/ux.spec.ts を既存の 5 端末構成（320px・Android・iPhone・横向き・デスクトップ、8 シャード）で実行し Quality gate・UI/UX gate が成功。ローカルは Chromium の 3 構成（320px・Android・デスクトップ）で app.spec 42 件・ux.spec 183 件成功（WebKit はローカルに無いため iPhone・横向きは CI の結果）。"
     },
     {
       "id": "HIG-04",
