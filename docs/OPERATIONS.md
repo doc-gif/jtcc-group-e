@@ -1,6 +1,6 @@
 # 運用: Issue・ラベル・マネージャー（定期実行）
 
-複数のエージェントが同時に作業するための決まり。**タスクの状況は文書ではなく GitHub の Issue とラベルに置く**（AGENTS.md「情報の鮮度」）。仕様と経緯は `docs/HANDOFF.md` と各 Issue の本文に書く。
+複数のエージェントが同時に作業するための決まり。**タスクの状況は文書ではなく GitHub の Issue とラベルに置く**（AGENTS.md「情報の鮮度」）。仕様と経緯は `docs/HANDOFF.md` と各 Issue の本文に書く。ロックの対象と持つ期間、migration の順番の検査、完了の記録の置き場所（`docs/status/<ID>.md`）は AGENTS.md「共有資源のロックと担当の宣言」。
 
 ## ラベル（正は `.github/workflows/repo-labels.yml`）
 

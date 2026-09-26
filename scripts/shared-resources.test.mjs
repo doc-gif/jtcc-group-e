@@ -54,7 +54,9 @@ describe('Supabase の migration（lock:supabase）', () => {
     const changed = list(git('diff', '--name-only', '--no-renames', '--diff-filter=MD', range.base, 'HEAD', '--', MIGRATIONS))
     expect(changed, '適用済みの migration は変えない。直すときは新しい migration を足す').toEqual([])
     const added = list(git('diff', '--name-only', '--no-renames', '--diff-filter=A', range.base, 'HEAD', '--', MIGRATIONS))
-    const onMain = list(git('ls-tree', '--name-only', range.top, '--', MIGRATIONS))
+    // -r で中のファイルを列挙する（一覧が空だと「最新」が空になり、順番の検査が効かなくなる。main には migration があるはず）
+    const onMain = list(git('ls-tree', '-r', '--name-only', range.top, '--', MIGRATIONS))
+    expect(onMain.filter((file) => migrationVersion(file)), `main 側（${range.top.slice(0, 7)}）の migration の一覧が空。ls-tree の呼び方か checkout の深さを確かめる`).not.toEqual([])
     expect(olderThanMain(added, onMain, ACCEPTED_OUT_OF_ORDER), 'main の最新より前の version。lock:supabase を持たずに別の作業と同時に適用した可能性がある（AGENTS.md）').toEqual([])
   })
 

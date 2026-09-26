@@ -75,6 +75,17 @@ export function heldLocks(items) {
   return held
 }
 
+/** GitHub の一覧 API を最後のページまで読む。1ページ（100件）で止めると、古いロックの Issue や PR を見落として「空き」と誤る。 */
+export async function fetchAllPages(fetchJson, url, perPage = 100) {
+  const items = []
+  for (let page = 1; ; page++) {
+    const chunk = await fetchJson(`${url}${url.includes('?') ? '&' : '?'}per_page=${perPage}&page=${page}`)
+    if (!Array.isArray(chunk)) throw new Error(`一覧ではない応答: ${url}`)
+    items.push(...chunk)
+    if (chunk.length < perPage) return items
+  }
+}
+
 /** 取れなかった項目（ブランチ単位の未確認を含む）があるか。あれば失敗で終える（「未確認」を見落とさない）。 */
 export function hasUnchecked(state) {
   return Object.values(state).some((value) => value instanceof Error) || (state.strayMigrations?.unchecked?.length ?? 0) > 0
@@ -151,9 +162,10 @@ export async function collect({ git, fetchJson, now }) {
     latestRelease: (await fetchJson(`https://api.github.com/repos/${REPO}/releases/latest`)).tag_name,
   }))
   const releaseRuns = await attempt(async () => activeRuns((await fetchJson(`https://api.github.com/repos/${REPO}/actions/workflows/release-pages.yml/runs?per_page=10`)).workflow_runs))
-  const pulls = await attempt(() => fetchJson(`https://api.github.com/repos/${REPO}/pulls?state=open&per_page=100`))
+  const pulls = await attempt(() => fetchAllPages(fetchJson, `https://api.github.com/repos/${REPO}/pulls?state=open`))
   const closed = await attempt(() => fetchJson(`https://api.github.com/repos/${REPO}/pulls?state=closed&per_page=100&sort=updated&direction=desc`))
-  const locks = await attempt(async () => heldLocks(await fetchJson(`https://api.github.com/repos/${REPO}/issues?state=open&per_page=100`)))
+  // issues は PR も含む。ロックは古い Issue に付いたままのことがあるので、最後のページまで読む
+  const locks = await attempt(async () => heldLocks(await fetchAllPages(fetchJson, `https://api.github.com/repos/${REPO}/issues?state=open`)))
   const orphanBranches = [refs, pulls, closed].find((value) => value instanceof Error) ?? recentBranchesWithoutPr(refs, pulls, closed, now)
   const mainMigrations = await fromGit(async () => (await git(['ls-tree', '--name-only', 'origin/main', 'supabase/migrations/'])).split('\n').filter(Boolean).map((file) => file.split('/').pop()).sort())
   const strayMigrations = await attempt(async () => {

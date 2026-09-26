@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { describe, expect, test } from 'vitest'
-import { activeRuns, collect, formatReport, hasUnchecked, heldLocks, migrationsOutsideMain, migrationVersion, parseRefs, recentBranchesWithoutPr } from './live-state.mjs'
+import { activeRuns, collect, fetchAllPages, formatReport, hasUnchecked, heldLocks, migrationsOutsideMain, migrationVersion, parseRefs, recentBranchesWithoutPr } from './live-state.mjs'
 
 const NOW = new Date('2026-09-26T06:30:00Z')
 // 1タスク1ファイルの完了の記録（AGENTS.md「共有資源のロックと担当の宣言」）も書き写しの検査をする
@@ -77,6 +77,21 @@ describe('live-state: 変わる事実をその場で調べる', () => {
     expect(formatReport({ ...EMPTY, locks: heldLocks([]) })).toContain('- `lock:supabase`: 空き\n- `lock:figma-master`: 空き')
     expect(formatReport({ ...EMPTY, locks: new Error('403 rate limit') })).toContain('## 共有資源のロック（持ち主の PR・Issue）\n- 未確認: 403 rate limit')
     expect(hasUnchecked({ locks: new Error('403') })).toBe(true)
+  })
+
+  test('一覧 API は最後のページまで読む（100 件を超える Issue の古いロックを見落とさない）', async () => {
+    const pages = { 1: Array.from({ length: 100 }, (_, i) => ({ number: 200 - i })), 2: [{ number: 51, labels: [{ name: 'lock:supabase' }] }] }
+    const urls = []
+    const fetchJson = async (url) => { urls.push(url); return pages[new URL(url).searchParams.get('page')] ?? [] }
+    const items = await fetchAllPages(fetchJson, 'https://api.github.com/repos/doc-gif/jtcc-group-e/issues?state=open')
+    expect(items).toHaveLength(101)
+    expect(urls).toEqual([
+      'https://api.github.com/repos/doc-gif/jtcc-group-e/issues?state=open&per_page=100&page=1',
+      'https://api.github.com/repos/doc-gif/jtcc-group-e/issues?state=open&per_page=100&page=2',
+    ])
+    expect(heldLocks(items)['lock:supabase'].map((item) => item.number)).toEqual([51])
+    expect(await fetchAllPages(async () => [], 'https://api.github.com/x')).toEqual([])
+    await expect(fetchAllPages(async () => ({ message: 'rate limited' }), 'https://api.github.com/x')).rejects.toThrow('一覧ではない応答')
   })
 
   test('報告: 確認した時刻を先頭に出し、実行中の公開・main にない migration・本番との差を知らせる', () => {

@@ -1,6 +1,6 @@
 ## 担当の宣言（着手時に書く。AGENTS.md「共有資源のロックと担当の宣言」）
 
-- チャット名・Issue（`Closes #` / `Refs #`）:
+- チャット名・ブランチ・Issue（`Closes #` / `Refs #`）:
 - 触るもの（ファイル・文書の表・Figma node・DB）:
 - 持つロック（`lock:supabase` / `lock:figma-master` の Issue、なければ「なし」）:
 
