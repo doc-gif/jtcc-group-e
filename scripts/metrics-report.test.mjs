@@ -133,3 +133,13 @@ test('run: 秘密が無い取得元は飛ばし、あるものの失敗はエラ
   expect(out[0]).toContain('GA4: 未設定')
   expect(out[0]).not.toContain('ct')
 })
+
+test('CLI: 秘密が無ければ正常終了（0）、設定済みの取得元が失敗したら 2', async () => {
+  const { spawnSync } = await import('node:child_process')
+  const ok = spawnSync(process.execPath, ['scripts/metrics-report.mjs', '--days', '3'], { env: { PATH: process.env.PATH }, encoding: 'utf8' })
+  expect(ok.status).toBe(0)
+  expect(ok.stdout).toContain('GA4: 未設定')
+  const bad = spawnSync(process.execPath, ['scripts/metrics-report.mjs'], { env: { PATH: process.env.PATH, CLARITY_TOKEN: 'x', HTTPS_PROXY: 'http://127.0.0.1:9', https_proxy: 'http://127.0.0.1:9' }, encoding: 'utf8', timeout: 20000 })
+  expect(bad.status).toBe(2)
+  expect(bad.stdout).toContain('取得できなかったもの')
+})

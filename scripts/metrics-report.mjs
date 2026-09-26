@@ -246,5 +246,6 @@ export async function run({ env = process.env, args = process.argv.slice(2), fet
 }
 
 if (process.argv[1] && /metrics-report\.mjs$/.test(process.argv[1]) && import.meta.url.endsWith('/scripts/metrics-report.mjs')) {
-  run().then((r) => { if (!r.ga4 && !r.clarity) process.exitCode = 2 }).catch((e) => { console.error(e); process.exitCode = 1 })
+  // 秘密が無い取得元は正常な「飛ばし」。設定済みの取得元が失敗したときだけ非成功で終わる
+  run().then((r) => { if (r.errors.length) process.exitCode = 2 }).catch((e) => { console.error(e); process.exitCode = 1 })
 }
