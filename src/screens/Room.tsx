@@ -11,12 +11,13 @@ import { usePitchPhoto, type ShownPhoto } from '../app/pitchPhotos'
 import { forgetRecord, readRecords, useRoomSession, useRoomState, writeRecord } from '../app/sharedRoom'
 import { ExampleNotice, PageHeader } from '../components/Chrome'
 import {
-  HostLinkPanel, InviteShare, PITCH_ROOM_TEXT, PITCH_ROUND_TEXT, PitchLabel, ResultRow, RoomCard, RoomNameForm, RoomStage,
+  HostLinkPanel, InviteShare, PITCH_ROOM_TEXT, PITCH_ROUND_TEXT, PitchLabel, ResultRow, RoomCard, RoomNameForm, RoomPrize, RoomStage,
   RoomStats, RoomSwitch, ScheduleChoices, type RoomStat, type StageVariant,
 } from '../components/Room'
 import { Sheet } from '../components/Sheet'
 import { RoomContractError, SHARED_PRICE, errorMessage, type RoomErrorCode, type ScheduleMinutes, type ScheduleStatus, type SharedPrize } from '../realtime/protocol'
 import type { RoomState } from '../realtime/roomController'
+import { RoomDraw } from './RoomDraw'
 import './room.css'
 
 /*
@@ -144,6 +145,8 @@ export function Room({ invite }: { invite: string }) {
   const [hostAwayAck, setHostAwayAck] = useState(false)
   const [resumeAck, setResumeAck] = useState(false)
   const [watchedRounds, setWatchedRounds] = useState<ReadonlySet<number>>(() => new Set())
+  // 開き直したとき、確認済みの回の当たりは出し直さない（待つ画面から始める）
+  const [prizeSeen, setPrizeSeen] = useState<ReadonlySet<number>>(() => new Set(record?.seen ?? []))
   const [share, setShare] = useState(false)
   const [minutes, setMinutes] = useState<ScheduleMinutes | null>(null)
 
@@ -185,7 +188,8 @@ export function Room({ invite }: { invite: string }) {
   useEffect(() => {
     if (!inRoom || roomId === null) return
     if (state.guestCount >= 2) trackOnceHere(`ready:${roomId}`, 'room_ready', { members })
-    if (state.phase === 'countdown' && roundNo !== null) trackOnceHere(`start:${roomId}:${roundNo}`, 'round_start', { members, round: roundNo })
+    // #88: 秒読みはなく、開始したらすぐ回す画面・待つ画面になる
+    if ((state.phase === 'countdown' || state.phase === 'opening' || state.phase === 'waiting') && roundNo !== null) trackOnceHere(`start:${roomId}:${roundNo}`, 'round_start', { members, round: roundNo })
     if (state.phase === 'results' && roundNo !== null && roundResults !== null) {
       // おそろい: 同じ賞品を 2 人以上が当てた（賞品名そのものは送らない）
       const prizes = roundResults.map((result) => result.prize)
@@ -203,7 +207,7 @@ export function Room({ invite }: { invite: string }) {
   // 一覧などを行き来しても、賞品が同じなら読み直さない。端末内デモ（photos が null）・ルームの外・読めないときは元の絵のまま。
   const photo = usePitchPhoto(photos, state.myPrize, inRoom && state.phase !== 'unavailable')
 
-  const ui: RoomUi = { inRoom, joinError, nameStep, autoNamed, watching, detail, scheduleSetup, resumed, watchedRounds, hostAwayAck, resumeAck }
+  const ui: RoomUi = { inRoom, joinError, nameStep, autoNamed, watching, detail, scheduleSetup, resumed, watchedRounds, hostAwayAck, resumeAck, prizeSeen }
   const view = roomView(state, ui)
 
   // 自分の結果・履歴を見たら、この端末に「確認済み」と残す（次に開いたとき「おかえりなさい」で知らせない）
@@ -337,6 +341,18 @@ export function Room({ invite }: { invite: string }) {
     <ScheduleChoices legend="開始までの時間" options={state.scheduleOptions} selected={selected} onSelect={onSelect} disabled={!state.canSchedule} />
   )
   const toLobby = { href: paths.town }
+  const roundSub = `${title} · ${state.round?.number ?? 0}回目`
+  /** 開けた直後の自分の当たり（31）を見終えた。 */
+  const seePrize = () => { if (roundNo !== null) setPrizeSeen(new Set(prizeSeen).add(roundNo)) }
+
+  // #88 T10 29・30: 抽選に入った人は、自分のペースでガチャを回してカプセルを1回タップで開ける
+  if (view === 'draw') {
+    return (
+      <RoomDraw key={roundNo ?? 0} sub={`${roundSub} · ${SHARED_PRICE}デモコイン使用済み`}
+        top={<>{demo && <DemoLine demo />}{(pitchRound ?? pitchNone) && <PitchLabel>{pitchRound ?? pitchNone}</PitchLabel>}</>}
+        busy={state.busy === 'open'} error={state.error?.message ?? null} onOpen={() => { void controller.openCapsule() }} />
+    )
+  }
 
   let layout: Layout
   switch (view) {
@@ -516,44 +532,51 @@ export function Room({ invite }: { invite: string }) {
         secondary: <DockNote>画面を閉じても結果は残ります</DockNote>,
       }
       break
-    case 'opening': {
-      // #88: 自分のカプセル・みんなを待つ画面（Figma T10）までは、全員の結果が出るまでこの画面で待つ。
-      const fetching = state.phase === 'opening' || state.phase === 'waiting'
+    case 'waitingEntrant':
+    case 'waitingWatcher': {
+      // #88 T10 32・33: みんなの結果は開始から一定時間で出る（数字は出さない）。出たら「みんなの結果を見る」
+      const entrant = view === 'waitingEntrant'
+      const ready = results !== null
       layout = {
-        title: 'せーので、ひらこう！', sub: `${title} · 同時公開`, back: toLobby,
+        title: ready ? 'みんなの結果が出ました' : entrant ? 'みんなを待っています' : 'みんなが開けています',
+        sub: roundSub, back: toLobby,
         pitchTop: pitchRound ?? pitchNone,
-        stage: { caption: 'せーの、ぱかっ！', variant: 'open' },
-        stats: [{ label: '集まっている人', value: `${state.seats.taken}人` }, { label: '抽選の準備', value: results ? `${results.length}人 参加` : '公開中' }],
-        note: 'みんなに同じタイミングで公開されました',
+        stage: { caption: ready ? 'みんなの結果が出ました' : 'みんなが開けています', variant: ready ? 'sparkle' : 'gift' },
+        stats: [{ label: '開けた人', value: `${state.openedCount} / ${state.entrantCount}人` }, { label: '集まっている人', value: `${state.seats.taken}人` }],
+        note: entrant ? (state.myPrize ? `あなたの結果：${prizeName(state.myPrize)}` : null) : '見守りなのでカプセルはありません',
         card: (
-          <RoomCard kicker="REVEAL" title="開封の瞬間を共有" labelledBy="room-card-title" note="結果を見るまで次の抽選は待機">
-            <p className="room-body">結果が見えるのはカウントダウン終了後。見守る友だちも一緒に楽しめます。</p>
+          <RoomCard kicker={entrant ? 'WAITING' : 'WATCHING'} title={ready ? 'みんなの結果を見よう' : 'みんなの結果を待とう'} labelledBy="room-card-title">
+            <p className="room-body">
+              {entrant ? '' : '抽選に参加していないので、コインは使っていません。'}
+              {ready ? 'まだ回している人の結果も、一緒に見られます。' : 'みんなの結果は、少したつと見られます。まだ回している人の結果も、そこで一緒に見られます。'}
+            </p>
           </RoomCard>
         ),
-        primary: <Primary disabled={fetching} onClick={() => setDetail('mine')}>{fetching ? '結果を受け取っています' : '結果を見る'}</Primary>,
-        secondary: <Secondary disabled={fetching} onClick={() => setDetail('all')}>みんなの反応を見る</Secondary>,
+        primary: ready ? <Primary onClick={() => setDetail('all')}>みんなの結果を見る</Primary> : null,
+        secondary: entrant ? <Secondary onClick={() => setDetail('mine')}>自分の結果をもう一度見る</Secondary> : null,
       }
       break
     }
     case 'myResult': {
+      // #88 T10 31: 自分の当たりを中央に大きく。みんなの結果が出る前は「みんなの様子を見る」で待つ画面へ
       const prize = state.myPrize
+      const toWait = () => { seePrize(); setDetail(null) }
       layout = {
-        title: 'みんなの結果', sub: `${title} · ${state.round?.number ?? 0}回目`, back: { onClick: () => { markSeen(); setDetail(null) } },
+        title: prize ? 'あなたの結果' : '今回は見守りでした', sub: roundSub,
+        back: { onClick: () => { if (results) markSeen(); toWait() } },
         pitchTop: pitchRound ?? pitchNone,
-        stage: prize ? { caption: 'おめでとう！', variant: 'prize', prize, photo } : { caption: '今回は見守りでした', variant: 'sparkle' },
-        stats: [{ label: '集まっている人', value: `${state.seats.taken}人` }, { label: '抽選の準備', value: `${results?.length ?? 0}人 参加` }],
-        note: '自分の結果はあとから再確認できます',
-        card: prize ? (
-          <RoomCard kicker="YOUR PIECE" title={prizeName(prize)} labelledBy="room-card-title" note="自分の開封履歴に保存">
-            <p className="room-body">あなたの結果です。開封後、みんなの結果も見られます。</p>
-          </RoomCard>
-        ) : (
+        stage: prize ? null : { caption: '今回は見守りでした', variant: 'sparkle' },
+        stats: null,
+        note: prize ? (results ? '自分の結果はあとから再確認できます' : 'みんなの結果は、少したつと見られます。') : null,
+        card: prize ? <RoomPrize prize={prize} photo={photo} /> : (
           <RoomCard kicker="WATCHING" title="今回は見守りでした" labelledBy="room-card-title" note="見守りは無料">
             <p className="room-body">抽選には参加していないので、コインは使っていません。みんなの結果を見てみよう。</p>
           </RoomCard>
         ),
-        primary: <Primary onClick={() => setDetail('all')}>みんなの結果を見る</Primary>,
-        secondary: <Secondary onClick={() => setDetail('history')}>自分の履歴を見る</Secondary>,
+        primary: results
+          ? <Primary onClick={() => { seePrize(); setDetail('all') }}>みんなの結果を見る</Primary>
+          : <Primary onClick={toWait}>みんなの様子を見る</Primary>,
+        secondary: <Secondary onClick={() => { seePrize(); setDetail('history') }}>自分の履歴を見る</Secondary>,
       }
       break
     }
@@ -561,7 +584,7 @@ export function Room({ invite }: { invite: string }) {
       const list = results ?? []
       const ordered = [...list.filter((result) => result.userId === snapshot?.self), ...list.filter((result) => result.userId !== snapshot?.self)]
       layout = {
-        title: 'みんなのピース', sub: `${title} · 開封後`, back: { onClick: () => setDetail('mine') },
+        title: 'みんなのピース', sub: `${title} · 開封後`, back: { onClick: () => setDetail(state.isEntrant ? 'mine' : null) },
         pitchTop: pitchRound ?? pitchNone,
         stage: { caption: 'よろこびを分け合おう', variant: 'sparkle' },
         stats: [{ label: '集まっている人', value: `${state.seats.taken}人` }, { label: '抽選の準備', value: `${list.length}人 開封済み` }],
@@ -573,8 +596,10 @@ export function Room({ invite }: { invite: string }) {
             </ul>
           </RoomCard>
         ),
-        primary: <Primary onClick={() => setDetail('mine')}>自分の結果へ戻る</Primary>,
-        secondary: <Secondary onClick={() => { markSeen(); setDetail(null) }}>ルームへ戻る</Secondary>,
+        primary: state.isEntrant
+          ? <Primary onClick={() => setDetail('mine')}>自分の結果へ戻る</Primary>
+          : <Primary onClick={() => { markSeen(); setDetail(null) }}>ルームへ戻る</Primary>,
+        secondary: state.isEntrant ? <Secondary onClick={() => { markSeen(); setDetail(null) }}>ルームへ戻る</Secondary> : null,
       }
       break
     }

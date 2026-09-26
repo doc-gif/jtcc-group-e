@@ -223,6 +223,8 @@
     animation-timing-function: ease-out !important; animation-iteration-count: 1 !important; animation-fill-mode: both !important;
   }
 }
+/* #88: ルームでは受け皿のカプセルを1回タップして開ける（ひとりで回すの受け皿は飾りのまま） */
+.room-draw .capsule-art.is-mini { cursor: pointer; pointer-events: auto; }
 
 /* 今回の結果（267:8438） */
 .result-card {

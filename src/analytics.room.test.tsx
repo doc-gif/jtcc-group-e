@@ -9,7 +9,7 @@ import { track } from './app/analytics'
 import { createAssetGate } from './app/assets'
 import { createRoomSession, type KeyValue, type RoomSession } from './app/sharedRoom'
 import { MockRoomServer } from './realtime/mock'
-import { SHARED_OPEN_TIMEOUT_MS, SHARED_START_DELAY_MS } from './realtime/protocol'
+import { SHARED_REVEAL_DELAY_MS } from './realtime/protocol'
 import { ROOM_POLL_MS } from './realtime/roomController'
 
 vi.mock('./app/analytics')
@@ -62,6 +62,13 @@ async function hostRoom(name = 'ミオ') {
 
 async function addGuests(invite: string, names: string[]) {
   for (const name of names) await server.asUser(`guest-${name}`).join(invite, name)
+}
+
+/** #88: ルームのガチャを回し（3回転）、出てきたカプセルを1回タップで開ける。 */
+async function drawAndOpen() {
+  for (let i = 0; i < 3; i++) await click('1タップで1回転')
+  await advance(1_000)
+  await click('カプセルを開ける')
 }
 
 async function joinAs(name: string) {
@@ -184,7 +191,7 @@ describe('room_join（参加者）', () => {
 })
 
 describe('round_start / result_view', () => {
-  test('秒読みで round_start、結果の公開で result_view（同じ賞品が 2 人以上なら osoroi=true）。回ごとに 1 回ずつ', async () => {
+  test('開始で round_start、みんなの結果の公開で result_view（同じ賞品が 2 人以上なら osoroi=true）。回ごとに 1 回ずつ', async () => {
     const session = sessionFor('host')
     await session.controller.createAsHost(HOST_KEY, 'ミオ')
     open('#/room/invite-1', session)
@@ -199,17 +206,16 @@ describe('round_start / result_view', () => {
     expect(events()).toEqual(['room_ready'])
 
     await click('開封をはじめる')
-    expect(heading()).toHaveTextContent('もうすぐ開封！')
+    expect(heading()).toHaveTextContent('ガチャを回そう')
     expect(track).toHaveBeenCalledWith('round_start', { members: 3, round: 1 })
-    // 秒読みの間の再描画では増えず、公開前に result_view は送らない
+    // 回している間の再描画では増えず、みんなの結果の前に result_view は送らない
     await advance(3_000)
+    await drawAndOpen()
     expect(events()).toEqual(['room_ready', 'round_start'])
-    // 公開（全員が開けるまでの 10 秒と取り直しの余裕を含めて待つ）: 乱数が固定（0）なので 2 人の賞品は同じ → osoroi=true
-    await advance(SHARED_START_DELAY_MS + SHARED_OPEN_TIMEOUT_MS + 1_000) // #88: 開ける操作がない画面では 10 秒で全員の結果
-    expect(heading()).toHaveTextContent('せーので、ひらこう！')
-    expect(button('結果を見る')).toBeEnabled()
+    // みんなの結果（開始から一定時間）: 乱数が固定（0）なので 2 人の賞品は同じ → osoroi=true
+    await advance(SHARED_REVEAL_DELAY_MS)
+    expect(heading()).toHaveTextContent('あなたの結果')
     expect(track).toHaveBeenCalledWith('result_view', { members: 3, osoroi: true })
-    await click('結果を見る')
     await click('みんなの結果を見る')
     await click('ルームへ戻る')
     expect(eventsNamed('result_view')).toHaveLength(1)
@@ -222,10 +228,11 @@ describe('round_start / result_view', () => {
     await guest.controller.setReady(true)
     await advance(ROOM_POLL_MS)
     await click('開封をはじめる')
-    expect(heading()).toHaveTextContent('もうすぐ開封！')
+    expect(heading()).toHaveTextContent('ガチャを回そう')
     expect(track).toHaveBeenCalledWith('round_start', { members: 3, round: 2 })
-    await advance(SHARED_START_DELAY_MS + SHARED_OPEN_TIMEOUT_MS + 1_000) // #88: 開ける操作がない画面では 10 秒で全員の結果
-    expect(heading()).toHaveTextContent('せーので、ひらこう！')
+    await drawAndOpen()
+    await advance(SHARED_REVEAL_DELAY_MS)
+    expect(heading()).toHaveTextContent('あなたの結果')
     expect(eventsNamed('result_view')).toHaveLength(2)
     expect(eventsNamed('round_start')).toHaveLength(2)
     expect(eventsNamed('room_ready')).toHaveLength(1)
@@ -247,11 +254,12 @@ describe('round_start / result_view', () => {
     // 参加者の端末はポーリング（15 秒）を待たず、いま取り直したとみなす
     await act(async () => { await guest.controller.refresh() })
     await flush()
-    expect(heading()).toHaveTextContent('もうすぐ開封！')
+    expect(heading()).toHaveTextContent('ガチャを回そう')
     expect(track).toHaveBeenCalledWith('round_start', { members: 3, round: 1 })
-    await advance(SHARED_START_DELAY_MS + SHARED_OPEN_TIMEOUT_MS + 1_000) // #88: 開ける操作がない画面では 10 秒で全員の結果
-    expect(heading()).toHaveTextContent('せーので、ひらこう！')
-    expect(button('結果を見る')).toBeEnabled()
+    await drawAndOpen()
+    await advance(SHARED_REVEAL_DELAY_MS)
+    expect(heading()).toHaveTextContent('あなたの結果')
+    expect(button('みんなの結果を見る')).toBeEnabled()
     expect(track).toHaveBeenCalledWith('result_view', { members: 3, osoroi: false })
     expect(events()).toEqual(['room_join', 'room_ready', 'round_start', 'result_view'])
     expectNoPersonalData(['ミオ', 'ゆい', 'さき'])

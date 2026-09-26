@@ -69,9 +69,12 @@ export interface RoomControllerOptions {
 
 export type RoomPhase =
   | 'idle' | 'connecting' | 'lobby' | 'ready' | 'countdown'
-  /** #88: startsAt から、抽選に入った本人が自分のカプセルをまだ開けていない。 */
+  /**
+   * #88: 抽選に入った本人が、まだハンドルを回して自分のカプセルを開けていない。時間切れはなく、みんなの結果が出た後も
+   * 開けるまでこのまま（自分の賞品は開けるまで出さない）。
+   */
   | 'opening'
-  /** #88: 自分のカプセルを開けた、または見守る人（抽選に入っていない）。全員の結果（revealAt）を待つ。 */
+  /** #88: 自分のカプセルを開けた、または見守る人（抽選に入っていない）。みんなの結果（revealAt）を待つ。 */
   | 'waiting'
   | 'results' | 'cooldown'
   | 'unavailable' | 'reconnecting'
@@ -139,7 +142,7 @@ export interface RoomState {
   entrantCount: number
   /** 自分のカプセルを開けられるか（opening の間）。 */
   canOpen: boolean
-  /** 最新ラウンドの自分の賞品。開けた後（全員の結果の前でも）か、全員の結果の後に決まる。 */
+  /** 最新ラウンドの自分の賞品。抽選に入った人は開けた後だけ（みんなの結果が出ていても開けるまでは null）。 */
   myPrize: SharedPrize | null
   myResults: MyResult[]
   /** まだ確認していない公開済みの自分の結果（再接続後の回収用）。 */
@@ -252,6 +255,8 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
   let pendingCreate: string | null = null
   let pendingStart: { request: string; expected: number } | null = null
   let dismissed = new Set<number>()
+  /** この端末で開けたラウンド（開けた応答を受け取った、または開ける前にラウンドが進んだ）。 */
+  let openedHere = new Set<number>()
   let watchedPending = new Set<number>()
   let dismissedNotice: string | null = null
   let state = derive()
@@ -265,11 +270,15 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     const round = snap?.round ?? null
     const entrants = round?.entrants ?? []
     const isEntrant = snap !== null && entrants.includes(snap.self)
-    const myPrize = round && snap ? snap.myResults.find(result => result.roundNo === round.number)?.prize ?? null : null
-    // 開けた応答（myResults に自分の賞品）が先に届けば、opened の一覧を待たずに開けたとみなす。
-    const hasOpened = snap !== null && ((round?.opened ?? []).includes(snap.self) || (isEntrant && myPrize !== null))
+    const drawn = round && snap ? snap.myResults.find(result => result.roundNo === round.number)?.prize ?? null : null
+    // みんなの結果の前に自分の賞品が届くのは開けた後だけ。みんなの結果の後は、開けた記録（opened・この端末）で決める。
+    const hasOpened = snap !== null && round !== null && (round.opened.includes(snap.self) || openedHere.has(round.number)
+      || (round.results === null && drawn !== null))
+    const pendingOpen = isEntrant && !hasOpened
+    // 抽選に入った人は、開けるまで自分の賞品を出さない（みんなの結果が出ていても）。
+    const myPrize = pendingOpen ? null : drawn
     const locked = round !== null && serverNow < Date.parse(round.nextReadyAt)
-    const myResults = snap?.myResults ?? []
+    const myResults = (snap?.myResults ?? []).filter(result => !(pendingOpen && result.roundNo === round?.number))
     const unseenResults = snap ? myResults.filter(result => !seen.has(seenKey(snap.id, result.roundNo))) : []
     const isHost = snap !== null && snap.host === snap.self
     const readyOnline = members.filter(member => member.ready && member.online).length
@@ -284,9 +293,9 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     else if (!roomId) phase = busy === 'create' || busy === 'join' || busy === 'resume' ? 'connecting' : 'idle'
     else if (connection === 'reconnecting') phase = 'reconnecting'
     else if (!snap) phase = 'connecting'
-    else if (round && round.results === null) {
-      phase = serverNow < Date.parse(round.startsAt) ? 'countdown' : isEntrant && !hasOpened ? 'opening' : 'waiting'
-    }
+    else if (round && serverNow < Date.parse(round.startsAt) && round.results === null) phase = 'countdown'
+    else if (round && pendingOpen) phase = 'opening'
+    else if (round && round.results === null) phase = 'waiting'
     else if (round && !dismissed.has(round.number)
       && (locked || watchedPending.has(round.number) || unseenResults.some(result => result.roundNo === round.number))) phase = 'results'
     else if (locked) phase = 'cooldown'
@@ -456,6 +465,7 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     fetchAgain = false
     pendingStart = null
     dismissed = new Set()
+    openedHere = new Set()
     watchedPending = new Set()
     dismissedNotice = null
   }
@@ -659,7 +669,15 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       const room = requireRoom()
       const round = snapshot?.round
       if (!room || !round) return Promise.resolve({ ok: false, error: null })
-      return perform('open', () => transport.open(room, round.number))
+      const roundNo = round.number
+      const entrant = snapshot !== null && round.entrants.includes(snapshot.self)
+      return perform('open', () => transport.open(room, roundNo), {
+        success: () => { openedHere.add(roundNo) },
+        failure: code => {
+          // 回している間に次のラウンドが始まった: 結果は myResults（履歴）にあるので、この端末では開けたことにする。
+          if (code === 'invalid-round' && entrant) { openedHere.add(roundNo); error = null }
+        },
+      })
     },
     async leave() {
       const room = roomId
