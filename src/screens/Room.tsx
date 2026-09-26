@@ -42,10 +42,11 @@ interface Layout {
 }
 
 /** 上部（マスターの「開発中のサービス」の1行・戻る・題・補足）。共通の PageHeader を使う。 */
-function RoomHeader({ title, sub, back }: { title: string; sub: string; back: Back }) {
+/** privateSub: 補足にホストのニックネーム（「〇〇さんのルーム」）を含むとき、録画（Clarity）で隠す。 */
+function RoomHeader({ title, sub, back, privateSub = false }: { title: string; sub: string; back: Back; privateSub?: boolean }) {
   return (
     <PageHeader title={title} {...('href' in back ? { back: back.href } : { onBack: back.onClick })}>
-      <p className="page-header-sub room-sub">{sub}</p>
+      <p className="page-header-sub room-sub" data-clarity-mask={privateSub ? 'true' : undefined}>{sub}</p>
     </PageHeader>
   )
 }
@@ -58,7 +59,7 @@ function DemoLine({ demo }: { demo: boolean }) {
 function RoomFrame({ layout, demo, faces, crowd = 0, children }: { layout: Layout; demo: boolean; faces: string[]; crowd?: number; children?: ReactNode }) {
   return (
     <div className="screen room-screen">
-      <RoomHeader title={layout.title} sub={layout.sub} back={layout.back} />
+      <RoomHeader title={layout.title} sub={layout.sub} back={layout.back} privateSub />
       <main className="content room-content">
         <DemoLine demo={demo} />
         {layout.pitchTop && <PitchLabel>{layout.pitchTop}</PitchLabel>}
@@ -313,10 +314,11 @@ export function Room({ invite }: { invite: string }) {
     ? 'ピッチ用デモ：目玉が残っていないため、このラウンドは確定なし（通常の抽選）'
     : null
   const pitchChip = state.pitchMode ? <PitchLabel>{PITCH_ROOM_TEXT}</PitchLabel> : null
-  const errorLine = state.error ? <p className="field-error room-error" role="alert">{state.error.message}</p> : null
+  // name-taken の message にはニックネームから作った候補（「もも2」なら使えます）が入るので、録画（Clarity）で隠す。
+  const errorLine = state.error ? <p className="field-error room-error" role="alert" data-clarity-mask="true">{state.error.message}</p> : null
   const renameLine = self && (
     <p className="room-me">
-      <span>あなたの名前：<b>{self.nickname}</b></span>
+      <span>あなたの名前：<b data-clarity-mask="true">{self.nickname}</b></span>
       <button type="button" className="room-rename" onClick={startRename}>名前を変える</button>
     </p>
   )
@@ -384,11 +386,11 @@ export function Room({ invite }: { invite: string }) {
             note={isTaken ? undefined : renaming ? 'ロビーからいつでも変えられます' : '名前を決めなくても入れます。あとから変えられます'}>
             <RoomNameForm id="room-name" value={name} onChange={(value) => { setName(value); if (isTaken) { setTaken(null); setNameStep('choose') } }}
               busy={busy} error={nameError} onSubmit={() => void joinWith(name)} />
-            {isTaken && <p className="room-body" role="status">このルームにはすでに「{isTaken.name}」さんがいます。「{isTaken.suggestion}」ならすぐ入れます。</p>}
+            {isTaken && <p className="room-body" role="status" data-clarity-mask="true">このルームにはすでに「{isTaken.name}」さんがいます。「{isTaken.suggestion}」ならすぐ入れます。</p>}
           </RoomCard>
         ),
         primary: isTaken
-          ? <Primary onClick={() => void joinWith(isTaken.suggestion)} disabled={busy}>「{isTaken.suggestion}」{renaming ? 'にする' : 'で入る'}</Primary>
+          ? <Primary onClick={() => void joinWith(isTaken.suggestion)} disabled={busy}><span data-clarity-mask="true">「{isTaken.suggestion}」</span>{renaming ? 'にする' : 'で入る'}</Primary>
           : <Primary form="room-name" disabled={busy}>{busy ? '接続しています…' : renaming ? 'この名前にする' : 'この名前で入る'}</Primary>,
         secondary: isTaken
           ? <Secondary onClick={() => { setTaken(null); setNameStep('choose'); setName(''); window.setTimeout(() => document.getElementById('room-name-input')?.focus(), 0) }}>別の名前にする</Secondary>
@@ -404,7 +406,7 @@ export function Room({ invite }: { invite: string }) {
         stage: { caption: 'みんなでカプセルを開けよう', compact: true },
         stats, note: '名前は自動で付けました',
         card: (
-          <RoomCard kicker="INVITE" title={`「${self?.nickname ?? ''}」で入ります`} labelledBy="room-card-title" note="ロビーからいつでも変えられます">
+          <RoomCard kicker="INVITE" title={`「${self?.nickname ?? ''}」で入ります`} labelledBy="room-card-title" privateTitle note="ロビーからいつでも変えられます">
             <p className="room-body">ルームの中ではこの名前で表示されます。ほかの人と重ならない名前を自動で付けました。</p>
           </RoomCard>
         ),
@@ -876,7 +878,7 @@ export function RoomCreate({ hostKey = null }: { hostKey?: string | null }) {
             </p>
           </RoomCard>
         )}
-        {current && <a className="btn btn-outline btn-block" href={paths.room(current.invite)}>いまのルームに戻る</a>}
+        {current && <a className="btn btn-outline btn-block" href={paths.room(current.invite)} data-clarity-mask="true">いまのルームに戻る</a>}
         <ExampleNotice />
       </main>
       <div className="sticky-actions room-dock">

@@ -59,7 +59,7 @@ function RoomCrowd({ names, count, variant }: { names: string[]; count: number; 
   const more = count - shown.length
   const mood = variant === 'countdown' ? 'countdown' : variant === 'gift' || variant === 'closed' ? 'wait' : 'joy'
   return (
-    <div className="room-crowd" aria-hidden="true">
+    <div className="room-crowd" aria-hidden="true" data-clarity-mask="true">
       {CHEERS[mood].slice(0, CROWD[level].cheers).map((cheer, index) => <span key={cheer} className={`room-cheer c${index + 1}`}>{cheer}</span>)}
       <ul className="room-faces">
         {shown.map((face, index) => <li key={index} className={`face f${index + 1}`}>{face}</li>)}
@@ -168,13 +168,14 @@ export function RoomPrize({ prize, photo = null }: { prize: SharedPrize; photo?:
 }
 
 /** 見出しの小札（CHOOSE・READY など）と説明、下の淡いミントの一言。 */
-export function RoomCard({ kicker, title, children, note, labelledBy }: {
-  kicker: string; title: string; children?: ReactNode; note?: ReactNode; labelledBy: string
+/** privateTitle: 見出しにニックネームを含むとき、録画（Clarity）で隠す。 */
+export function RoomCard({ kicker, title, children, note, labelledBy, privateTitle = false }: {
+  kicker: string; title: string; children?: ReactNode; note?: ReactNode; labelledBy: string; privateTitle?: boolean
 }) {
   return (
     <section className="room-card" aria-labelledby={labelledBy}>
       <p className="room-kicker" lang={/^[A-Z ]+$/.test(kicker) ? 'en' : undefined}>{kicker}</p>
-      <h2 id={labelledBy} className="room-card-title">{title}</h2>
+      <h2 id={labelledBy} className="room-card-title" data-clarity-mask={privateTitle ? 'true' : undefined}>{title}</h2>
       {children}
       {note && <p className="room-note">{note}</p>}
     </section>
@@ -237,10 +238,10 @@ export function RoomNameForm({ id, value, onChange, busy, error, onSubmit }: {
   return (
     <form id={id} className="name-form room-name-form" onSubmit={submit} noValidate>
       <label htmlFor={`${id}-input`}>表示する名前</label>
-      <input id={`${id}-input`} value={value} onChange={(event) => onChange(event.target.value)} autoComplete="nickname" placeholder="例：もも"
+      <input id={`${id}-input`} data-clarity-mask="true" value={value} onChange={(event) => onChange(event.target.value)} autoComplete="nickname" placeholder="例：もも"
         aria-invalid={error ? true : undefined} aria-describedby={`${id}-hint${error ? ` ${id}-error` : ''}`} disabled={busy} />
       <p id={`${id}-hint`} className="room-hint">{NICKNAME_MAX}文字まで。ほかの人と同じ名前は使えません。</p>
-      {error && <p id={`${id}-error`} className="field-error" role="alert">{error}</p>}
+      {error && <p id={`${id}-error`} className="field-error" role="alert" data-clarity-mask="true">{error}</p>}
     </form>
   )
 }
@@ -307,7 +308,7 @@ export function ResultRow({ nickname, prize, self }: { nickname: string; prize: 
   return (
     <li className={`room-result${self ? ' is-self' : ''}`}>
       <span className={`room-result-mark mark-${prize}`} aria-hidden="true">{self ? '♥' : PRIZE_ART[prize].mark}</span>
-      <span>{self ? 'あなた' : nickname}<span aria-hidden="true">  ·  </span><span className="visually-hidden">：</span>{prizeName(prize)}</span>
+      <span data-clarity-mask="true">{self ? 'あなた' : nickname}<span aria-hidden="true">  ·  </span><span className="visually-hidden">：</span>{prizeName(prize)}</span>
     </li>
   )
 }
