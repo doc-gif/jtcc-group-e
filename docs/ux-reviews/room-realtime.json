@@ -1,5 +1,5 @@
 {
-  "uiDigest": "daafc86a326effdeedaac7b1d69f17060ee04ba39c41f543eaafc02caa6487be",
+  "uiDigest": "af9f75e8dd6a2984c083b63e3baf5a57ca20ea12a66abc7c566933e026acf7ee",
   "reviewer": "Claude (implementation agent, #68 room realtime)",
   "reviewedAt": "2026-09-26",
   "summary": "#68: ルームの入室・準備・退室・「今すぐ開始」・予約・名前の変更が、ほかの端末にポーリング（15 秒）を待たず数秒で届くようにした。サーバーの RPC が非公開チャンネル lp:<roomId> に起床通知（内容は roomId・roundNo・reason だけ）を送り、受け取った端末は snapshot を取り直す。画面の部品・文言・レイアウト・色は変えていない（src/ の変更は transport・状態層・端末内デモの購読の状態だけ）。購読の状態は状態層の realtime（live／polling）に持ち、画面には出さない。ポーリングは残すので、Realtime に入れない端末は今までどおり動く。単体（roomController・supabase transport・sharedRoom）と PGlite の SQL テストで確認。E2E・UI/UX 検査（*.supabase.co への要求 0 件を含む）は CI の全構成で確認する。",

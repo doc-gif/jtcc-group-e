@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useSyncExternalStore } from 'reac
 import { MockRoomServer } from '../realtime/mock'
 import type { RoomTransport } from '../realtime/protocol'
 import { createRoomController, type RoomController, type RoomControllerOptions, type RoomState } from '../realtime/roomController'
-import { configuredTransport } from '../realtime/supabase'
+import { supabasePhotoSource, type PhotoSource } from '../realtime/photos'
+import { configuredClient, configuredTransport } from '../realtime/supabase'
 import { paths } from './router'
 
 /** 端末内デモの模擬サーバーの保存先（この端末のブラウザの中だけ。別のスマホとはつながらない）。 */
@@ -179,9 +180,13 @@ export interface RoomSession {
    * Supabase につないでいるときは null（ホスト用キーは担当者だけが持つ）。
    */
   makeDemoHostKey: (() => string) | null
+  /**
+   * ピッチ用の実物グッズ写真の取得元（F15）。Supabase につないでいるときだけ。端末内デモでは null（写真を読まない）。
+   */
+  photos: PhotoSource | null
 }
 
-export function createRoomSession(transport: RoomTransport | DemoTransport, demo: boolean, records: KeyValue, options: RoomControllerOptions = {}): RoomSession {
+export function createRoomSession(transport: RoomTransport | DemoTransport, demo: boolean, records: KeyValue, options: RoomControllerOptions = {}, photos: PhotoSource | null = null): RoomSession {
   const seenResults = Object.fromEntries(Object.values(readRecords(records)).map(record => [record.roomId, record.seen ?? []]))
   const controller = createRoomController(transport, { seenResults, ...options })
   const makeDemoHostKey = demo && 'addHostKey' in transport ? () => {
@@ -189,7 +194,8 @@ export function createRoomSession(transport: RoomTransport | DemoTransport, demo
     transport.addHostKey(key)
     return key
   } : null
-  return { controller, demo, records, makeDemoHostKey }
+  // 写真は本物の通信経路のルームだけ。デモでは渡されても使わない。
+  return { controller, demo, records, makeDemoHostKey, photos: demo ? null : photos }
 }
 
 /** ホスト用キーの形（32 文字以上の英数字・- _）。端末内デモのキーだけをここで作る。 */
@@ -211,8 +217,9 @@ export function defaultRoomSession(): RoomSession {
   if (fallback) return fallback
   const local = safeStorage(() => window.localStorage)
   const session = safeStorage(() => window.sessionStorage)
-  const real = forcedDemo(local) ? null : configuredTransport()
-  if (real) return fallback = createRoomSession(real, false, local)
+  const client = forcedDemo(local) ? null : configuredClient()
+  const real = client ? configuredTransport() : null
+  if (client && real) return fallback = createRoomSession(real, false, local, {}, supabasePhotoSource(client))
   const transport = demoTransport({
     storage: local, session,
     isOnline: () => typeof navigator === 'undefined' || navigator.onLine !== false,
