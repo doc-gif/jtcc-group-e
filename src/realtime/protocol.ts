@@ -22,12 +22,18 @@ export type ScheduleMinutes = typeof SHARED_SCHEDULE_MINUTES[number]
 export const SHARED_SCHEDULE_EXPIRY_MARGIN_MS = 60_000
 /** ニックネームの上限（文字数）。 */
 export const SHARED_NAME_MAX = 12
+/**
+ * ラウンドを始めるのに必要な、ホスト以外の active メンバーの人数（F13、担当者の決定 2026-09-26）。
+ * ホストを含めて 3 人以上。オンラインかどうかではなく、退室していない席を数える（SQL の lp_guest_count と同じ）。
+ */
+export const SHARED_MIN_GUESTS = 2
 export type RoomErrorCode =
   | 'auth-required' | 'invalid-request' | 'invalid-name' | 'invalid-ready' | 'invalid-round'
   | 'room-full' | 'room-unavailable' | 'host-required'
   | 'round-active' | 'nobody-ready' | 'sold-out' | 'insufficient-coins' | 'stale-round'
   | 'invalid-schedule'
   | 'host-key-invalid' | 'too-many-attempts' | 'no-room' | 'name-taken' | 'rename-locked'
+  | 'need-more-players'
 /**
  * 予約した開始の結末。started は開始済み、cancelled はホストの取り消し、
  * それ以外は予定の時刻に開始できなかった理由（コイン・在庫・準備は何も変えていない）。
@@ -86,7 +92,10 @@ export interface Snapshot {
   /** Hidden with results before startsAt, so stock deltas cannot reveal prizes early. */
   stock: { prize: SharedPrize; remaining: number }[] | null
   round: Round | null
-  /** Server UTC time of the host's scheduled start, or null. The first snapshot after it starts the round. */
+  /**
+   * Server UTC time of the host's scheduled start, or null. The first snapshot after it starts the round. With fewer
+   * than SHARED_MIN_GUESTS guests it stays (past) and waits; the join that brings the second guest starts it (F13).
+   */
   scheduledAt: string | null
   /** Room-level pitch mode: each round guarantees the top prize to one entrant while stock lasts. */
   pitchMode: boolean
@@ -107,14 +116,34 @@ export interface RoomTransport {
   rename(room: string, name: string): Promise<Snapshot>
   snapshot(room: string): Promise<Snapshot>
   ready(room: string, ready: boolean): Promise<Snapshot>
+  /** Host only. Needs SHARED_MIN_GUESTS active guests besides the host, else need-more-players (F13). */
   start(room: string, request: string, expected: number): Promise<Snapshot>
-  /** Host only. Starts the round `minutes` from now even if the host is offline then; null cancels. */
+  /**
+   * Host only. Starts the round `minutes` from now even if the host is offline then; null cancels. Allowed with fewer
+   * guests: at the time it waits for SHARED_MIN_GUESTS guests and starts when the last one joins (F13).
+   */
   schedule(room: string, minutes: ScheduleMinutes | null): Promise<Snapshot>
   /** Host only. Turns pitch mode on or off for the following rounds. */
   setPitchMode(room: string, on: boolean): Promise<Snapshot>
   leave(room: string): Promise<void>
   /** A wake-up hint only. A fresh snapshot is always authoritative. */
   subscribe(room: string, refresh: () => void): () => void
+}
+/** ホスト以外の active メンバーの人数。snapshot の members は active な人だけなので、ホストを除いて数える。 */
+export function guestCount(snapshot: Pick<Snapshot, 'host' | 'members'>) {
+  return snapshot.members.filter(member => member.id !== snapshot.host).length
+}
+/** 始めるのにあと何人必要か（足りていれば 0）。 */
+export function playersNeeded(guests: number) {
+  return Math.max(0, SHARED_MIN_GUESTS - guests)
+}
+/** ロビーの案内「あと N 人で始められます」。足りていれば null。上限の人数は出さない。 */
+export function playersNeededMessage(needed: number): string | null {
+  return needed > 0 ? `あと${needed}人で始められます` : null
+}
+/** 予約の時刻を過ぎたが人数が足りず、開始を待っているときの案内。足りていれば null。 */
+export function scheduleWaitingMessage(needed: number): string | null {
+  return needed > 0 ? `開始の時刻になりました。あと${needed}人集まると始まります。` : null
 }
 export function serverOffset(serverTime: string, sent: number, received: number) {
   return Date.parse(serverTime) - (sent + received) / 2
@@ -148,6 +177,7 @@ export function errorMessage(error: unknown) {
     'no-room': 'このホスト用リンクで開いているルームはありません。新しくルームを作れます。',
     'name-taken': 'このルームに同じニックネームの人がいます。別のニックネームにしてください。',
     'rename-locked': 'ニックネームは開封が終わってから、ロビーで変えられます。',
+    'need-more-players': 'ガチャを始めるには、ホストのほかに2人以上が必要です。',
   }
   const suggestion = nameSuggestion(error)
   if (suggestion) return `${codes['name-taken']}「${suggestion}」なら使えます。`

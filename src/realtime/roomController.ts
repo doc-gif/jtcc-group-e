@@ -1,6 +1,6 @@
 import { browserHostKeyStore, HOST_KEY_PATTERN, type HostKeyStore } from './hostKey'
 import {
-  errorMessage, nameSuggestion, RoomContractError, SHARED_CAPACITY, SHARED_PRICE, SHARED_SCHEDULE_EXPIRY_MARGIN_MS, SHARED_SCHEDULE_MINUTES,
+  errorMessage, guestCount as countGuests, nameSuggestion, playersNeeded as needed, RoomContractError, SHARED_CAPACITY, SHARED_PRICE, SHARED_SCHEDULE_EXPIRY_MARGIN_MS, SHARED_SCHEDULE_MINUTES,
   scheduleMessage, secondsUntil, serverOffset,
   type Member, type RoomErrorCode, type RoomTransport, type Round, type ScheduleMinutes, type ScheduleOutcome,
   type SharedPrize, type Snapshot,
@@ -18,7 +18,7 @@ const ERROR_CODES = Object.keys({
   'room-full': true, 'room-unavailable': true, 'host-required': true,
   'round-active': true, 'nobody-ready': true, 'sold-out': true, 'insufficient-coins': true, 'stale-round': true,
   'invalid-schedule': true, 'host-key-invalid': true, 'too-many-attempts': true, 'no-room': true, 'name-taken': true,
-  'rename-locked': true,
+  'rename-locked': true, 'need-more-players': true,
 } satisfies Record<RoomErrorCode, true>) as RoomErrorCode[]
 
 /** 契約の失敗コードを取り出す。通信や SQL の想定外エラーは null（画面には一般的な文言だけを出す）。 */
@@ -97,15 +97,25 @@ export interface RoomState {
   canRename: boolean
   /** 画面には taken だけを「N人が集まっています」として出す。capacity は内部の上限で表示しない。 */
   seats: { taken: number; capacity: number; full: boolean }
+  /** ホスト以外の active メンバーの人数（退室していない席。オンラインかどうかは問わない）。 */
+  guestCount: number
+  /**
+   * 始めるのにあと何人必要か（F13: ホストのほかに 2 人以上）。足りていれば 0。
+   * 画面は「あと N 人で始められます」（playersNeededMessage）に使う。参加前（snapshot なし）は 0。
+   */
+  playersNeeded: number
+  /** 予約の時刻を過ぎたが人数が足りず、開始を待っている。2 人目が入った時点でサーバーが始める。 */
+  scheduleWaiting: boolean
   /** 契約の開始条件に数える人数（ホストを含む、オンラインで準備済み）。 */
   readyOnline: number
   /** ホスト以外のオンライン準備済み人数（デザイン T10 の表示用）。 */
   readyOthers: number
   balance: number | null
   canReady: boolean
+  /** ホストが今すぐ開始できるか。人数（playersNeeded が 0）も含む。 */
   canStart: boolean
-  /** ホストが開始できない理由。errorMessage(code) で案内に使える。 */
-  startBlockedBy: 'host-required' | 'round-active' | 'nobody-ready' | null
+  /** ホストが開始できない理由。errorMessage(code) で案内に使える。SQL の確認と同じ順。 */
+  startBlockedBy: 'host-required' | 'round-active' | 'need-more-players' | 'nobody-ready' | null
   /** countdown は startsAt まで、results/cooldown は nextReadyAt までの秒数。 */
   secondsLeft: number | null
   round: Round | null
@@ -232,6 +242,8 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     const readyOnline = members.filter(member => member.ready && member.online).length
     const readyOthers = members.filter(member => member.ready && member.online && member.id !== snap?.host).length
     const hostOnline = members.some(member => member.id === snap?.host && member.online)
+    const guests = snap ? countGuests(snap) : 0
+    const missing = snap ? needed(guests) : 0
     const live = connection === 'ok' && snap !== null
 
     let phase: RoomPhase
@@ -249,7 +261,8 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     if (round && (phase === 'countdown' || phase === 'opening')) secondsLeft = secondsUntil(round.startsAt, now, offset)
     else if (round && locked && (phase === 'results' || phase === 'cooldown')) secondsLeft = secondsUntil(round.nextReadyAt, now, offset)
 
-    const startBlockedBy = !isHost ? 'host-required' : locked ? 'round-active' : readyOnline < 1 ? 'nobody-ready' : null
+    const startBlockedBy = !isHost ? 'host-required' : locked ? 'round-active' : missing > 0 ? 'need-more-players'
+      : readyOnline < 1 ? 'nobody-ready' : null
     const balance = snap?.balance ?? null
     const scheduledAt = snap?.scheduledAt ?? null
     const lastSchedule = snap?.lastSchedule ?? null
@@ -265,6 +278,8 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       nameSuggestion: error?.code === 'name-taken' ? error.suggestion ?? null : null,
       canRename: live && busy === null && self !== null && (phase === 'lobby' || phase === 'ready'),
       seats: { taken: members.length, capacity: SHARED_CAPACITY, full: members.length >= SHARED_CAPACITY },
+      guestCount: guests, playersNeeded: missing,
+      scheduleWaiting: scheduledAt !== null && missing > 0 && serverNow >= Date.parse(scheduledAt),
       readyOnline, readyOthers, balance,
       canReady: live && self !== null && !locked && busy === null && (self.ready || (balance ?? 0) >= SHARED_PRICE),
       canStart: live && busy === null && startBlockedBy === null,
@@ -317,9 +332,11 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     const scheduledAt = snapshot?.scheduledAt
     if (scheduledAt) {
       // 予約の時刻の直後に取り直す。この snapshot がサーバーで開始を実行する（ホストが不在でも）。
+      // 人数待ち（F13）なら 1 秒ごとには取り直さない。2 人目の参加の通知と通常のポーリングで受け取る。
       const at = Date.parse(scheduledAt)
       const due = at + ROOM_REVEAL_MARGIN_MS - serverNow
-      after(due > 0 ? due : 1000, () => void sync())
+      if (due > 0) after(due, () => void sync())
+      else if (!state.scheduleWaiting) after(1000, () => void sync())
       const remaining = at - serverNow
       if (remaining > 0) after(remaining % 1000 || 1000, emit)
     }

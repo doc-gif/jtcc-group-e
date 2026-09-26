@@ -9,7 +9,7 @@ const KEY=createHostKey()
 const users=Array.from({length:102},()=>randomUUID())
 const room=randomUUID()
 let invite
-const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql','supabase/migrations/20260926025335_lp_name_chars_create_retry.sql','supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql']
+const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql','supabase/migrations/20260926025335_lp_name_chars_create_retry.sql','supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql','supabase/migrations/20260926033821_lp_min_guests.sql']
 const call=async(user,sql,args=[])=>{
  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user])
  return (await db.query(sql,args)).rows[0]?.result
@@ -82,7 +82,9 @@ test('transaction rolls back every coin and stock mutation when stock is insuffi
 
 test('optional notification failure does not roll back an authoritative round', async()=>{
  const freshRoom=randomUUID()
- await call(users[0],'select public.lp_create($1,$3,$2) result',[freshRoom,'ホスト',KEY])
+ const {invite:freshInvite}=await call(users[0],'select public.lp_create($1,$3,$2) result',[freshRoom,'ホスト',KEY])
+ // F13: two guests besides the host.
+ for(const [i,name] of [[1,'ゲストA'],[2,'ゲストB']]) await call(users[i],'select public.lp_join($1,$2) result',[freshInvite,name])
  await call(users[0],'select public.lp_ready($1,true) result',[freshRoom])
  await db.exec("create or replace function realtime.send(payload jsonb,event text,topic text,private boolean) returns void language plpgsql as $$begin raise exception 'simulated-notification-failure'; end$$")
  const started=await call(users[0],'select public.lp_start($1,$2,0) result',[freshRoom,randomUUID()])
@@ -111,6 +113,12 @@ test('core room ledger works before Realtime initializes and blocks a departed m
   await isolated.query("select set_config('request.jwt.claim.sub',$1,false)",[owner])
   const created=(await isolated.query('select public.lp_create($1,$3,$2) result',[id,'ホスト',KEY])).rows[0].result
   expect(created.id).toBe(id)
+  // F13: two guests besides the host.
+  for(const name of ['ゲストA','ゲストB']) {
+   await isolated.query("select set_config('request.jwt.claim.sub',$1,false)",[randomUUID()])
+   await isolated.query('select public.lp_join($1,$2)',[created.invite,name])
+  }
+  await isolated.query("select set_config('request.jwt.claim.sub',$1,false)",[owner])
   await isolated.query('select public.lp_ready($1,true)',[id])
   const started=(await isolated.query('select public.lp_start($1,$2,0) result',[id,randomUUID()])).rows[0].result
   expect(started.roundNo).toBe(1)
@@ -487,10 +495,11 @@ describe('F10: owner-only host key and unique names', () => {
  },120000)
 
  test('names cannot change while a round is active, including a scheduled one that just fired', async()=>{
-  const [owner,friend]=[randomUUID(),randomUUID()]
+  const [owner,friend,watcher]=[randomUUID(),randomUUID(),randomUUID()]
   const id=randomUUID()
   const {invite}=await create(owner,id,'オーナー')
   await join(friend,invite,'友だち')
+  await join(watcher,invite,'見守り') // F13: two guests besides the host
   await call(friend,'select public.lp_ready($1,true) result',[id])
   await call(owner,'select public.lp_start($1,$2,0) result',[id,randomUUID()])
   for(const user of [owner,friend]) expect((await failure(rename(user,id,'新しい名前'))).message).toBe('rename-locked')
@@ -541,4 +550,127 @@ describe('F10: owner-only host key and unique names', () => {
   expect(new Set(names).size).toBe(100)
   expect((await db.query('select count(distinct name_key)::int count from public.lp_members where room=$1 and active',[id])).rows[0].count).toBe(100)
  },60000)
+})
+
+describe('F13: a round needs at least 2 active guests besides the host', () => {
+ const create=(user,id,name)=>call(user,'select public.lp_create($1,$2,$3) result',[id,KEY,name])
+ const join=(user,invite,name)=>call(user,'select public.lp_join($1,$2) result',[invite,name])
+ const ready=(user,id)=>call(user,'select public.lp_ready($1,true) result',[id])
+ const start=(user,id,expected=0)=>call(user,'select public.lp_start($1,$2,$3) result',[id,randomUUID(),expected])
+ const schedule=(user,id,minutes)=>call(user,'select public.lp_schedule($1,$2) result',[id,minutes])
+ const snap=(user,id)=>call(user,'select public.lp_snapshot($1) result',[id])
+ const due=id=>db.query("update public.lp_rooms set scheduled_at=now()-interval '1 second' where id=$1 and scheduled_at is not null",[id])
+ const scheduledAt=async id=>(await db.query('select scheduled_at from public.lp_rooms where id=$1',[id])).rows[0].scheduled_at
+ const rounds=async id=>(await db.query('select count(*)::int count from public.lp_rounds where room=$1',[id])).rows[0].count
+ const balances=async id=>Object.fromEntries((await db.query('select user_id,balance from public.lp_members where room=$1',[id])).rows.map(row=>[row.user_id,row.balance]))
+
+ test('starting now is refused with 0 or 1 guest, counts active seats (not presence) and changes nothing', async()=>{
+  const [host,a,b]=[randomUUID(),randomUUID(),randomUUID()]
+  const id=randomUUID()
+  const {invite}=await create(host,id,'ホスト')
+  await ready(host,id)
+  await expect(start(host,id)).rejects.toThrow('need-more-players')
+  await join(a,invite,'あ')
+  await ready(a,id)
+  await expect(start(host,id)).rejects.toThrow('need-more-players')
+  // The host check still comes first for a guest.
+  await expect(start(a,id)).rejects.toThrow('host-required')
+  // A guest who left does not count.
+  await join(b,invite,'い')
+  await call(b,'select public.lp_leave($1)',[id])
+  await expect(start(host,id)).rejects.toThrow('need-more-players')
+  expect(await balances(id)).toEqual({[host]:3000,[a]:3000,[b]:3000})
+  expect(await rounds(id)).toBe(0)
+  const lobby=await snap(host,id)
+  expect(lobby).toMatchObject({roundNo:0})
+  expect(lobby.members.filter(member=>member.ready)).toHaveLength(2)
+  // Pitch mode follows the same rule.
+  await call(host,'select public.lp_set_pitch_mode($1,true) result',[id])
+  await expect(start(host,id)).rejects.toThrow('need-more-players')
+  await call(host,'select public.lp_set_pitch_mode($1,false) result',[id])
+  // Two active guests: the round starts. An offline guest still counts (a seat, not presence).
+  await db.query("update public.lp_members set seen_at=now()-interval '10 minutes' where room=$1 and user_id=$2",[id,a])
+  await join(b,invite,'い')
+  const started=await start(host,id)
+  expect(started).toMatchObject({roundNo:1,balance:2500})
+  expect(await balances(id)).toEqual({[host]:2500,[a]:3000,[b]:3000})
+  // During the round the active round still wins over the guest check.
+  await call(b,'select public.lp_leave($1)',[id])
+  await expect(start(host,id,1)).rejects.toThrow('round-active')
+  // Internal helper, not an RPC.
+  for(const role of ['authenticated','anon']) {
+   await db.exec(`set role ${role}`)
+   await expect(db.query('select public.lp_guest_count($1)',[id])).rejects.toThrow('permission denied')
+   await db.exec('reset role')
+  }
+ },30000)
+
+ test('a due schedule waits for the second guest and starts when that guest joins', async()=>{
+  const [host,a,b]=[randomUUID(),randomUUID(),randomUUID()]
+  const id=randomUUID()
+  const {invite}=await create(host,id,'ホスト')
+  await join(a,invite,'あ')
+  await ready(host,id)
+  await ready(a,id)
+  await schedule(host,id,1)
+  await due(id)
+  const at=await scheduledAt(id)
+  // Every snapshot and locking RPC leaves the waiting schedule in place.
+  for(const user of [a,host,a]) {
+   const view=await snap(user,id)
+   expect(view).toMatchObject({roundNo:0,lastSchedule:null})
+   expect(Date.parse(view.scheduledAt)).toBe(at.getTime())
+  }
+  expect(Date.parse((await ready(a,id)).scheduledAt)).toBe(at.getTime())
+  await expect(start(host,id)).rejects.toThrow('need-more-players')
+  expect(await scheduledAt(id)).toEqual(at)
+  expect(await rounds(id)).toBe(0)
+  // The second guest joins: the start runs in that same call, with the joiner counted.
+  const joined=await join(b,invite,'い')
+  expect(joined).toMatchObject({roundNo:1,scheduledAt:null,lastSchedule:{status:'started',roundNo:1}})
+  expect(Date.parse(joined.lastSchedule.scheduledAt)).toBe(at.getTime())
+  expect(joined.round.results).toBeNull()
+  // Entrants are the online ready members; the joiner was not ready yet.
+  expect(await balances(id)).toEqual({[host]:2500,[a]:2500,[b]:3000})
+  for(const user of [host,a,b]) expect((await snap(user,id)).roundNo).toBe(1)
+  expect(await rounds(id)).toBe(1)
+ },30000)
+
+ test('a rejoining guest also releases a waiting schedule; pitch mode waits the same way', async()=>{
+  const [host,a,b]=[randomUUID(),randomUUID(),randomUUID()]
+  const id=randomUUID()
+  const {invite}=await create(host,id,'ホスト')
+  await join(a,invite,'あ')
+  await join(b,invite,'い')
+  await call(host,'select public.lp_set_pitch_mode($1,true) result',[id])
+  for(const user of [host,a]) await ready(user,id)
+  await schedule(host,id,1)
+  // A guest leaves before the time: the schedule waits.
+  await call(b,'select public.lp_leave($1)',[id])
+  await due(id)
+  expect(await snap(host,id)).toMatchObject({roundNo:0,lastSchedule:null})
+  expect(await scheduledAt(id)).not.toBeNull()
+  const back=await join(b,invite,null)
+  expect(back).toMatchObject({roundNo:1,pitchMode:true,scheduledAt:null,lastSchedule:{status:'started',roundNo:1}})
+  expect(back.round.guaranteed).toBe(true)
+ },30000)
+
+ test('the host can still change or cancel a waiting schedule', async()=>{
+  const [host,a]=[randomUUID(),randomUUID()]
+  const id=randomUUID()
+  const {invite}=await create(host,id,'ホスト')
+  await join(a,invite,'あ')
+  await schedule(host,id,1)
+  await due(id)
+  const before=Date.now()
+  const changed=await schedule(host,id,3)
+  expect(Date.parse(changed.scheduledAt)-before).toBeGreaterThan(170_000)
+  expect(changed).toMatchObject({roundNo:0,lastSchedule:null})
+  await due(id)
+  const at=await scheduledAt(id)
+  const cancelled=await schedule(host,id,null)
+  expect(cancelled).toMatchObject({roundNo:0,scheduledAt:null,lastSchedule:{status:'cancelled',roundNo:null}})
+  expect(Date.parse(cancelled.lastSchedule.scheduledAt)).toBe(at.getTime())
+  expect(await rounds(id)).toBe(0)
+ },30000)
 })
