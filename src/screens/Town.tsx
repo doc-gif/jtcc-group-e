@@ -4,7 +4,7 @@ import { OPENING_TIMING, shouldShowOpening } from '../app/opening'
 import { LOADING_DELAY, useAssetStatus, useDelayed, type AssetGate } from '../app/assets'
 import { paths } from '../app/router'
 import { townFeature } from '../app/townAssets'
-import { CoinPill, MockNotice, SaveWarning, TabBar } from '../components/Chrome'
+import { CoinPill, ExampleNotice, SaveWarning, ServiceNotice, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { TownMapLayer, TownViewport } from '../components/TownMap'
 
@@ -89,7 +89,7 @@ function TownLoading({ failed, onEnter, onRetry }: { failed: boolean; onEnter: (
         </div>
         {failed && <button key="retry" type="button" className="btn btn-main btn-block" onClick={onRetry}>もう一度読み込む</button>}
         <button key="enter" type="button" className={`btn ${failed ? 'btn-outline' : 'btn-main'} btn-block`} onClick={onEnter}>街を見る</button>
-        <p className="opening-notice">提案モック・公式サービスではありません</p>
+        <ServiceNotice className="opening-notice" />
       </main>
     </div>
   )
@@ -123,7 +123,7 @@ function Opening({ onDone }: { onDone: () => void }) {
           <p className="lead opening-lead"><span key={step} className="opening-fade">{copy.lead[0]}<br />{copy.lead[1]}</span></p>
         </div>
         <button type="button" className="btn btn-main btn-block" onClick={onDone}>{copy.action}</button>
-        <p className="opening-notice">提案モック・公式サービスではありません</p>
+        <ServiceNotice className="opening-notice" />
       </main>
     </div>
   )
@@ -138,7 +138,7 @@ function TownHome() {
       <header className="town-header">
         <h1 id="page-title" tabIndex={-1}>ラストピース</h1>
         <CoinPill demo />
-        <p className="town-disclaimer">提案モック・公式サービスではありません</p>
+        <ServiceNotice className="town-disclaimer" />
       </header>
       <main className="town-main">
         <div className="town-area">
@@ -162,7 +162,7 @@ function TownHome() {
             <a className="town-sub-link" href={paths.collection}>当てたもの {count}点・コレクションへ ›</a>
           </div>
           <SaveWarning />
-          <MockNotice />
+          <ExampleNotice />
         </div>
       </main>
       <TabBar active="town" />

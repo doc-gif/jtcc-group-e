@@ -73,7 +73,7 @@ for (const path of ['./', './versions/v0.0.0/']) {
     await page.getByRole('button', { name: 'スキップ' }).click()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(/ラストピース/)
     await expect(page).toHaveTitle('ラストピース')
-    await expect(page.getByText('提案モック・公式サービスではありません', { exact: false }).first()).toBeVisible()
+    await expect(page.getByText('ラストピースは開発中のサービスです', { exact: false }).first()).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
     const accessibility = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()
     expect(accessibility.violations).toEqual([])
@@ -238,7 +238,7 @@ test('ひとりで回す：詳細 → 3回転 → 開封 → 当てたもの →
   await tapTurns(page, 3)
   await openCapsule(page)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('今回の結果')
-  await expect(page.getByText('1,500使用・残高1,500・1点を獲得')).toBeVisible()
+  await expect(page.getByText('1,500使用・残高28,500・1点を獲得')).toBeVisible()
   // 結果の操作はマスターどおり「街へ戻る」だけ。当てたものは下のタブ「コレクション」→「一覧」から
   await page.getByRole('link', { name: '街へ戻る' }).click()
   await page.getByRole('navigation', { name: 'メイン' }).getByRole('link', { name: 'コレクション' }).click()
@@ -303,7 +303,7 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('中身と確率')
     await expect(page.getByRole('table').getByRole('row')).toHaveCount(10)
     await page.getByRole('link', { name: '500コインで1回引く準備へ' }).click()
-    await expect(page.getByText(/所持 3,000/)).toContainText('確定後 2,500')
+    await expect(page.getByText(/所持 30,000/)).toContainText('確定後 29,500')
     await checkState(page, 't08-confirm', testInfo)
     await confirmSpin(page)
     const heading = page.getByRole('heading', { level: 1 })
@@ -324,7 +324,7 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     }
     await expect(heading).toHaveText('今回の結果')
     const result = page.getByRole('article', { name: 'ぬいぐるみマスコット' })
-    await expect(result.getByText('500使用・残高2,500・1点を獲得')).toBeVisible()
+    await expect(result.getByText('500使用・残高29,500・1点を獲得')).toBeVisible()
     await checkState(page, 't08-result', testInfo)
     // 回帰：文字200%で結果が画面より高くなっても、先頭（今回の結果）までスクロールで戻れる
     await page.addStyleTag({ content: 'html { font-size: 200% !important; }' })
