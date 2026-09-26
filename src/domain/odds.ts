@@ -1,4 +1,4 @@
-import type { Gacha, Prize, Stock } from './types'
+import type { Gacha, Glow, Prize, Stock } from './types'
 
 /** コインへの交換率。参考価格に対して一律 20%。 */
 export const EXCHANGE_RATE = 0.2
@@ -84,6 +84,9 @@ export function remainLevel(ratio: number): RemainLevel {
   if (ratio < 0.6) return 'half'
   return 'plenty'
 }
+
+/** 画面に等級の文字は出さず、光り方で見分ける。読み上げ用の隠し文字だけに使う。 */
+export const glowLabel: Record<Glow, string> = { featured: '目玉', sparkle: 'キラキラ', normal: '' }
 
 export const remainLabel: Record<RemainLevel, string> = {
   plenty: 'たっぷり',

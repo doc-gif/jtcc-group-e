@@ -9,7 +9,15 @@ const KEY=createHostKey()
 const users=Array.from({length:102},()=>randomUUID())
 const room=randomUUID()
 let invite
-const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql','supabase/migrations/20260926025335_lp_name_chars_create_retry.sql','supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql','supabase/migrations/20260926033821_lp_min_guests.sql']
+const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql','supabase/migrations/20260926025335_lp_name_chars_create_retry.sql','supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql','supabase/migrations/20260926033821_lp_min_guests.sql','supabase/migrations/20260926052120_lp_pitch_goods_photos.sql']
+// Supabase Storage is not in PGlite. A minimal stand-in (F15): the real schema has more columns; the grants mirror Supabase (RLS decides).
+const STORAGE_STUB=`create schema storage;
+ create table storage.buckets(id text primary key,name text not null,public boolean default false,file_size_limit bigint,allowed_mime_types text[]);
+ create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text references storage.buckets(id),name text not null,unique(bucket_id,name));
+ alter table storage.objects enable row level security;
+ grant usage on schema storage to anon,authenticated;
+ grant select,insert,update,delete on storage.objects to anon,authenticated;
+ grant select on storage.buckets to anon,authenticated;`
 const call=async(user,sql,args=[])=>{
  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user])
  return (await db.query(sql,args)).rows[0]?.result
@@ -21,6 +29,7 @@ beforeAll(async()=>{
  create schema realtime;create table realtime.messages(extension text,topic text,payload jsonb);
  create function realtime.topic() returns text language sql as $$select current_setting('realtime.topic',true)$$;
  create function realtime.send(payload jsonb,event text,topic text,private boolean) returns void language sql as $$insert into realtime.messages values('broadcast',topic,payload)$$;`)
+ await db.exec(STORAGE_STUB)
  for(const file of migrations) await db.exec(await readFile(file,'utf8'))
  await db.exec(hostKeySql('test',hostKeyRecord(KEY)))
 },30000)
@@ -106,6 +115,7 @@ test('core room ledger works before Realtime initializes and blocks a departed m
  const isolated=new PGlite()
  try {
   await isolated.exec("create role anon; create role authenticated; create schema auth; create function auth.uid() returns uuid language sql as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$")
+  await isolated.exec(STORAGE_STUB)
   for(const file of migrations) await isolated.exec(await readFile(file,'utf8'))
   await isolated.exec(hostKeySql('test',hostKeyRecord(KEY)))
   const owner=randomUUID()
@@ -673,4 +683,76 @@ describe('F13: a round needs at least 2 active guests besides the host', () => {
   expect(Date.parse(cancelled.lastSchedule.scheduledAt)).toBe(at.getTime())
   expect(await rounds(id)).toBe(0)
  },30000)
+})
+
+describe('F15: private goods photos are readable only inside an open room', () => {
+ const create=(user,id,name)=>call(user,'select public.lp_create($1,$2,$3) result',[id,KEY,name])
+ const join=(user,invite,name)=>call(user,'select public.lp_join($1,$2) result',[invite,name])
+ // What the Storage API does for a signed-in user: SELECT on storage.objects as authenticated with the JWT sub.
+ const visible=async(user,role='authenticated')=>{
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user??''])
+  await db.exec(`set role ${role}`)
+  try{return (await db.query("select name from storage.objects where bucket_id='pitch-goods' order by name")).rows.map(row=>row.name)}
+  finally{await db.exec('reset role')}
+ }
+ const as=async(user,role,sql)=>{
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user??''])
+  await db.exec(`set role ${role}`)
+  try{return await db.query(sql)}finally{await db.exec('reset role')}
+ }
+ const photos=['goods/badge.jpg','goods/plush.jpg','goods/pouch.jpg']
+
+ beforeAll(async()=>{
+  // Dashboard uploads (service role) are simulated as the table owner. Another bucket must stay invisible.
+  await db.exec("insert into storage.buckets(id,name,public) values('other','other',false)")
+  for(const name of photos) await db.query("insert into storage.objects(bucket_id,name) values('pitch-goods',$1)",[name])
+  await db.query("insert into storage.objects(bucket_id,name) values('other','secret.jpg')")
+ })
+
+ test('the bucket is private, JPEG only and at most 1 MiB', async()=>{
+  const {rows}=await db.query("select public,file_size_limit,allowed_mime_types from storage.buckets where id='pitch-goods'")
+  expect(rows).toEqual([{public:false,file_size_limit:1048576,allowed_mime_types:['image/jpeg']}])
+ })
+
+ test('members and the host of an open room read the photos; outsiders, anon, departed members and expired rooms do not', async()=>{
+  const [host,guest,other,outsider]=[randomUUID(),randomUUID(),randomUUID(),randomUUID()]
+  const id=randomUUID()
+  const {invite}=await create(host,id,'ホスト')
+  expect(await visible(host)).toEqual(photos)
+  expect(await visible(outsider)).toEqual([])
+  expect(await visible(null)).toEqual([])
+  expect(await visible(outsider,'anon')).toEqual([])
+  await join(guest,invite,'ゆい')
+  await join(other,invite,'さき')
+  expect(await visible(guest)).toEqual(photos)
+  // Leaving the room ends access; rejoining restores it.
+  await call(other,'select public.lp_leave($1)',[id])
+  expect(await visible(other)).toEqual([])
+  await join(other,invite,'さき')
+  expect(await visible(other)).toEqual(photos)
+  // The host keeps access while hosting an open room even without an active seat.
+  await call(host,'select public.lp_leave($1)',[id])
+  expect(await visible(host)).toEqual(photos)
+  // Expired rooms grant nothing.
+  await db.query("update public.lp_rooms set expires_at=now()-interval '1 second' where id=$1",[id])
+  for(const user of [host,guest,other]) expect(await visible(user)).toEqual([])
+ })
+
+ test('no one but the owner can write, and the helper is not callable by anon', async()=>{
+  const [host,guest]=[randomUUID(),randomUUID()]
+  const id=randomUUID()
+  const {invite}=await create(host,id,'ホスト2')
+  await join(guest,invite,'もも')
+  for(const user of [host,guest]){
+   await expect(as(user,'authenticated',"insert into storage.objects(bucket_id,name) values('pitch-goods','goods/new.jpg')")).rejects.toThrow('row-level security')
+   expect((await as(user,'authenticated',"update storage.objects set name='goods/x.jpg' where bucket_id='pitch-goods'")).affectedRows).toBe(0)
+   expect((await as(user,'authenticated',"delete from storage.objects where bucket_id='pitch-goods'")).affectedRows).toBe(0)
+  }
+  await expect(as(null,'anon',"insert into storage.objects(bucket_id,name) values('pitch-goods','goods/new.jpg')")).rejects.toThrow('row-level security')
+  expect((await db.query("select count(*)::int count from storage.objects where bucket_id='pitch-goods'")).rows[0].count).toBe(3)
+  expect((await as(guest,'authenticated','select public.lp_can_view_photos() ok')).rows[0].ok).toBe(true)
+  await expect(as(null,'anon','select public.lp_can_view_photos()')).rejects.toThrow('permission denied')
+  const {rows}=await db.query("select prosecdef,proconfig from pg_proc where proname='lp_can_view_photos'")
+  expect(rows).toEqual([{prosecdef:true,proconfig:['search_path=""']}])
+ })
 })

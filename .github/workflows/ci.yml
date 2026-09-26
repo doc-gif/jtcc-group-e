@@ -16,8 +16,55 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  scope:
+    name: Change scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      docs_only: ${{ steps.scope.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # PR の CI はマージ用のコミットで動く。main 側（HEAD^1）の判定スクリプトで PR の差分を判定し、
+      # PR が判定スクリプト自体を書き換えても全部の検査を飛ばせないようにする。push・呼び出しは常に全部。
+      - name: Classify the PR with main's rules
+        id: scope
+        if: github.event_name == 'pull_request'
+        run: |
+          if git show HEAD^1:scripts/change-scope.mjs > "$RUNNER_TEMP/change-scope.mjs" 2>/dev/null; then
+            node "$RUNNER_TEMP/change-scope.mjs" HEAD^1 HEAD
+          else
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            echo "Full checks: main has no change-scope.mjs yet"
+          fi
+
+  docs:
+    name: Docs-only checks
+    needs: scope
+    if: needs.scope.outputs.docs_only == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      # 文書の秘密・書き写しの検査を含むスクリプトのテスト。ブラウザ・ビルド・プレビューは文書だけなので飛ばす。
+      - run: pnpm exec vitest run scripts/
+
   build:
     name: Build and unit tests
+    needs: scope
+    if: needs.scope.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -162,28 +209,37 @@ jobs:
 
   quality:
     name: Quality gate
-    needs: [build, browser, reports]
+    needs: [scope, docs, build, browser, reports]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - name: Require complete successful results
         env:
+          SCOPE: ${{ needs.scope.result }}
+          DOCS_ONLY: ${{ needs.scope.outputs.docs_only }}
+          DOCS: ${{ needs.docs.result }}
           BUILD: ${{ needs.build.result }}
           BROWSER: ${{ needs.browser.result }}
           REPORTS: ${{ needs.reports.result }}
-        run: test "$BUILD" = success && test "$BROWSER" = success && test "$REPORTS" = success
+        run: |
+          test "$SCOPE" = success
+          if [ "$DOCS_ONLY" = true ]; then test "$DOCS" = success; else test "$BUILD" = success && test "$BROWSER" = success && test "$REPORTS" = success; fi
 
   ux:
     name: UI/UX gate
-    needs: [ux-review, browser, reports]
+    needs: [scope, ux-review, browser, reports]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - name: Require review and every browser scenario
         env:
+          SCOPE: ${{ needs.scope.result }}
+          DOCS_ONLY: ${{ needs.scope.outputs.docs_only }}
           REVIEW: ${{ needs.ux-review.result }}
           BROWSER: ${{ needs.browser.result }}
           REPORTS: ${{ needs.reports.result }}
-        run: test "$REVIEW" = success && test "$BROWSER" = success && test "$REPORTS" = success
+        run: |
+          test "$SCOPE" = success && test "$REVIEW" = success
+          if [ "$DOCS_ONLY" != true ]; then test "$BROWSER" = success && test "$REPORTS" = success; fi
