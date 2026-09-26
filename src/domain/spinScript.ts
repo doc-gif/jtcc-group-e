@@ -55,8 +55,3 @@ export function revealLine(glow: Glow): string {
   if (glow === 'sparkle') return pipiLines.revealSparkle
   return pipiLines.reveal
 }
-
-export function tapMessage(tapsLeft: number, total: number): string {
-  if (tapsLeft === total) return total > 1 ? 'タップしてあけてね（なんだか光ってる…）' : 'タップしてあけてね'
-  return tapsLeft === 1 ? 'あとすこし…！' : 'もういっかい！'
-}

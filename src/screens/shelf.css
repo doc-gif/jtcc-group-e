@@ -1,40 +1,62 @@
-/* ===== 棚・フレンド（T09・F04） ===== */
-/* 色は src/index.css の「さくらミルク」だけを使う。マスターの木目の棚板はピンク（--head）で表す。 */
+/* ===== 棚・フレンド（T09・F04／F11 でマスターに合わせた） ===== */
+/* 色は src/index.css のトークンだけを使う。木の棚板・枠の線・絵のミントは絵の色のトークン（--shelf-wood・--shelf-slot-line・--art-mint）。 */
 
 .shelf-summary {
   display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 0.75rem 0.9rem;
+  background: var(--surface); border-radius: 18px; padding: 0.75rem 0.9rem;
 }
 .shelf-summary-text { flex: 1 1 10rem; min-width: 0; display: grid; gap: 0.2rem; }
 /* 狭いときや文字が大きいときは、ボタンが下の行へ回る */
 .shelf-summary > .btn { flex: 1 1 6rem; max-width: 100%; }
 .shelf-count { font-size: 1.1875rem; color: var(--deep); font-variant-numeric: tabular-nums; }
 
+/* 棚（267:8476）：木の枠の中に2列。棚の中だけを縦にスクロールする（マスターの fixed nine-slot shelf / scroll） */
+.shelf-scroll {
+  max-height: max(15rem, 52dvh); overflow-y: auto; overscroll-behavior: contain;
+  border-radius: 20px; background: var(--soft);
+}
 .shelf-board {
-  list-style: none; margin: 0;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(7.5rem, 100%), 1fr)); gap: 0.6rem;
-  background: var(--head); border-radius: 18px; padding: 0.6rem;
-  box-shadow: inset 0 -6px 0 var(--main);
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(max(7.5rem, 40%), 1fr)); row-gap: 9px;
+  background: var(--shelf-wood); border-inline: 10px solid var(--shelf-wood);
 }
-.shelf-slot { display: flex; min-width: 0; }
-.shelf-slot.is-empty, .slot-link {
+.shelf-slot { display: flex; min-width: 0; background: var(--soft); padding: 0.75rem 0.4rem; }
+.slot-card {
   flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem;
-  border-radius: 14px; padding: 0.5rem 0.6rem 0.6rem; min-width: 0;
+  border-radius: 16px; padding: 0.4rem 0.5rem 0.6rem; min-width: 0; color: var(--text);
 }
-.shelf-slot.is-empty { background: var(--soft); border: 1.5px dashed var(--sub); color: var(--text); }
-.slot-link { background: var(--surface); border: 1.5px solid var(--deep); color: var(--text); text-decoration: none; }
+.slot-card.is-empty { background: var(--soft); border: 1px solid var(--shelf-slot-line); }
+.slot-link { background: var(--surface); border: 1px solid var(--main); text-decoration: none; }
 a.slot-link:hover { box-shadow: 0 0 0 3px var(--line); }
 .slot-no { font-size: 0.8125rem; color: var(--sub); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
-.shelf-slot b { font-size: 0.9375rem; line-height: 1.4; overflow-wrap: anywhere; }
+.slot-card b { font-size: 0.9375rem; line-height: 1.4; overflow-wrap: anywhere; }
 .slot-note { font-size: 0.875rem; line-height: 1.45; overflow-wrap: anywhere; }
 .slot-link .slot-note { color: var(--deep); font-weight: 700; }
-.shelf-slot.is-empty .slot-note { color: var(--sub); }
-.shelf-slot .goods { align-self: center; width: min(100%, 6.5rem); height: auto; aspect-ratio: 1; margin: 0.15rem 0 0.25rem; }
-/* 空き枠の「+」は、絵がないことを形で示す飾り（押せない） */
+.slot-card.is-empty .slot-note { color: var(--sub); }
+.slot-card .goods { align-self: center; width: min(100%, 6.5rem); height: auto; aspect-ratio: 1; margin: 0.15rem 0 0.25rem; }
+/* 空き枠の「＋」は、絵がないことを形で示す飾り（押せない） */
 .slot-plus {
-  align-self: center; display: grid; place-items: center; width: 3.5rem; height: 3.5rem; margin: 0.6rem 0 0.9rem;
-  border: 2px dashed var(--sub); border-radius: 50%; color: var(--sub); font-size: 1.75rem; line-height: 1;
+  align-self: center; display: grid; place-items: center; width: 3.75rem; height: 3.75rem; margin: 0.4rem 0 0.9rem;
+  border: 2px solid var(--sub); border-radius: 50%; color: var(--sub); font-size: 1.75rem; line-height: 1;
 }
+.shelf-set { color: var(--sub); }
+
+/* 当てたもの（267:8623）：棚と同じ枠の一覧 */
+.shelf-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
+.shelf-row {
+  display: flex; align-items: center; gap: 0.9rem; min-height: 5.5rem;
+  border-radius: 18px; padding: 0.6rem 0.9rem; color: var(--text); text-decoration: none;
+}
+.shelf-row.is-owned { background: var(--surface); }
+.shelf-row.is-missing { background: var(--soft); }
+.shelf-row .goods { flex: none; width: min(4.5rem, 28%); height: auto; aspect-ratio: 1; }
+.shelf-row-plus { flex: none; display: grid; place-items: center; width: min(4.5rem, 28%); font-size: 1.75rem; color: var(--sub); }
+.shelf-row-text { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.shelf-row-text b { font-size: 1rem; line-height: 1.4; overflow-wrap: anywhere; }
+.shelf-row-state { font-size: 0.875rem; color: var(--sub); overflow-wrap: anywhere; }
+.shelf-row.is-owned .shelf-row-state { color: var(--deep); }
+a.shelf-row:hover { box-shadow: 0 0 0 3px var(--line); }
+.records-lead { margin-top: -0.5rem; }
 
 /* 1点の詳細 */
 .item-eyebrow { color: var(--deep); font-weight: 700; font-size: 0.9375rem; }
@@ -74,8 +96,9 @@ a.slot-link:hover { box-shadow: 0 0 0 3px var(--line); }
 .friend-art svg { width: 62%; height: auto; }
 .friend-empty-title { font-size: 1.375rem; line-height: 1.4; color: var(--text); }
 
-/* 当てたもの一覧から棚の1点へ */
+/* 当てた記録から棚の1点へ */
 .win-link { display: inline-flex; align-items: center; color: var(--deep); font-size: 0.875rem; font-weight: 700; }
 /* 絵の塗りもトークンで指定する（配色の切り替えを1か所で済ませる） */
 .friend-art .art-fill { fill: var(--surface); }
 .friend-art .art-fill-soft { fill: var(--head); }
+.friend-art .art-fill-mint { fill: var(--art-mint); }

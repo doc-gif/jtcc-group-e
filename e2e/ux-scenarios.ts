@@ -40,6 +40,7 @@ export const uxScenarios: Array<{ name: string; path: string; scalableText: stri
   { name: 'collection-list', path: './#/collection', scalableText: '.collection-lead', seed: demoState() },
   { name: 'shelf-empty', path: './#/shelf', scalableText: '.shelf-lead' },
   { name: 'shelf-owned', path: './#/shelf', scalableText: '.shelf-lead', seed: demoState() },
+  { name: 'shelf-other-set', path: './#/shelf', scalableText: '.shelf-lead', seed: demoState({ wins: [{ id: 'w3', gachaId: 'melody-anniv', prizeId: 'melody-anniv-12', spent: 1500, wonAt: '2026-09-21T00:00:00.000Z', companions: [], status: 'kept' }] }) },
   { name: 'shelf-item', path: './#/shelf/sanrio-capsule-1', scalableText: '.item-lead', seed: demoState() },
   { name: 'shelf-item-favorite', path: './#/shelf/sanrio-capsule-1', scalableText: '.item-lead', seed: demoState({ favorites: ['sanrio-capsule-1'] }) },
   { name: 'shelf-share-preview', path: './#/shelf/share', scalableText: '.share-lead', seed: demoState() },

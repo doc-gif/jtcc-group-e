@@ -1,5 +1,5 @@
 {
-  "uiDigest": "91e93b6588f4857b59474672feeeabcb5deb4423b562f3f54cc32cd0b7478e81",
+  "uiDigest": "961453aeb6f0e850564073e643bf51aa45077ea8f6f83860a085917cf50371da",
   "reviewer": "Claude (F10 follow-up: name characters and create retry)",
   "reviewedAt": "2026-09-26",
   "summary": "PR #33（F10）のレビュー対応。共有ルームの SQL・模擬サーバー・状態層（src/realtime/）とテスト・文書だけの変更で、画面・CSS・遷移は変更していない（F06 の画面は main のまま）。src/realtime はどの画面からも import していない。名前に Unicode の Cc・Cf（見えない書式文字）を使えなくし、Unicode の空白をまとめ、作成の再試行をキーの交換・回数制限に左右されないようにし、名前の変更をロビーだけにした（SQL・模擬サーバー・状態層のすべてで開封中は rename-locked）。成功したキーの保存は compare-and-set にした。",

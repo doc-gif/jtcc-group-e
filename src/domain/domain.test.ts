@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest'
 import { catalog, categoryList, daysSinceRelease, findGacha, findPrize, MIN_DAYS_SINCE_RELEASE, seriesList } from './catalog'
 import { addDemoCoins, completeWelcome, createInitialState, exchange, exchangeQuote, featuredCandidate, requestDelivery, setForceFeatured, setNickname, shouldShowKakutei, spin, spinCheck, spinQuote, STARTER_COINS, summarize, toggleSetting } from './game'
-import { EXCHANGE_RATE, exchangeCoins, formatPercent, oddsOf, pickPrize, remainingRatio, remainLevel, tapsToOpen, totalRemaining } from './odds'
-import { revealLine, tapMessage, turnEffect } from './spinScript'
+import { EXCHANGE_RATE, exchangeCoins, formatPercent, oddsOf, OPEN_TAPS, percentLabels, pickPrize, remainingRatio, remainLevel, totalRemaining } from './odds'
+import { revealLine, turnEffect } from './spinScript'
 import { loadState, parseState, saveState, STORAGE_KEY } from './storage'
 import type { AppState } from './types'
 
@@ -109,10 +109,35 @@ describe('確率と残り', () => {
     expect(exchangeCoins(Number.NaN)).toBe(0)
   })
 
-  test('カプセルを開けるタップ数', () => {
-    expect(tapsToOpen('featured')).toBe(3)
-    expect(tapsToOpen('sparkle')).toBe(2)
-    expect(tapsToOpen('normal')).toBe(1)
+  test('カプセルはマスターどおり、光り方にかかわらず3回タップで開く', () => {
+    expect(OPEN_TAPS).toBe(3)
+  })
+
+  test('確率の表示は小数第1位で、合計がちょうど 100.0% になる（値はいまの残りのまま）', () => {
+    const sum = (labels: Map<string, string>) => Math.round([...labels.values()].reduce((total, text) => total + Number.parseFloat(text) * 10, 0))
+    for (const gacha of catalog) {
+      const rows = oddsOf(gacha, createInitialState().stock)
+      const labels = percentLabels(rows)
+      expect(sum(labels), gacha.id).toBe(1000)
+      for (const row of rows) {
+        const shown = Number.parseFloat(labels.get(row.prize.id)!)
+        // 丸めた表示と本当の値の差は 0.1% 未満
+        expect(Math.abs(shown - row.probability * 100), row.prize.id).toBeLessThan(0.1)
+        expect(labels.get(row.prize.id)).toMatch(/^\d+\.\d%$/)
+      }
+    }
+  })
+
+  test('確率の表示：残り 0 は 0%、残りがある品は 0.0% にしない、全部売り切れは全部 0%', () => {
+    const capsule = findGacha('sanrio-capsule')!
+    const stock = createInitialState().stock
+    const one = { ...stock, [capsule.id]: { ...Object.fromEntries(capsule.prizes.map((prize) => [prize.id, 0])), 'sanrio-capsule-1': 1, 'sanrio-capsule-9': 5000 } }
+    const labels = percentLabels(oddsOf(capsule, one))
+    expect(labels.get('sanrio-capsule-1')).toBe('0.1%')
+    expect(labels.get('sanrio-capsule-9')).toBe('99.9%')
+    expect(labels.get('sanrio-capsule-2')).toBe('0%')
+    const none = { ...stock, [capsule.id]: Object.fromEntries(capsule.prizes.map((prize) => [prize.id, 0])) }
+    expect([...percentLabels(oddsOf(capsule, none)).values()]).toEqual(Array(capsule.prizes.length).fill('0%'))
   })
 })
 
@@ -253,10 +278,6 @@ describe('演出の台本', () => {
     expect(revealLine('featured')).toContain('おめでとう')
     expect(revealLine('sparkle')).toContain('キラキラ')
     expect(revealLine('normal')).toContain('やったね')
-    expect(tapMessage(3, 3)).toContain('光って')
-    expect(tapMessage(1, 1)).toBe('タップしてあけてね')
-    expect(tapMessage(2, 3)).toBe('もういっかい！')
-    expect(tapMessage(1, 3)).toBe('あとすこし…！')
   })
 })
 

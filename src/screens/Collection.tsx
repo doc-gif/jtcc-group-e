@@ -5,8 +5,8 @@ import { findGacha, findPrize, seriesList } from '../domain/catalog'
 import { exchange, exchangeQuote, requestDelivery, summarize } from '../domain/game'
 import { coinText, EXCHANGE_RATE, yen } from '../domain/odds'
 import type { SeriesId, WinRecord, WinStatus } from '../domain/types'
-import { ownedItems, SHELF_SIZE } from '../domain/shelf'
-import { BackBar, CoinPill, MockNotice, SaveWarning, TabBar } from '../components/Chrome'
+import { shelfOf, slotText } from '../domain/shelf'
+import { MockNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { Sheet } from '../components/Sheet'
 
@@ -22,6 +22,11 @@ const filters: Array<{ id: Filter; label: string }> = [
 const dateText = (iso: string) => { const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()}` }
 const withText = (win: WinRecord) => win.companions.length === 0 ? 'ひとりで' : `♡ ${win.companions.join('・')}と`
 
+/**
+ * 当てたもの（T09 267:8623）。上はマスターどおり、棚と同じ枠の一覧（持っている品を先に）。
+ * その下の「当てた記録」（絞り込み・コインに交換・届けてもらう）はマスターにないが、PRODUCT の決定（当てたものは記録。
+ * 1つずつ届けてもらうかコインに交換）の入口がここだけなので残す（Figma 修正待ち）。
+ */
 export function Collection() {
   const { state, update } = useApp()
   const [filter, setFilter] = useState<Filter>('all')
@@ -35,8 +40,11 @@ export function Collection() {
   const toggle = (id: string) => setSelected((list) => list.includes(id) ? list.filter((item) => item !== id) : [...list, id])
   const quote = exchangeQuote(state, selected)
   const quoteTotal = quote.reduce((sum, row) => sum + row.coins, 0)
-  // 棚の何番目に飾られているか（T09 267:8623 の「持っている・棚 01」）
-  const shelfSlot = new Map(ownedItems(state).slice(0, SHELF_SIZE).map((item, index) => [item.prize.id, index + 1]))
+  // 棚と同じ枠（T09 267:8623 の「持っている・棚 01」「未入手・棚 03」）。持っている品を先に並べる
+  const shelf = shelfOf(state)
+  const numbered = shelf.slots.map((slot, index) => ({ ...slot, no: index + 1 }))
+  const shelfRows = [...numbered.filter((slot) => slot.item), ...numbered.filter((slot) => !slot.item)]
+  const shelfSlot = new Map(numbered.map((slot) => [slot.prize.id, slot.no]))
 
   const doExchange = () => {
     update((current) => exchange(current, selected))
@@ -51,9 +59,32 @@ export function Collection() {
 
   return (
     <div className="screen">
-      <BackBar title="当てたもの" back={paths.shelf} backLabel="戻る"><CoinPill /></BackBar>
+      <PageHeader title="当てたもの" back={paths.shelf} />
       <main className="content">
-        <p className="lead collection-lead">これまで当てた物の記録です。手元にある物は、届けてもらうか、コインに交換できます。</p>
+        <p className="lead collection-lead">棚と同じ{shelf.slots.length}枠。持っている品を先に表示。</p>
+        <ul className="shelf-list" aria-label={`${shelf.gacha.title}の中身（棚と同じ${shelf.slots.length}枠）`}>
+          {shelfRows.map(({ prize, item, no }) => {
+            const where = `棚 ${String(no).padStart(2, '0')}`
+            return (
+              <li key={prize.id}>
+                {item ? (
+                  <a className="shelf-row is-owned" href={paths.shelfItem(prize.id)}>
+                    <GoodsImage art={prize.art} glow={prize.glow} size="sm" />
+                    <span className="shelf-row-text"><b>{prize.name}</b><span className="shelf-row-state">持っている・{where}</span></span>
+                  </a>
+                ) : (
+                  <span className="shelf-row is-missing">
+                    <span className="shelf-row-plus" aria-hidden="true">+</span>
+                    <span className="shelf-row-text"><b>{prize.name}</b><span className="shelf-row-state">未入手・{where}</span></span>
+                  </span>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+        <a className="btn btn-outline btn-block" href={paths.shelf}>棚ビューに戻る</a>
+        <h2 id="records-title" className="section-title">当てた記録<small>届けてもらう・コインに交換</small></h2>
+        <p className="lead records-lead">これまで当てた物の記録です。手元にある物は、届けてもらうか、コインに交換できます。</p>
         <dl className="summary">
           <div><dt>使ったコイン</dt><dd>{coinText(summary.spent)}</dd></div>
           <div><dt>当たった物の相当額</dt><dd className="accent">{yen(summary.refTotal)}</dd></div>
@@ -94,7 +125,7 @@ export function Collection() {
                   <span className="win-with">{withText(win)}</span>
                   <span className="win-meta">{yen(prize.refPrice)}相当・{dateText(win.wonAt)}</span>
                   <span className={`win-status st-${win.status}`}>{statusLabel[win.status]}{win.exchangedCoins !== undefined && `（+${coinText(win.exchangedCoins)}）`}</span>
-                  {win.status !== 'exchanged' && <a className="win-link" href={paths.shelfItem(prize.id)}>{slot ? `棚 ${String(slot).padStart(2, '0')} で見る` : 'くわしく見る'} ›</a>}
+                  {win.status !== 'exchanged' && <a className="win-link" href={paths.shelfItem(prize.id)}>{slot ? `棚 ${slotText(slot, shelf.slots.length)} で見る` : 'くわしく見る'} ›</a>}
                   {selectable && (
                     <label className="win-check">
                       <input type="checkbox" checked={selected.includes(win.id)} onChange={() => toggle(win.id)} />
@@ -106,7 +137,6 @@ export function Collection() {
             })}
           </ul>
         )}
-        <a className="btn btn-outline btn-block" href={paths.shelf}>棚ビューに戻る</a>
         <SaveWarning />
         <MockNotice />
       </main>

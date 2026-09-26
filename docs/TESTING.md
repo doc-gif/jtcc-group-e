@@ -35,7 +35,7 @@ Linux の CI は `playwright install --with-deps chromium webkit` で OS 依存�
 - 街の読み込み中（すぐ準備できたら出さない、0.3秒待ったら出す、準備できたら街へ、先に街へ行く、失敗とやり直し、導入のあと、動きを減らす設定）を `src/App.test.tsx` と `src/app/assets.test.ts`、ブラウザでは絵の読み込みを止めて `e2e/app.spec.ts` と UI/UX 検査（`town-loading`・`town-loading-error`）で検証。
 - 棚（9枠・お気に入りと取り消し・棚の外・共有前の見え方）とフレンド（友だちなし・友だちの棚・「いいな〜」は1回だけ・見られない状態）を `src/domain/shelf.test.ts` と `src/screens/Shelf.test.tsx`、ブラウザでは `e2e/app.spec.ts` で検証。
 - 法務・ブランドのきまり（禁止語、注記、ピピのセリフ、画像の許可リスト、交換シートの文言、残り口数を出さない）を `scripts/governance.test.mjs` で検証。
-- ブラウザで、ひとりで回す → 当てたもの → コインに交換、ハンドルを指でなぞる操作、友達と回す（目玉確定）、招待リンクからの参加を `e2e/app.spec.ts` で検証。
+- ブラウザで、ひとりで回す → 当てたもの → コインに交換、右のハンドルのタップで回す操作、友達と回す（目玉確定）、招待リンクからの参加を `e2e/app.spec.ts` で検証。
 - Chromium の小型スマホ・Android 相当・デスクトップ、WebKit の iPhone 相当・横向き。
 - 最新 URL と過去バージョン URL、一覧からの移動と再読込。
 - JavaScript／HTTP エラー、横はみ出し、WCAG AA、操作領域、文字 200%、動きを減らす設定。
