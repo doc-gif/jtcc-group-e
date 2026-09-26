@@ -12,7 +12,7 @@ test('world remains four viewport widths in both axes',()=>{
  expect(()=>worldSize(NaN)).toThrow();expect(()=>worldSize(0)).toThrow()
 })
 test('safe user errors do not expose backend details or the seat limit',()=>{
- expect(errorMessage(new Error('room-full'))).toBe('このルームは満員です。')
+ expect(errorMessage(new Error('room-full'))).toBe('ただいま満員です。これ以上は入れません。')
  expect(errorMessage(new Error('private database detail'))).not.toContain('private')
  expect(errorMessage('Anonymous sign-ins are disabled')).toContain('準備中')
  expect(errorMessage(new Error('P0001: invalid-schedule'))).toContain('1・3・5・10分後')

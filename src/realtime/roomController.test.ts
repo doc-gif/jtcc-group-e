@@ -77,7 +77,7 @@ test('100 席で満員を示し、101 人目は上限の数字を含まない日
 
   const late = controller('user-100')
   const refused = await late.join(invite, '101人目')
-  expect(refused).toEqual({ ok: false, error: { code: 'room-full', message: 'このルームは満員です。' } })
+  expect(refused).toEqual({ ok: false, error: { code: 'room-full', message: 'ただいま満員です。これ以上は入れません。' } })
   expect(late.getState().phase).toBe('idle')
 
   const back = controller('user-99')

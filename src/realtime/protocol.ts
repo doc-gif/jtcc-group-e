@@ -97,7 +97,7 @@ export function errorMessage(error: unknown) {
     'invalid-name': 'ニックネームは1〜12文字で入力してください。',
     'invalid-ready': '準備状態を確認できませんでした。画面を更新してください。',
     'invalid-round': '開封番号を確認できませんでした。最新の状態を取得してください。',
-    'room-full': 'このルームは満員です。',
+    'room-full': 'ただいま満員です。これ以上は入れません。',
     'room-unavailable': '招待が無効か、期限が切れています。',
     'host-required': '開始できるのはホストだけです。',
     'host-online': 'ホストは接続中です。',
