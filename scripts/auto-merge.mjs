@@ -2,12 +2,17 @@
 import { classify } from './change-scope.mjs'
 
 const fullJobs = ['Build and unit tests', 'Complete browser reports']
-// CI runs that can prove a PR head: the PR's own CI, and the queue's CI after it merged main into the branch.
-const ciEvents = new Set(['pull_request', 'workflow_dispatch'])
+// Only the PR's own CI proves a PR head: branch protection counts the pull_request check suite, so a CI started another
+// way (workflow_dispatch) cannot unblock the merge while that suite waits for approval (#147).
+const ciEvents = new Set(['pull_request'])
 const activeStatus = new Set(['queued', 'in_progress', 'waiting', 'requested', 'pending'])
 const bot = 'github-actions[bot]'
 const sameRepo = (pr, owner, repo) => pr.head.repo?.full_name === `${owner}/${repo}`
 const queueable = (pr, owner, repo) => !pr.draft && pr.base.ref === 'main' && sameRepo(pr, owner, repo) && pr.user?.login !== bot
+// A push by GITHUB_TOKEN counts as a first-time contributor, so its pull_request runs wait for approval (#147). Approve only
+// the runs of the queue's own push: started by the bot, for the current head of a queueable PR in this repository.
+const approvable = (run, pr, owner, repo) => run.event === 'pull_request' && run.conclusion === 'action_required' && run.actor?.login === bot
+  && run.head_sha === pr.head.sha && run.head_branch === pr.head.ref && run.head_repository?.full_name === `${owner}/${repo}` && queueable(pr, owner, repo)
 
 async function latestCiRun({ github, owner, repo, sha }) {
   const { data } = await github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: 'ci.yml', head_sha: sha, per_page: 20 })
@@ -33,7 +38,8 @@ export async function autoMerge({ github, owner, repo, runId }) {
   const { data: run } = await github.rest.actions.getWorkflowRun({ ...coordinates, run_id: runId })
   if (run.path !== '.github/workflows/ci.yml' || !ciEvents.has(run.event) || run.head_repository?.full_name !== `${owner}/${repo}`) return 'skip: untrusted or unsuccessful run'
   if (run.conclusion !== 'success') {
-    if (run.event === 'workflow_dispatch' && run.status === 'completed' && run.conclusion === 'failure') await noteQueueFailure({ github, owner, repo, run })
+    // The queue's CI is the PR's pull_request CI of the bot's merge push.
+    if (run.actor?.login === bot && run.status === 'completed' && run.conclusion === 'failure') await noteQueueFailure({ github, owner, repo, run })
     return 'skip: untrusted or unsuccessful run'
   }
   const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, { ...coordinates, run_id: runId, filter: 'latest' })
@@ -46,7 +52,7 @@ export async function autoMerge({ github, owner, repo, runId }) {
   if (!candidate) return 'skip: stale SHA or closed PR'
   const { data: pr } = await github.rest.pulls.get({ ...coordinates, pull_number: candidate.number })
   if (pr.draft || pr.head.sha !== run.head_sha || pr.base.ref !== 'main' || !sameRepo(pr, owner, repo)) return 'skip: draft or changed PR'
-  if (run.event === 'workflow_dispatch' && run.head_branch !== pr.head.ref) return 'skip: queue run for another branch'
+  if (run.head_branch !== pr.head.ref) return 'skip: run for another branch'
   if (pr.user.login === bot) return 'skip: bot cannot approve its own PR'
   if (docsOnlyRun) {
     // The light CI skipped browser tests. Re-check the PR's files with main's rules before trusting it.
@@ -77,24 +83,50 @@ async function noteQueueFailure({ github, owner, repo, run }) {
   })
 }
 
+// Approves the waiting pull_request runs (CI, Preview build, PR links an Issue) of the queue's push to this PR.
+async function approveQueueRuns({ github, owner, repo, pr }) {
+  const { data } = await github.rest.actions.listWorkflowRunsForRepo({ owner, repo, event: 'pull_request', head_sha: pr.head.sha, status: 'action_required', per_page: 50 })
+  const runs = data.workflow_runs.filter((run) => approvable(run, pr, owner, repo))
+  for (const run of runs) await github.rest.actions.approveWorkflowRun({ owner, repo, run_id: run.id })
+  return runs.length
+}
+
+async function noteApprovalFailure({ github, owner, repo, pr, error }) {
+  await noteOnce({
+    github, owner, repo, number: pr.number, marker: `<!-- merge-queue-approve:${pr.head.sha} -->`,
+    body: `マージのキューが main を取り込んだ \`${pr.head.sha.slice(0, 7)}\` の CI（承認待ち）を Bot が承認できませんでした（${error?.status ?? ''} ${String(error?.message ?? error).split('\n')[0]}）。担当者が Actions の画面でその SHA の run を承認するか、\`gh api -X POST repos/${owner}/${repo}/actions/runs/<run_id>/approve\` を実行してください（docs/DEVELOPMENT.md「マージのキュー」）。CI が成功すれば Bot がマージします。`,
+  })
+}
+
 /**
  * The merge queue (docs/DEVELOPMENT.md): one PR at a time, oldest first. A Ready PR whose head passed CI but is behind main
- * gets main merged into its branch by the bot, then CI is started on it (pushes by GITHUB_TOKEN do not trigger workflows,
- * so the queue dispatches ci.yml itself). The completed CI calls autoMerge again. Every pass rescans, so a dropped event is
- * picked up by the next pass (CI completion, Ready, or the schedule).
+ * gets main merged into its branch by the bot. GitHub creates the PR's pull_request runs for that push but holds them for
+ * approval (the bot counts as a first-time contributor, #147), so the queue approves them and the PR's usual CI runs. Its
+ * completion calls autoMerge again. Every pass rescans, so a dropped event is picked up by the next pass (CI completion,
+ * Ready, or the schedule).
  */
-export async function advanceQueue({ github, owner, repo }) {
+export async function advanceQueue({ github, owner, repo, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }) {
   const coordinates = { owner, repo }
   const prs = (await github.paginate(github.rest.pulls.list, { ...coordinates, state: 'open', base: 'main', per_page: 100 }))
     .filter((pr) => queueable(pr, owner, repo)).sort((a, b) => a.number - b.number)
   if (!prs.length) return 'queue: empty'
-  const heads = new Set(prs.map((pr) => pr.head.ref))
-  const { data: dispatched } = await github.rest.actions.listWorkflowRuns({ ...coordinates, workflow_id: 'ci.yml', event: 'workflow_dispatch', per_page: 20 })
-  const busy = dispatched.workflow_runs.find((run) => activeStatus.has(run.status) && heads.has(run.head_branch))
-  if (busy) return `queue: waiting for CI of ${busy.head_branch} (run ${busy.id})`
+  // Runs of a queue push that appeared after the pass that pushed it: approve them first.
+  for (const pr of prs) {
+    try {
+      const approved = await approveQueueRuns({ github, owner, repo, pr })
+      if (approved) return `queue: approved ${approved} waiting run(s) of PR #${pr.number}`
+    } catch (error) {
+      await noteApprovalFailure({ github, owner, repo, pr, error })
+    }
+  }
+  const latest = new Map()
+  for (const pr of prs) latest.set(pr.number, await latestCiRun({ github, owner, repo, sha: pr.head.sha }))
+  // The queue's CI (the bot's push) is still running: one PR at a time.
+  const busy = prs.find((pr) => latest.get(pr.number)?.actor?.login === bot && activeStatus.has(latest.get(pr.number).status))
+  if (busy) return `queue: waiting for CI of PR #${busy.number} (run ${latest.get(busy.number).id})`
   const { data: base } = await github.rest.repos.getBranch({ ...coordinates, branch: 'main' })
   for (const pr of prs) {
-    const run = await latestCiRun({ github, owner, repo, sha: pr.head.sha })
+    const run = latest.get(pr.number)
     if (run?.status !== 'completed' || run.conclusion !== 'success') continue
     const { data: comparison } = await github.rest.repos.compareCommits({ ...coordinates, base: base.commit.sha, head: pr.head.sha })
     // Up to date and green: an earlier event was dropped, so merge it now.
@@ -110,9 +142,19 @@ export async function advanceQueue({ github, owner, repo }) {
       })
       continue
     }
-    // A failed dispatch fails this job visibly; the branch then waits for the author's next push or a manual CI run.
-    await github.rest.actions.createWorkflowDispatch({ ...coordinates, workflow_id: 'ci.yml', ref: pr.head.ref, inputs: { queue_base: base.commit.sha } })
-    return `queue: merged main into PR #${pr.number} (${merge?.sha ?? 'up to date'}) and started CI`
+    if (!merge?.sha) continue
+    // GitHub creates the push's runs a few seconds later. Approve them in this pass when they appear; otherwise the next pass does.
+    const pushed = { ...pr, head: { ...pr.head, sha: merge.sha } }
+    for (let attempt = 0; attempt < 6; attempt++) {
+      await wait(10_000)
+      try {
+        if (await approveQueueRuns({ github, owner, repo, pr: pushed })) return `queue: merged main into PR #${pr.number} (${merge.sha}) and approved its CI`
+      } catch (error) {
+        await noteApprovalFailure({ github, owner, repo, pr: pushed, error })
+        return `queue: merged main into PR #${pr.number} (${merge.sha}); approving its CI failed`
+      }
+    }
+    return `queue: merged main into PR #${pr.number} (${merge.sha}); its CI is approved on the next pass`
   }
   return 'queue: nothing ready'
 }
