@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import App from './App'
 import { track, trackOnce } from './app/analytics'
 import { createAssetGate } from './app/assets'
+import { capsuleDropMs } from './components/spinEffect'
 import { TIMING, TURNS } from './domain/spinScript'
 
 /**
@@ -53,9 +54,9 @@ function confirmAndTurn() {
   for (let i = 0; i < TURNS; i += 1) fireEvent.click(button(/1タップで1回転/))
 }
 
-/** カプセルを開けて結果まで進める。 */
+/** カプセルを開けて結果まで進める（開封へ進むのはカプセルが出て光ったあと。#116、jsdom は通常の動き）。 */
 function open() {
-  tick(TIMING.drop)
+  tick(capsuleDropMs(false))
   for (let i = 0; i < 3; i += 1) {
     const capsule = screen.queryByRole('button', { name: /カプセルをタップ/ })
     if (capsule) fireEvent.click(capsule)
