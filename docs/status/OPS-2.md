@@ -7,7 +7,7 @@
 - すでに使われていた運用（親 Issue #53 の「着手します」のコメントと `in-progress`、ロックの Issue #50・#51）を正式な規則にした。
 - 同時にロックを立てたときの決め方（番号の小さい Issue が持つ）を足した。
 - `node scripts/live-state.mjs` に「共有資源のロック」を足した。開いている Issue・PR の `lock:supabase`・`lock:figma-master` から持ち主を出し、重なっていれば注意を出す。一覧は最後のページまで読む（100 件で止めると古いロックを見落とす。Copilot の指摘）。
-- 進め方（着手コメント・ラベル・作業者の手順）の正は #73 で入った `docs/OPERATIONS.md`。AGENTS.md の節は資源と決まり（ロックの対象と期間、migration の順番、完了の記録の置き場所）を持ち、OPERATIONS.md を参照する。ロックの期限・延長・引き継ぎは #133（PR #134）で OPERATIONS.md に入る。
+- 進め方（着手コメント・ラベル・作業者の手順）の正は #73 で入った `docs/OPERATIONS.md`。AGENTS.md の節は資源と決まり（ロックの対象と期間、migration の順番、完了の記録の置き場所）を持ち、OPERATIONS.md を参照する。ロックの期限・延長・引き継ぎは #134（#133）で OPERATIONS.md に入った。AGENTS.md の節は数字を持たず OPERATIONS.md を参照する。
 - migration の検査を CI に足した（`scripts/shared-resources.test.mjs`）。
   - ファイル名の形と version の重複を見る。
   - main にある migration の書き換え・削除・改名を止める。
