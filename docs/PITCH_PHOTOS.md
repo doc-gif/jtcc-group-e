@@ -23,7 +23,7 @@
 
 ## 1. 写真を用意する（Figma から書き出す）
 
-素材ライブラリ（内部検討用）[限定グッズ棚 `5:2`](https://www.figma.com/design/MYYMoB2wL7LvA2oXZ2gxpT?node-id=5-2) の原画像を使います。賞品とライブラリの対応は `src/app/pitchPhotos.ts` の `PITCH_PHOTOS` と同じです。
+素材ライブラリ（内部検討用）[限定グッズ棚 `5:2`](https://www.figma.com/design/MYYMoB2wL7LvA2oXZ2gxpT?node-id=5-2) の原画像を使います。賞品とライブラリの対応は `src/app/pitchPhotos.ts` の `PITCH_PHOTOS` のコメントと同じです（素材の ID はビルドに入れないため、コードの値には持たせていない）。
 
 | アプリの賞品（光り方） | 素材 | 原画像の node | アップロードする名前 | 画面に出る権利表記 |
 | --- | --- | --- | --- | --- |

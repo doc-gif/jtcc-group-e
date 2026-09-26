@@ -4,15 +4,14 @@ import type { SharedPrize } from '../realtime/protocol'
 
 /**
  * ルームの賞品と、ピッチ用の実物グッズ写真（F15）の対応。写真そのものはリポジトリに置かない。
- * 担当者が非公開バケット `pitch-goods` の `path` に、素材ライブラリ（Figma `MYYMoB2wL7LvA2oXZ2gxpT`）の
- * `libraryId` の原画像をアップロードする（手順は docs/PITCH_PHOTOS.md）。`credit` はライブラリのカードに記録された権利表記。
+ * 担当者が非公開バケット `pitch-goods` の `path` に、素材ライブラリの原画像をアップロードする（手順と素材の対応は
+ * docs/PITCH_PHOTOS.md。plush は L001、pouch は L015、badge は L011）。`credit` はライブラリのカードに記録された権利表記。
+ * 素材の ID はビルドに入れない（確認用プレビューの成果物に内部素材 ID を残さない、docs/PREVIEW.md）。
  * 担当者の許可（2026-09-26）はピッチと関係者だけが対象。ルームの中だけで、Supabase の本物の通信経路のときだけ読む。
  */
 export interface PitchPhoto {
   /** バケットの中のオブジェクト名。 */
   path: string
-  /** 素材ライブラリの ID（L001–L020・P001–P020）。 */
-  libraryId: string
   /** ライブラリのカードの権利表記。 */
   credit: string
 }
@@ -21,9 +20,9 @@ const SANRIO_2024 = '© 2024 SANRIO CO., LTD. TOKYO, JAPAN 著作 株式会社�
 const SANRIO_2025 = '© 2025 SANRIO CO., LTD. TOKYO, JAPAN 著作 株式会社サンリオ'
 
 export const PITCH_PHOTOS: Readonly<Record<SharedPrize, PitchPhoto>> = {
-  plush: { path: 'goods/plush.jpg', libraryId: 'L001', credit: SANRIO_2024 },
-  pouch: { path: 'goods/pouch.jpg', libraryId: 'L015', credit: SANRIO_2025 },
-  badge: { path: 'goods/badge.jpg', libraryId: 'L011', credit: SANRIO_2024 },
+  plush: { path: 'goods/plush.jpg', credit: SANRIO_2024 },
+  pouch: { path: 'goods/pouch.jpg', credit: SANRIO_2025 },
+  badge: { path: 'goods/badge.jpg', credit: SANRIO_2024 },
 }
 
 /** 写真の近くに出す権利表記の1行。 */
