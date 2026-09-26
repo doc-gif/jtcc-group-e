@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { AnalyticsWindow, TrackEnv } from './analytics'
-import { analyticsHash, INTERNAL_KEY, MEASUREMENT_ID, pageFields, shouldTrack } from './analytics'
+import { analyticsHash, CLARITY_PROJECT_ID, clarityBlocked, INTERNAL_KEY, MEASUREMENT_ID, pageFields, shouldTrack } from './analytics'
 import { paths } from './router'
 
 const PRODUCTION = 'https://doc-gif.github.io/jtcc-group-e/'
@@ -104,7 +104,7 @@ type Loaded = typeof import('./analytics')
 
 function fakeWindow(url: string, overrides: { webdriver?: boolean; sessionStorage?: () => Storage } = {}) {
   const location = new URL(url)
-  const listeners: Record<string, (() => void)[]> = {}
+  const listeners: Record<string, ((event?: unknown) => void)[]> = {}
   const local = memoryStorage()
   const session = memoryStorage()
   const win = {
@@ -113,14 +113,16 @@ function fakeWindow(url: string, overrides: { webdriver?: boolean; sessionStorag
     document,
     get localStorage() { return local as unknown as Storage },
     get sessionStorage() { return overrides.sessionStorage ? overrides.sessionStorage() : session as unknown as Storage },
-    addEventListener: (type: string, listener: () => void) => { (listeners[type] ??= []).push(listener) },
+    addEventListener: (type: string, listener: (event?: unknown) => void) => { (listeners[type] ??= []).push(listener) },
   }
   const goTo = (hash: string) => { location.hash = hash; for (const listener of listeners.hashchange ?? []) listener() }
-  return { win: win as unknown as AnalyticsWindow & { dataLayer?: IArguments[] }, goTo, session }
+  const click = (target: Element) => { for (const listener of listeners.click ?? []) listener({ target }) }
+  return { win: win as unknown as AnalyticsWindow & { dataLayer?: IArguments[] }, goTo, click, session }
 }
 
 const calls = (win: { dataLayer?: IArguments[] }) => (win.dataLayer ?? []).map((args) => [...args])
 const gtagScripts = () => document.head.querySelectorAll('script[src^="https://www.googletagmanager.com/gtag/js"]')
+const clarityScripts = () => document.head.querySelectorAll('script[src^="https://www.clarity.ms/tag/"]')
 
 describe('initAnalytics・track・trackOnce', () => {
   let analytics: Loaded
@@ -128,7 +130,7 @@ describe('initAnalytics・track・trackOnce', () => {
     vi.resetModules()
     analytics = await import('./analytics')
   })
-  afterEach(() => { for (const script of gtagScripts()) script.remove() })
+  afterEach(() => { for (const script of [...gtagScripts(), ...clarityScripts()]) script.remove() })
 
   test('未初期化・送らない環境では例外を投げず、何も読み込まない', () => {
     expect(() => analytics.track('demo_start', { source: 'test' })).not.toThrow()
@@ -144,6 +146,9 @@ describe('initAnalytics・track・trackOnce', () => {
     expect(win.dataLayer).toBeUndefined()
     expect(automated.win.dataLayer).toBeUndefined()
     expect('gtag' in window).toBe(false)
+    expect(clarityScripts()).toHaveLength(0)
+    expect(win.clarity).toBeUndefined()
+    expect(automated.win.clarity).toBeUndefined()
   })
 
   test('本番では gtag.js を 1 回だけ挿入し、キーを伏せた場所で config と page_view を送る', () => {
@@ -198,5 +203,137 @@ describe('initAnalytics・track・trackOnce', () => {
     const broken = { ...fakeWindow(PRODUCTION).win, document: undefined } as unknown as AnalyticsWindow
     vi.resetModules()
     return import('./analytics').then((fresh) => expect(() => fresh.initAnalytics(broken)).not.toThrow())
+  })
+})
+
+describe('Clarity', () => {
+  let analytics: Loaded
+  const config = { projectId: CLARITY_PROJECT_ID, upload: 'https://g.clarity.ms/collect' }
+  beforeEach(async () => {
+    vi.resetModules()
+    analytics = await import('./analytics')
+  })
+  afterEach(() => { for (const script of [...gtagScripts(), ...clarityScripts()]) script.remove(); document.body.replaceChildren() })
+
+  /** clarity.ms/tag/<id> の読み込み用タグと同じ呼び方（start を待ち行列の先頭へ移す）。 */
+  function runLoaderTag(win: AnalyticsWindow) {
+    const clarity = win.clarity!
+    clarity('metadata', () => {}, false, true)
+    clarity('start', config)
+    clarity.q!.unshift(clarity.q!.pop()!)
+    clarity('set', 'C_IS', '0')
+  }
+  const startsIn = (win: AnalyticsWindow) => (win.clarity!.q ?? []).filter((args) => args[0] === 'start')
+
+  test('招待・ホスト・解釈できないハッシュでは記録しない', () => {
+    expect(clarityBlocked(paths.room('0f8e-a1b2'))).toBe(true)
+    expect(clarityBlocked(paths.host('Secret_Key-1'))).toBe(true)
+    expect(clarityBlocked(paths.host())).toBe(true)
+    expect(clarityBlocked('#/room/Secret/extra')).toBe(true)
+    for (const hash of ['', paths.town, paths.gachaList, paths.createRoom, paths.me, paths.welcome, paths.soloSpin('a-1'), paths.collection]) expect(clarityBlocked(hash)).toBe(false)
+  })
+
+  test('本番では LP と同じプロジェクトのタグを 1 回だけ読み込み、記録してよい画面ならそのまま開始する', () => {
+    const { win } = fakeWindow(`${PRODUCTION}#/gacha`)
+    analytics.initAnalytics(win)
+    analytics.initAnalytics(win)
+    expect(clarityScripts()).toHaveLength(1)
+    expect(clarityScripts()[0].getAttribute('src')).toBe('https://www.clarity.ms/tag/yo6yjo7ath')
+    runLoaderTag(win)
+    expect(win.clarity!.q![0]).toEqual(['start', config])
+  })
+
+  test('招待・ホスト用リンクで開いたら、本体に start を渡さず、このページでは記録しない', () => {
+    const { win, goTo } = fakeWindow(`${PRODUCTION}#/host/Secret_Key-1`)
+    analytics.initAnalytics(win)
+    runLoaderTag(win)
+    expect(startsIn(win)).toEqual([])
+    goTo(paths.town)
+    goTo(paths.gachaList)
+    expect(startsIn(win)).toEqual([])
+  })
+
+  test('本体の読み込み前に招待の画面へ移るときは、積んである start を取り除く（stop は積まない）', async () => {
+    const router = await import('./router')
+    const { win } = fakeWindow(`${PRODUCTION}#/room/new`)
+    analytics.initAnalytics(win)
+    runLoaderTag(win)
+    expect(startsIn(win)).toHaveLength(1)
+    router.navigate(paths.room('0f8e-a1b2'))
+    expect(startsIn(win)).toEqual([])
+    expect((win.clarity!.q ?? []).some((args) => args[0] === 'stop')).toBe(false)
+  })
+
+  test('本体の読み込み後は、URL が変わる前（アプリの navigate）に stop し、戻っても再開しない', async () => {
+    const router = await import('./router')
+    const { win, goTo } = fakeWindow(`${PRODUCTION}#/room/new`)
+    analytics.initAnalytics(win)
+    runLoaderTag(win)
+    const real = vi.fn()
+    win.clarity = real
+    goTo(paths.gachaList)
+    router.navigate(paths.createRoom)
+    expect(real).not.toHaveBeenCalled()
+    router.navigate(paths.room('0f8e-a1b2'))
+    expect(real.mock.calls).toEqual([['stop']])
+    // 止めた時点で URL はまだ招待の画面になっていない（止めたときの送信に招待コードが入らない）
+    expect(win.location.hash).toBe('#/gacha')
+    goTo(paths.room('0f8e-a1b2'))
+    goTo(paths.town)
+    router.navigate(paths.host('Secret_Key-1'))
+    expect(real.mock.calls).toEqual([['stop']])
+  })
+
+  test('招待・ホストの画面へのリンクを押したら、Clarity がリンク先を記録する前に止める', () => {
+    const { win, click } = fakeWindow(`${PRODUCTION}#/room/new`)
+    analytics.initAnalytics(win)
+    runLoaderTag(win)
+    const real = vi.fn()
+    win.clarity = real
+    document.body.innerHTML = '<a id="safe" href="#/gacha"><span>ガチャ</span></a><a id="room" href="#/room/0f8e-a1b2"><b>いまのルームに戻る</b></a><a id="out" href="https://github.com/doc-gif">外部</a>'
+    click(document.querySelector('#safe span')!)
+    click(document.querySelector('#out')!)
+    click(document.body)
+    expect(real).not.toHaveBeenCalled()
+    click(document.querySelector('#room b')!)
+    expect(real.mock.calls).toEqual([['stop']])
+  })
+
+  test('Navigation API があれば、戻る・進む・アドレス欄でも URL が変わる前に止める', () => {
+    const { win } = fakeWindow(`${PRODUCTION}#/gacha`)
+    const navigation = new EventTarget()
+    Object.assign(win, { navigation })
+    analytics.initAnalytics(win)
+    runLoaderTag(win)
+    const real = vi.fn()
+    win.clarity = real
+    const go = (url: string) => navigation.dispatchEvent(Object.assign(new Event('navigate'), { destination: { url } }))
+    go(`${PRODUCTION}#/me`)
+    go(`${PRODUCTION}`)
+    expect(real).not.toHaveBeenCalled()
+    go(`${PRODUCTION}#/room/0f8e-a1b2`)
+    expect(real.mock.calls).toEqual([['stop']])
+  })
+
+  test('onBeforeNavigate は URL が変わる前に呼ばれ、解除できる', async () => {
+    const router = await import('./router')
+    const before = window.location.hash
+    const seen: string[] = []
+    const off = router.onBeforeNavigate((to) => seen.push(`${to} from ${window.location.hash}`))
+    router.navigate(paths.me)
+    off()
+    router.navigate(paths.town)
+    expect(seen).toEqual([`#/me from ${before}`])
+    expect(window.location.hash).toBe('#/')
+  })
+
+  test('ほかの方法をすり抜けて招待の画面になったら、ハッシュの変化で止める', () => {
+    const { win, goTo } = fakeWindow(`${PRODUCTION}#/`)
+    analytics.initAnalytics(win)
+    runLoaderTag(win)
+    const real = vi.fn()
+    win.clarity = real
+    goTo(paths.room('0f8e-a1b2'))
+    expect(real.mock.calls).toEqual([['stop']])
   })
 })

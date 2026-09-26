@@ -66,7 +66,7 @@ export function RoomStage({ caption, variant = 'gift', faces = [], countdown, pr
           </div>
         )}
         {faces.length > 0 && (
-          <ul className="room-faces" aria-hidden="true">
+          <ul className="room-faces" aria-hidden="true" data-clarity-mask="true">
             {faces.slice(0, 4).map((face, index) => <li key={index} className={`face f${index + 1}`}>{face}</li>)}
           </ul>
         )}
@@ -162,10 +162,10 @@ export function RoomNameForm({ id, value, onChange, busy, error, onSubmit }: {
   return (
     <form id={id} className="name-form room-name-form" onSubmit={submit} noValidate>
       <label htmlFor={`${id}-input`}>表示する名前</label>
-      <input id={`${id}-input`} value={value} onChange={(event) => onChange(event.target.value)} autoComplete="nickname" placeholder="例：もも"
+      <input id={`${id}-input`} data-clarity-mask="true" value={value} onChange={(event) => onChange(event.target.value)} autoComplete="nickname" placeholder="例：もも"
         aria-invalid={error ? true : undefined} aria-describedby={`${id}-hint${error ? ` ${id}-error` : ''}`} disabled={busy} />
       <p id={`${id}-hint`} className="room-hint">{NICKNAME_MAX}文字まで。ほかの人と同じ名前は使えません。</p>
-      {error && <p id={`${id}-error`} className="field-error" role="alert">{error}</p>}
+      {error && <p id={`${id}-error`} className="field-error" role="alert" data-clarity-mask="true">{error}</p>}
     </form>
   )
 }
@@ -232,7 +232,7 @@ export function ResultRow({ nickname, prize, self }: { nickname: string; prize: 
   return (
     <li className={`room-result${self ? ' is-self' : ''}`}>
       <span className={`room-result-mark mark-${prize}`} aria-hidden="true">{self ? '♥' : PRIZE_ART[prize].mark}</span>
-      <span>{self ? 'あなた' : nickname}<span aria-hidden="true">  ·  </span><span className="visually-hidden">：</span>{prizeName(prize)}</span>
+      <span data-clarity-mask="true">{self ? 'あなた' : nickname}<span aria-hidden="true">  ·  </span><span className="visually-hidden">：</span>{prizeName(prize)}</span>
     </li>
   )
 }

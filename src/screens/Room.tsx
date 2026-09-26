@@ -282,7 +282,7 @@ export function Room({ invite }: { invite: string }) {
   const errorLine = state.error ? <p className="field-error room-error" role="alert">{state.error.message}</p> : null
   const renameLine = self && (
     <p className="room-me">
-      <span>あなたの名前：<b>{self.nickname}</b></span>
+      <span>あなたの名前：<b data-clarity-mask="true">{self.nickname}</b></span>
       <button type="button" className="room-rename" onClick={startRename}>名前を変える</button>
     </p>
   )
@@ -338,7 +338,7 @@ export function Room({ invite }: { invite: string }) {
             note={isTaken ? undefined : renaming ? 'ロビーからいつでも変えられます' : '名前を決めなくても入れます。あとから変えられます'}>
             <RoomNameForm id="room-name" value={name} onChange={(value) => { setName(value); if (isTaken) { setTaken(null); setNameStep('choose') } }}
               busy={busy} error={nameError} onSubmit={() => void joinWith(name)} />
-            {isTaken && <p className="room-body" role="status">このルームにはすでに「{isTaken.name}」さんがいます。「{isTaken.suggestion}」ならすぐ入れます。</p>}
+            {isTaken && <p className="room-body" role="status" data-clarity-mask="true">このルームにはすでに「{isTaken.name}」さんがいます。「{isTaken.suggestion}」ならすぐ入れます。</p>}
           </RoomCard>
         ),
         primary: isTaken
@@ -817,7 +817,7 @@ export function RoomCreate({ hostKey = null }: { hostKey?: string | null }) {
             </p>
           </RoomCard>
         )}
-        {current && <a className="btn btn-outline btn-block" href={paths.room(current.invite)}>いまのルームに戻る</a>}
+        {current && <a className="btn btn-outline btn-block" href={paths.room(current.invite)} data-clarity-mask="true">いまのルームに戻る</a>}
         <MockNotice />
       </main>
       <div className="sticky-actions room-dock">

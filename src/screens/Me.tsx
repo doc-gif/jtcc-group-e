@@ -25,7 +25,7 @@ export function Me() {
       <TopBar title="マイページ" sub="MY PAGE" />
       <main className="content">
         <p className="lead mypage-lead">コインの残高と、名前・きまり・デモ操作をまとめています。</p>
-        {notice && <p className="toast" role="status">{notice}</p>}
+        {notice && <p className="toast" role="status" data-clarity-mask="true">{notice}</p>}
         <section className="panel coin-panel" aria-labelledby="coin-title">
           <h2 id="coin-title"><img src={asset('assets/icons/coin.png')} alt="" width="28" height="28" />コイン残高</h2>
           <p className="coin-big">{coinText(state.coins)}<small>コイン</small></p>
@@ -43,10 +43,10 @@ export function Me() {
           <form className="name-form" onSubmit={saveName} noValidate>
             <label htmlFor="nickname">ルームで友達に見える名前（{NICKNAME_MAX}文字まで）</label>
             <div className="name-row">
-              <input id="nickname" value={name} onChange={(event) => setName(event.target.value)} aria-invalid={nameError ? true : undefined} aria-describedby={nameError ? 'nickname-error' : undefined} autoComplete="nickname" />
+              <input id="nickname" data-clarity-mask="true" value={name} onChange={(event) => setName(event.target.value)} aria-invalid={nameError ? true : undefined} aria-describedby={nameError ? 'nickname-error' : undefined} autoComplete="nickname" />
               <button type="submit" className="btn btn-main">保存</button>
             </div>
-            {nameError && <p id="nickname-error" className="field-error">{nameError}</p>}
+            {nameError && <p id="nickname-error" data-clarity-mask="true" className="field-error">{nameError}</p>}
           </form>
         </section>
         <section className="panel" aria-labelledby="sound-title">
