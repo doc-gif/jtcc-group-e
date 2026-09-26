@@ -1,5 +1,6 @@
+import { HOST_KEY_PATTERN } from './hostKey'
 import {
-  RoomContractError, SHARED_CAPACITY, SHARED_INITIAL_STOCK, SHARED_ONLINE_WINDOW_MS, SHARED_PRICE,
+  cleanName, nameKey, RoomContractError, SHARED_CAPACITY, SHARED_NAME_MAX, SHARED_INITIAL_STOCK, SHARED_ONLINE_WINDOW_MS, SHARED_PRICE,
   SHARED_ROUND_LOCK_MS, SHARED_SCHEDULE_EXPIRY_MARGIN_MS, SHARED_SCHEDULE_MINUTES, SHARED_START_DELAY_MS, SHARED_TOP_PRIZE,
   type RoomErrorCode, type RoomTransport, type ScheduleOutcome, type SharedPrize, type Snapshot,
 } from './protocol'
@@ -8,15 +9,23 @@ type MockMember = { id: string; nickname: string; balance: number; ready: boolea
 type MockResult = { userId: string; nickname: string; prize: SharedPrize }
 type MockRound = { number: number; request: string; startsAt: number; nextReadyAt: number; results: MockResult[]; guaranteed: boolean }
 type MockRoom = {
-  id: string; invite: string; host: string; expiresAt: number; roundNo: number
+  id: string; invite: string; host: string; hostKey: string; expiresAt: number; roundNo: number
   members: Map<string, MockMember>; stock: Record<SharedPrize, number>; round: MockRound | null; rounds: MockRound[]
   scheduledAt: number | null; pitchMode: boolean; lastSchedule: ScheduleOutcome | null
 }
+
+/** Same friendly names as lp_auto_name: "ゲスト さくら12". */
+export const AUTO_NAME_WORDS = ['さくら', 'もも', 'いちご', 'りんご', 'みかん', 'ぶどう', 'ゆず', 'くるみ', 'あんず', 'すもも', 'れもん', 'めろん'] as const
+/** Failed host-key checks allowed per user per minute (lp_host_key_check). */
+export const HOST_KEY_ATTEMPTS_PER_MINUTE = 5
 
 /** One-device simulation only. Each asUser() adapter obeys the same RoomTransport contract as Supabase. */
 export class MockRoomServer {
   private rooms = new Map<string, MockRoom>()
   private listeners = new Map<string, Set<() => void>>()
+  /** In-memory simulation only. The real database stores a salted hash, never the key. */
+  private hostKeys = new Set<string>()
+  private attempts = new Map<string, number[]>()
   private readonly now: () => number
   private readonly id: () => string
   private readonly random: () => number
@@ -27,6 +36,63 @@ export class MockRoomServer {
   ) { this.now = now; this.id = id; this.random = random }
 
   private wake(roomId: string) { this.listeners.get(roomId)?.forEach(listener => listener()) }
+
+  /** Registers a host key (tests and local demos). */
+  addHostKey(key: string) {
+    if (!HOST_KEY_PATTERN.test(key)) throw new Error('Invalid host key')
+    this.hostKeys.add(key)
+  }
+
+  revokeHostKey(key: string) { this.hostKeys.delete(key) }
+
+  /** Like lp_host_key_check: at most 5 failures per user per minute, then even the right key waits. */
+  private checkHostKey(userId: string, key: string) {
+    const now = this.now()
+    const recent = (this.attempts.get(userId) ?? []).filter(at => at > now - 60_000)
+    this.attempts.set(userId, recent)
+    if (recent.length >= HOST_KEY_ATTEMPTS_PER_MINUTE) throw new RoomContractError('too-many-attempts')
+    if (typeof key === 'string' && HOST_KEY_PATTERN.test(key) && this.hostKeys.has(key)) return key
+    recent.push(now)
+    throw new RoomContractError('host-key-invalid')
+  }
+
+  private nameTaken(room: MockRoom, name: string, self: string) {
+    const key = nameKey(name)
+    return [...room.members.values()].some(member => member.active && member.id !== self && nameKey(member.nickname) === key)
+  }
+
+  /** Like lp_auto_name. */
+  private autoName(room: MockRoom, self: string) {
+    for (let i = 0; i < 40; i++) {
+      const name = `ゲスト ${AUTO_NAME_WORDS[Math.floor(this.random() * AUTO_NAME_WORDS.length)]}${1 + Math.floor(this.random() * 99)}`
+      if (!this.nameTaken(room, name, self)) return name
+    }
+    for (let i = 100; i < 10_000; i++) {
+      const name = `ゲスト ${AUTO_NAME_WORDS[i % AUTO_NAME_WORDS.length]}${i}`
+      if (!this.nameTaken(room, name, self)) return name
+    }
+    throw new RoomContractError('room-full')
+  }
+
+  /** Like lp_name_suggestion: "もも" -> "もも2", "もも2" -> "もも3", shortened to fit 12 characters. */
+  private suggestName(room: MockRoom, name: string, self: string) {
+    const base = name.replace(/[0-9０-９]+$/, '').trim() || name
+    for (let n = 2; n < 1000; n++) {
+      const candidate = [...base].slice(0, SHARED_NAME_MAX - String(n).length).join('').trim() + n
+      if (!this.nameTaken(room, candidate, self)) return candidate
+    }
+    return this.autoName(room, self)
+  }
+
+  /** A chosen name must be free; null keeps the user's earlier name while free, else a friendly one. */
+  private pickName(room: MockRoom, chosen: string | null, self: string) {
+    if (chosen !== null) {
+      if (this.nameTaken(room, chosen, self)) throw new RoomContractError('name-taken', this.suggestName(room, chosen, self))
+      return chosen
+    }
+    const previous = room.members.get(self)?.nickname
+    return previous !== undefined && !this.nameTaken(room, previous, self) ? previous : this.autoName(room, self)
+  }
 
   /** All-or-nothing draw, like lp_draw: nothing changes unless every entrant gets a prize. */
   private draw(room: MockRoom, request: string) {
@@ -132,38 +198,75 @@ export class MockRoomServer {
       }
     }
     const wake = (roomId: string) => this.wake(roomId)
-    const validName = (name: string) => {
-      const clean = name?.trim()
-      if (!clean || [...clean].length > 12) throw new RoomContractError('invalid-name')
+    const validName = (name: string | null) => {
+      if (name === null) return null
+      const clean = cleanName(name)
+      if (clean === null) throw new RoomContractError('invalid-name')
       return clean
     }
+    const seatFree = (room: MockRoom) => [...room.members.values()].filter(member => member.active).length < SHARED_CAPACITY
     const assertIdle = (room: MockRoom) => {
       if (room.round && room.round.nextReadyAt > this.now()) throw new RoomContractError('round-active')
     }
     return {
-      create: async (request, name) => {
+      create: async (request, hostKey, name) => {
         if (!request) throw new RoomContractError('invalid-request')
-        const nickname = validName(name)
+        const chosen = validName(name)
+        const key = this.checkHostKey(userId, hostKey)
         const existing = this.rooms.get(request)
         if (existing) {
-          if (existing.host !== userId) throw new RoomContractError('room-unavailable')
+          if (existing.host !== userId || existing.expiresAt <= this.now()) throw new RoomContractError('room-unavailable')
           return snapshot(request)
         }
         const room: MockRoom = {
-          id: request, invite: this.id(), host: userId, expiresAt: this.now() + 2 * 60 * 60_000,
-          roundNo: 0, members: new Map([[userId, { id: userId, nickname, balance: 3000, ready: false, active: true, seenAt: this.now() }]]),
+          id: request, invite: this.id(), host: userId, hostKey: key, expiresAt: this.now() + 2 * 60 * 60_000,
+          roundNo: 0, members: new Map(),
           stock: { ...SHARED_INITIAL_STOCK }, round: null, rounds: [], scheduledAt: null, pitchMode: false, lastSchedule: null,
         }
+        room.members.set(userId, { id: userId, nickname: chosen ?? this.autoName(room, userId), balance: 3000, ready: false, active: true, seenAt: this.now() })
         this.rooms.set(request, room)
         return snapshot(request)
       },
+      resumeHost: async (hostKey, roomId) => {
+        const key = this.checkHostKey(userId, hostKey)
+        const now = this.now()
+        const room = [...this.rooms.values()]
+          .filter(candidate => candidate.hostKey === key && candidate.expiresAt > now && (roomId === null || candidate.id === roomId))
+          .sort((a, b) => b.expiresAt - a.expiresAt)[0]
+        if (!room) throw new RoomContractError('no-room')
+        this.fireSchedule(room)
+        const old = room.host
+        if (old !== userId) {
+          const previous = room.members.get(old)
+          if (room.members.has(userId)) {
+            // This device already has its own seat here: keep it and release the old host seat.
+            if (previous) { previous.active = false; previous.ready = false }
+          } else if (previous) {
+            // Move the host's seat (name, coins, ready) and saved results to this device, keeping the order.
+            room.members = new Map([...room.members].map(([id, member]) => id === old ? [userId, { ...member, id: userId }] : [id, member]))
+            for (const round of room.rounds) for (const result of round.results) if (result.userId === old) result.userId = userId
+          }
+          room.host = userId
+        }
+        const mine = room.members.get(userId)
+        if (!mine?.active) {
+          if (!seatFree(room)) throw new RoomContractError('room-full')
+          const nickname = mine && !this.nameTaken(room, mine.nickname, userId) ? mine.nickname : this.autoName(room, userId)
+          if (mine) { mine.nickname = nickname; mine.active = true }
+          else room.members.set(userId, { id: userId, nickname, balance: 3000, ready: false, active: true, seenAt: now })
+        }
+        room.members.get(userId)!.seenAt = now
+        wake(room.id)
+        return snapshot(room.id)
+      },
       join: async (invite, name) => {
-        const nickname = validName(name)
+        const chosen = validName(name)
         const room = [...this.rooms.values()].find(candidate => candidate.invite === invite && candidate.expiresAt > this.now())
         if (!room) throw new RoomContractError('room-unavailable')
         this.fireSchedule(room)
         const previous = room.members.get(userId)
-        if (!previous?.active && [...room.members.values()].filter(member => member.active).length >= SHARED_CAPACITY) throw new RoomContractError('room-full')
+        if (!previous?.active && !seatFree(room)) throw new RoomContractError('room-full')
+        const nickname = this.pickName(room, chosen, userId)
         if (previous) { previous.nickname = nickname; previous.active = true; previous.seenAt = this.now() }
         else room.members.set(userId, { id: userId, nickname, balance: 3000, ready: false, active: true, seenAt: this.now() })
         wake(room.id)
@@ -218,12 +321,11 @@ export class MockRoomServer {
         if (room.pitchMode !== on) { room.pitchMode = on; wake(roomId) }
         return snapshot(roomId)
       },
-      claim: async roomId => {
+      rename: async (roomId, name) => {
         const room = locked(roomId)
-        const host = room.members.get(room.host)
-        if (host?.active && host.seenAt > this.now() - SHARED_ONLINE_WINDOW_MS) throw new RoomContractError('host-online')
-        room.host = userId
-        wake(roomId)
+        const nickname = validName(typeof name === 'string' ? name : '')!
+        const member = room.members.get(userId)!
+        if (this.pickName(room, nickname, userId) !== member.nickname) { member.nickname = nickname; wake(roomId) }
         return snapshot(roomId)
       },
       leave: async roomId => {

@@ -2,11 +2,14 @@ import { readFile } from 'node:fs/promises'
 import { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import { randomUUID } from 'node:crypto'
+import { createHostKey, hostKeyRecord, hostKeySql } from './host-key.mjs'
 let db
+// A throwaway key for this in-memory database only. Real keys are never committed.
+const KEY=createHostKey()
 const users=Array.from({length:102},()=>randomUUID())
 const room=randomUUID()
 let invite
-const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql']
+const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql']
 const call=async(user,sql,args=[])=>{
  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user])
  return (await db.query(sql,args)).rows[0]?.result
@@ -19,15 +22,16 @@ beforeAll(async()=>{
  create function realtime.topic() returns text language sql as $$select current_setting('realtime.topic',true)$$;
  create function realtime.send(payload jsonb,event text,topic text,private boolean) returns void language sql as $$insert into realtime.messages values('broadcast',topic,payload)$$;`)
  for(const file of migrations) await db.exec(await readFile(file,'utf8'))
+ await db.exec(hostKeySql('test',hostKeyRecord(KEY)))
 },30000)
 afterAll(async()=>{await db?.close()})
-test('100 seats, idempotent joins, atomic shared results, reconnect, host failover and private authorization',async()=>{
- const first=await call(users[0],'select public.lp_create($1,$2) result',[room,'ホスト'])
+test('100 seats, idempotent joins, atomic shared results, reconnect and private authorization',async()=>{
+ const first=await call(users[0],'select public.lp_create($1,$3,$2) result',[room,'ホスト',KEY])
  invite=first.invite
  expect(first).toMatchObject({scheduledAt:null,pitchMode:false,lastSchedule:null})
- await expect(call(users[0],'select public.lp_create($1,$2) result',[null,'再作成'])).rejects.toThrow('invalid-request')
+ await expect(call(users[0],'select public.lp_create($1,$3,$2) result',[null,'再作成',KEY])).rejects.toThrow('invalid-request')
  await expect(call(users[0],'select public.lp_join($1,$2) result',[null,'参加'])).rejects.toThrow('room-unavailable')
- const duplicate=await call(users[0],'select public.lp_create($1,$2) result',[room,'ホスト'])
+ const duplicate=await call(users[0],'select public.lp_create($1,$3,$2) result',[room,'ホスト',KEY])
  expect(duplicate.id).toBe(first.id)
  for(let i=1;i<100;i++) await call(users[i],'select public.lp_join($1,$2) result',[invite,`ゲスト${i}`])
  await expect(call(users[100],'select public.lp_join($1,$2) result',[invite,'満員'])).rejects.toThrow('room-full')
@@ -59,9 +63,6 @@ test('100 seats, idempotent joins, atomic shared results, reconnect, host failov
  await call(users[100],'select public.lp_leave($1) result',[room])
  const back=await call(users[99],'select public.lp_join($1,$2) result',[invite,'復帰'])
  expect(back.balance).toBe(2500)
- await expect(call(users[1],'select public.lp_claim_host($1) result',[room])).rejects.toThrow('host-online')
- await db.query("update public.lp_members set seen_at=now()-interval '60 seconds' where user_id=$1",[users[0]])
- const claimed=await call(users[1],'select public.lp_claim_host($1) result',[room]);expect(claimed.host).toBe(users[1])
  expect(await call(users[1],'select public.lp_can_receive($1) result',[`lp:${room}`])).toBe(true)
  expect(await call(users[101],'select public.lp_can_receive($1) result',[`lp:${room}`])).toBe(false)
  await expect(call(users[101],'select public.lp_snapshot($1) result',[room])).rejects.toThrow('room-unavailable')
@@ -73,7 +74,7 @@ test('100 seats, idempotent joins, atomic shared results, reconnect, host failov
 test('transaction rolls back every coin and stock mutation when stock is insufficient',async()=>{
  for(let i=1;i<100;i++) await call(users[i],'select public.lp_ready($1,true) result',[room])
  await db.exec('update public.lp_stock set remaining=0')
- await expect(call(users[1],'select public.lp_start($1,$2,1) result',[room,randomUUID()])).rejects.toThrow('sold-out')
+ await expect(call(users[0],'select public.lp_start($1,$2,1) result',[room,randomUUID()])).rejects.toThrow('sold-out')
  const state=await call(users[1],'select public.lp_snapshot($1) result',[room]);expect(state.balance).toBe(2500);expect(state.roundNo).toBe(1)
  await db.exec("update public.lp_rooms set expires_at=now()-interval '1 second'")
  await expect(call(users[1],'select public.lp_snapshot($1) result',[room])).rejects.toThrow('room-unavailable')
@@ -81,7 +82,7 @@ test('transaction rolls back every coin and stock mutation when stock is insuffi
 
 test('optional notification failure does not roll back an authoritative round', async()=>{
  const freshRoom=randomUUID()
- await call(users[0],'select public.lp_create($1,$2) result',[freshRoom,'ホスト'])
+ await call(users[0],'select public.lp_create($1,$3,$2) result',[freshRoom,'ホスト',KEY])
  await call(users[0],'select public.lp_ready($1,true) result',[freshRoom])
  await db.exec("create or replace function realtime.send(payload jsonb,event text,topic text,private boolean) returns void language plpgsql as $$begin raise exception 'simulated-notification-failure'; end$$")
  const started=await call(users[0],'select public.lp_start($1,$2,0) result',[freshRoom,randomUUID()])
@@ -104,10 +105,11 @@ test('core room ledger works before Realtime initializes and blocks a departed m
  try {
   await isolated.exec("create role anon; create role authenticated; create schema auth; create function auth.uid() returns uuid language sql as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$")
   for(const file of migrations) await isolated.exec(await readFile(file,'utf8'))
+  await isolated.exec(hostKeySql('test',hostKeyRecord(KEY)))
   const owner=randomUUID()
   const id=randomUUID()
   await isolated.query("select set_config('request.jwt.claim.sub',$1,false)",[owner])
-  const created=(await isolated.query('select public.lp_create($1,$2) result',[id,'ホスト'])).rows[0].result
+  const created=(await isolated.query('select public.lp_create($1,$3,$2) result',[id,'ホスト',KEY])).rows[0].result
   expect(created.id).toBe(id)
   await isolated.query('select public.lp_ready($1,true)',[id])
   const started=(await isolated.query('select public.lp_start($1,$2,0) result',[id,randomUUID()])).rows[0].result
@@ -129,7 +131,7 @@ describe('F07: scheduled start and pitch mode', () => {
  const snap=(user,id)=>call(user,'select public.lp_snapshot($1) result',[id])
  const openRoom=async()=>{
   const id=randomUUID()
-  const created=await call(host,'select public.lp_create($1,$2) result',[id,'ホスト'])
+  const created=await call(host,'select public.lp_create($1,$3,$2) result',[id,'ホスト',KEY])
   await call(friend,'select public.lp_join($1,$2) result',[created.invite,'友だち'])
   await call(watcher,'select public.lp_join($1,$2) result',[created.invite,'見守り'])
   return id
@@ -303,4 +305,181 @@ describe('F07: scheduled start and pitch mode', () => {
   }
   expect((await call(host,'select public.lp_set_pitch_mode($1,false) result',[id])).pitchMode).toBe(false)
  },30000)
+})
+
+describe('F10: owner-only host key and unique names', () => {
+ const create=(user,id,name,key=KEY)=>call(user,'select public.lp_create($1,$2,$3) result',[id,key,name])
+ const join=(user,invite,name)=>call(user,'select public.lp_join($1,$2) result',[invite,name])
+ const resume=(user,key,id=null)=>call(user,'select public.lp_resume_host($1,$2) result',[key,id])
+ const rename=(user,id,name)=>call(user,'select public.lp_rename($1,$2) result',[id,name])
+ const snap=(user,id)=>call(user,'select public.lp_snapshot($1) result',[id])
+ const failure=async pending=>{
+  try { await pending } catch(error) { return { message:error.message, hint:error.hint ?? null } }
+  throw new Error('expected a failure')
+ }
+ const rooms=async()=>(await db.query('select count(*)::int count from public.lp_rooms')).rows[0].count
+
+ test('only a salted hash is stored and neither participants nor anon can read keys or attempts', async()=>{
+  const rows=(await db.query("select encode(salt,'hex') salt,encode(hash,'hex') hash,row_to_json(k)::text raw from public.lp_host_keys k")).rows
+  expect(rows).toHaveLength(1)
+  expect(rows[0].raw).not.toContain(KEY)
+  expect(hostKeyRecord(KEY,Buffer.from(rows[0].salt,'hex')).hash).toBe(rows[0].hash)
+  for(const role of ['authenticated','anon']) {
+   await db.exec(`set role ${role}`)
+   for(const sql of ['select * from public.lp_host_keys','select * from public.lp_host_attempts','select public.lp_host_key_check($1)','select public.lp_auto_name($1::uuid)']) {
+    await expect(db.query(sql,sql.includes('$1')?[sql.includes('uuid')?room:KEY]:[])).rejects.toThrow('permission denied')
+   }
+   await db.exec('reset role')
+  }
+  await db.exec('set role anon')
+  await expect(db.query('select public.lp_create($1,$2,$3)',[randomUUID(),KEY,'ホスト'])).rejects.toThrow('permission denied')
+  await expect(db.query('select public.lp_resume_host($1,null)',[KEY])).rejects.toThrow('permission denied')
+  await expect(db.query('select public.lp_rename($1,$2)',[room,'名前'])).rejects.toThrow('permission denied')
+  await db.exec('reset role')
+ })
+
+ test('a wrong, revoked or expired key cannot create a room; failures are limited per user', async()=>{
+  const before=await rooms()
+  const guest=randomUUID()
+  expect(await create(guest,randomUUID(),'ゲスト',createHostKey())).toEqual({error:'host-key-invalid'})
+  expect(await create(guest,randomUUID(),'ゲスト','short')).toEqual({error:'host-key-invalid'})
+  expect(await create(guest,randomUUID(),null,null)).toEqual({error:'host-key-invalid'})
+  expect(await resume(guest,createHostKey())).toEqual({error:'host-key-invalid'})
+  expect(await create(guest,randomUUID(),'ゲスト',KEY.slice(0,-1)+(KEY.endsWith('A')?'B':'A'))).toEqual({error:'host-key-invalid'})
+  expect((await db.query('select count(*)::int count from public.lp_host_attempts where user_id=$1',[guest])).rows[0].count).toBe(5)
+  // Five failures in a minute: even the right key is refused until the minute passes.
+  expect(await create(guest,randomUUID(),'ゲスト',KEY)).toEqual({error:'too-many-attempts'})
+  expect(await resume(guest,KEY)).toEqual({error:'too-many-attempts'})
+  expect(await rooms()).toBe(before)
+  // Another user is not affected.
+  const owner=randomUUID()
+  expect((await create(owner,randomUUID(),'オーナー')).host).toBe(owner)
+  await db.query("update public.lp_host_attempts set at=now()-interval '2 minutes' where user_id=$1",[guest])
+  expect((await create(guest,randomUUID(),'ゲスト')).host).toBe(guest)
+  // Attempts older than an hour are purged.
+  await db.query("update public.lp_host_attempts set at=now()-interval '2 hours' where user_id=$1",[guest])
+  expect(await create(owner,randomUUID(),'オーナー',createHostKey())).toEqual({error:'host-key-invalid'})
+  expect((await db.query('select count(*)::int count from public.lp_host_attempts where user_id=$1',[guest])).rows[0].count).toBe(0)
+  // Revoked and expired keys are invalid.
+  const other=createHostKey()
+  const inserted=(await db.query(hostKeySql('expired',hostKeyRecord(other)))).rows[0].id
+  await db.query("update public.lp_host_keys set expires_at=now()-interval '1 second' where id=$1",[inserted])
+  expect(await create(randomUUID(),randomUUID(),'期限切れ',other)).toEqual({error:'host-key-invalid'})
+  await db.query("update public.lp_host_keys set expires_at=null,revoked_at=now() where id=$1",[inserted])
+  expect(await create(randomUUID(),randomUUID(),'取り消し',other)).toEqual({error:'host-key-invalid'})
+  await db.query("update public.lp_host_keys set revoked_at=null where id=$1",[inserted])
+  expect((await create(randomUUID(),randomUUID(),'新しいキー',other)).pitchMode).toBe(false)
+  await db.query("update public.lp_host_keys set revoked_at=now() where id=$1",[inserted])
+  // A room is resumed only with the key that created it.
+  await expect(resume(owner,other)).resolves.toEqual({error:'host-key-invalid'})
+ },30000)
+
+ test('participants cannot take over as host any more', async()=>{
+  const [owner,friend]=[randomUUID(),randomUUID()]
+  const id=randomUUID()
+  const created=await create(owner,id,'オーナー')
+  await join(friend,created.invite,'友だち')
+  await db.query("update public.lp_members set seen_at=now()-interval '10 minutes' where room=$1 and user_id=$2",[id,owner])
+  await expect(call(friend,'select public.lp_claim_host($1) result',[id])).rejects.toThrow('does not exist')
+  await expect(call(friend,'select public.lp_create($1,$2) result',[randomUUID(),'友だち'])).rejects.toThrow('does not exist')
+  expect(await resume(friend,createHostKey(),id)).toEqual({error:'host-key-invalid'})
+  await expect(call(friend,'select public.lp_start($1,$2,0) result',[id,randomUUID()])).rejects.toThrow('host-required')
+  const view=await snap(friend,id)
+  expect(view.host).toBe(owner)
+  expect(view.members.find(member=>member.id===owner).online).toBe(false)
+ })
+
+ test('the owner resumes as host on a new device and keeps every seat, coin and result', async()=>{
+  const [laptop,phone,friend,watcher]=[randomUUID(),randomUUID(),randomUUID(),randomUUID()]
+  const id=randomUUID()
+  const created=await create(laptop,id,'オーナー')
+  await join(friend,created.invite,'友だち')
+  await join(watcher,created.invite,'見守り')
+  for(const user of [laptop,friend]) await call(user,'select public.lp_ready($1,true) result',[id])
+  await call(laptop,'select public.lp_start($1,$2,0) result',[id,randomUUID()])
+  await db.query("update public.lp_rounds set starts_at=now()-interval '30 seconds',next_ready_at=now()-interval '15 seconds' where room=$1",[id])
+  const before=await snap(laptop,id)
+  expect(before.myResults).toHaveLength(1)
+  const friendBefore=await snap(friend,id)
+  await call(laptop,'select public.lp_schedule($1,5) result',[id])
+
+  const resumed=await resume(phone,KEY)
+  expect(resumed).toMatchObject({id,host:phone,self:phone,balance:2500,myResults:before.myResults})
+  expect(resumed.scheduledAt).not.toBeNull()
+  expect(resumed.members.map(member=>member.nickname)).toEqual(['オーナー','友だち','見守り'])
+  expect(resumed.members.find(member=>member.nickname==='オーナー').id).toBe(phone)
+  expect(resumed.round.results.find(result=>result.nickname==='オーナー').userId).toBe(phone)
+  expect(resumed.round.results.some(result=>result.userId===laptop)).toBe(false)
+  expect(await snap(friend,id)).toMatchObject({balance:friendBefore.balance,myResults:friendBefore.myResults,host:phone})
+  // The old device no longer holds the seat; the phone can host.
+  await expect(snap(laptop,id)).rejects.toThrow('room-unavailable')
+  expect((await call(phone,'select public.lp_set_pitch_mode($1,true) result',[id])).pitchMode).toBe(true)
+  // Resuming again on the same device changes nothing; an unknown room id finds nothing.
+  expect(await resume(phone,KEY,id)).toMatchObject({host:phone,balance:2500})
+  await expect(resume(phone,KEY,randomUUID())).rejects.toThrow('no-room')
+
+  // A device that already joined as a participant keeps its own seat; the old host seat is released.
+  await join(laptop,created.invite,'ノートPC')
+  const back=await resume(laptop,KEY,id)
+  expect(back).toMatchObject({host:laptop,self:laptop,balance:3000})
+  expect(back.members.map(member=>member.nickname)).toEqual(['友だち','見守り','ノートPC'])
+  await expect(snap(phone,id)).rejects.toThrow('room-unavailable')
+  // The released host seat comes back through resume on that device (its name is still free).
+  expect((await resume(phone,KEY,id)).members.map(member=>member.nickname)).toEqual(['オーナー','友だち','見守り'])
+
+  // No open room for this key.
+  await db.query("update public.lp_rooms set expires_at=now()-interval '1 second' where host_key is not null")
+  await expect(resume(phone,KEY)).rejects.toThrow('no-room')
+ },30000)
+
+ test('names are unique per room across width, case and spaces, with a suggestion', async()=>{
+  const [owner,a,b,c,d]=[randomUUID(),randomUUID(),randomUUID(),randomUUID(),randomUUID()]
+  const id=randomUUID()
+  const {invite}=await create(owner,id,'もも')
+  expect(await failure(join(a,invite,'もも'))).toEqual({message:'name-taken',hint:'もも2'})
+  expect((await join(a,invite,' もも2 ')).members.map(member=>member.nickname)).toEqual(['もも','もも2'])
+  expect(await failure(join(b,invite,'もも'))).toEqual({message:'name-taken',hint:'もも3'})
+  expect(await failure(join(b,invite,'もも２'))).toEqual({message:'name-taken',hint:'もも3'})
+  expect(await failure(join(b,invite,'も　も'))).toMatchObject({message:'name-taken'})
+  await join(b,invite,'Momo')
+  for(const name of ['momo','ＭＯＭＯ','ｍｏ ｍｏ']) expect((await failure(join(c,invite,name))).message).toBe('name-taken')
+  expect((await failure(join(c,invite,'ｍｏｍｏ'))).hint).toBe('ｍｏｍｏ2')
+  // Twelve characters stay twelve with the number.
+  await join(c,invite,'あいうえおかきくけこさし')
+  expect(await failure(join(d,invite,'あいうえおかきくけこさし'))).toEqual({message:'name-taken',hint:'あいうえおかきくけこさ2'})
+  for(const name of ['','   ','１２３４５６７８９０１２３']) expect((await failure(join(d,invite,name))).message).toBe('invalid-name')
+  // The same user may keep or re-case their own name.
+  expect((await join(b,invite,'MOMO')).members.find(member=>member.id===b).nickname).toBe('MOMO')
+  // Rename follows the same rule.
+  expect(await failure(rename(b,id,'もも'))).toEqual({message:'name-taken',hint:'もも3'})
+  expect((await failure(rename(b,id,' '))).message).toBe('invalid-name')
+  expect((await rename(b,id,'すもも')).members.find(member=>member.id===b).nickname).toBe('すもも')
+  await expect(rename(d,id,'部外者')).rejects.toThrow('room-unavailable')
+  // Leaving frees a name; rejoining without a name keeps it only while it is still free.
+  await call(a,'select public.lp_leave($1)',[id])
+  expect((await join(d,invite,'もも2')).members.find(member=>member.id===d).nickname).toBe('もも2')
+  expect((await join(a,invite,null)).members.find(member=>member.id===a).nickname).toMatch(/^ゲスト \S+\d+$/)
+  await call(d,'select public.lp_leave($1)',[id])
+  expect((await rename(a,id,'もも2')).members.find(member=>member.id===a).nickname).toBe('もも2')
+  await call(a,'select public.lp_leave($1)',[id])
+  expect((await join(a,invite,null)).members.find(member=>member.id===a).nickname).toBe('もも2')
+ },30000)
+
+ test('joining without a name gives unique friendly names, even in a full room', async()=>{
+  const owner=randomUUID()
+  const id=randomUUID()
+  const {invite}=await create(owner,id,null)
+  const names=[(await snap(owner,id)).members[0].nickname]
+  for(let i=0;i<99;i++) {
+   const user=randomUUID()
+   const view=await join(user,invite,null)
+   names.push(view.members.find(member=>member.id===user).nickname)
+  }
+  for(const name of names) {
+   expect(name).toMatch(/^ゲスト (さくら|もも|いちご|りんご|みかん|ぶどう|ゆず|くるみ|あんず|すもも|れもん|めろん)\d{1,4}$/)
+   expect([...name].length).toBeLessThanOrEqual(12)
+  }
+  expect(new Set(names).size).toBe(100)
+  expect((await db.query('select count(distinct name_key)::int count from public.lp_members where room=$1 and active',[id])).rows[0].count).toBe(100)
+ },60000)
 })

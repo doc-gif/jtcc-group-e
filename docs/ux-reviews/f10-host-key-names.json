@@ -1,0 +1,18 @@
+{
+  "uiDigest": "a1cfba672f793b41b94f57f16594a4c55b6173552db6d7a243c05da34fc73ece",
+  "reviewer": "Claude (F10 host link and unique names review)",
+  "reviewedAt": "2026-09-26",
+  "summary": "F10 は共有ルームの SQL・transport・模擬サーバー・状態層（src/realtime/）とテスト、キー作成の scripts/host-key.mjs だけの変更で、画面・CSS・遷移・ルーターは変更していない。src/realtime はどの画面からも import しておらず、pnpm build の JS に lp_resume_host・host-key-invalid は含まれない。ホスト用リンクの経路と、名前入力 298:2709・自動の名前 298:2790・名前の重複 298:2867・ホスト用リンクが無効 292:2703 の画面は F05 で実装し、そのとき実画面を評価する。",
+  "criteria": [
+    { "id": "HIG-01", "result": "not-applicable", "evidence": "画面を追加・変更していない。名前入力・候補の表示・ホスト用リンクが無効の案内の文字・コントラストは F05 の画面実装時に評価する。" },
+    { "id": "HIG-02", "result": "not-applicable", "evidence": "画面を追加・変更していない。名前の入力欄、「もも2」で入る・自分で名前を決めるボタンの操作領域とキーボード操作は F05 で評価する。状態層は nameSuggestion と canRename を渡す（roomController.test.ts「名前を選ばずに入ると重ならない名前が付き…」）。" },
+    { "id": "HIG-03", "result": "not-applicable", "evidence": "画面を追加・変更していない。320px・横向き・文字200%・セーフエリアは F05 で評価する。名前は従来どおり12文字までで、候補も12文字に収まる（shared-db.test.mjs「names are unique per room…」）。" },
+    { "id": "HIG-04", "result": "pass", "evidence": "画面はないが、失敗からの回復の情報を状態層が返す。使われている名前は name-taken と空いている候補（「もも2」）を返し、そのまま送り直せば入れる（roomController.test.ts「名前を選ばずに入ると…」、protocol.test.ts「mock names…」）。無効なホスト用リンクは host-key-invalid で部屋を作らず、保存済みのキーを消す。開いている部屋がなければ no-room で作成を案内できる（roomController.test.ts「ホスト用キー: 成功したキーだけを保存し…」）。フォーカス移動などの画面の操作は F05 で評価する。" },
+    { "id": "HIG-05", "result": "not-applicable", "evidence": "画面・演出・音を追加していない。動きを減らす設定への対応は F05 で評価する。" },
+    { "id": "GAME-01", "result": "not-applicable", "evidence": "画面を追加・変更していないため、マスターのホスト不在 267:9603・ホストの再開 267:9678・ホスト用リンクが無効 292:2703・名前入力 298:2709・自動の名前 298:2790・名前の重複 298:2867 との照合は F05 で行う。状態層の項目（hostOnline・hostKey・resumeHost・join(invite, null) の self.nickname・nameSuggestion・rename）はこれらの状態に対応させた。" },
+    { "id": "GAME-02", "result": "pass", "evidence": "参加者がホストを乗っ取れないので、開始・予約・ピッチモードを決めるのは担当者だけになる（shared-db.test.mjs「participants cannot take over as host any more」、実 DB でも lp_claim_host は存在しない）。ホストが新しい端末で再開しても、ほかの人のコイン・結果は変わらない（shared-db.test.mjs「the owner resumes as host…」）。名前の重複は全角・半角・大小・空白を同一視し、同じ名前に見える人がルームにいない。エラー文言は日本語で、コードや DB の詳細を出さない（protocol.test.ts「names: display form…」）。" },
+    { "id": "GAME-03", "result": "pass", "evidence": "ホストが不在でも交代を促す通知や操作は出さず、予約した開始は時刻に始まる（F07 のテストを維持、roomController.test.ts「ホストが 45 秒を超えて不在でも交代はなく…」）。通知・バッジは追加していない。" },
+    { "id": "GAME-04", "result": "not-applicable", "evidence": "画面を追加・変更していない。名前を選ばずにすぐ入れる流れ（自動の名前を入る前に見せる）と、ロビーでの名前の変更の分かりやすさは F05 で評価する。状態層では join(invite, null) で入り、あとから rename で変えられる。" },
+    { "id": "GAME-05", "result": "not-applicable", "evidence": "画面・説明文を追加していない。追加した日本語は errorMessage の host-key-invalid・too-many-attempts・no-room・name-taken（候補付き）と、host-required の文言の一般化だけ。画面での説明は F05 で評価する。" }
+  ]
+}
