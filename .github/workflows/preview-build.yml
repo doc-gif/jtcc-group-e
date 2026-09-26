@@ -47,6 +47,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          # pnpm check の scripts/shared-resources.test.mjs が PR の差分（HEAD^1..HEAD）で migration の順番を検査する
+          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version: 24

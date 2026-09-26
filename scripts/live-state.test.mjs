@@ -1,9 +1,12 @@
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { describe, expect, test } from 'vitest'
-import { activeRuns, collect, formatReport, hasUnchecked, migrationsOutsideMain, migrationVersion, parseRefs, recentBranchesWithoutPr } from './live-state.mjs'
+import { activeRuns, collect, fetchAllPages, formatReport, hasUnchecked, heldLocks, migrationsOutsideMain, migrationVersion, parseRefs, recentBranchesWithoutPr } from './live-state.mjs'
 
 const NOW = new Date('2026-09-26T06:30:00Z')
+// 1タスク1ファイルの完了の記録（AGENTS.md「共有資源のロックと担当の宣言」）も書き写しの検査をする
+const STATUS_RECORDS = (await readdir('docs/status')).filter((name) => name.endsWith('.md')).map((name) => `docs/status/${name}`)
 const hoursAgo = (hours) => new Date(NOW - hours * 3600_000)
+const EMPTY = { checkedAt: NOW, main: new Error('offline'), production: new Error('offline'), releaseRuns: [], pulls: [], orphanBranches: [], strayMigrations: { items: [], unchecked: [] }, mainMigrations: [] }
 
 describe('live-state: 変わる事実をその場で調べる', () => {
   test('リモートのブランチを読み、main・pages-history・origin 自体は作業ブランチに数えない', () => {
@@ -53,6 +56,42 @@ describe('live-state: 変わる事実をその場で調べる', () => {
       { branch: 'claude/a', file: 'supabase/migrations/20260926052120_lp_pitch_goods_photos.sql', version: '20260926052120' },
       { branch: 'claude/f15-pitch-photos', file: 'supabase/migrations/20260926052120_lp_pitch_goods_photos.sql', version: '20260926052120' },
     ])
+  })
+
+  test('共有資源のロック: 開いている PR・Issue のラベルから持ち主を出し、重なったら番号の小さい方が持つ', () => {
+    const items = [
+      { number: 61, title: 'feat: B', labels: [{ name: 'lock:supabase' }], pull_request: {} },
+      { number: 57, title: 'feat: A', labels: [{ name: 'lock:supabase' }, { name: 'lock:figma-master' }], pull_request: {} },
+      { number: 3, title: 'Figma マスターの整理', labels: ['lock:figma-master'] },
+      { number: 9, title: 'other', labels: [{ name: 'lock:unknown' }, { name: 'bug' }] },
+      { number: 10, title: 'no labels' },
+    ]
+    const locks = heldLocks(items)
+    expect(Object.keys(locks)).toEqual(['lock:supabase', 'lock:figma-master'])
+    expect(locks['lock:supabase'].map((item) => item.number)).toEqual([57, 61])
+    expect(locks['lock:figma-master'].map((item) => item.number)).toEqual([3, 57])
+    const report = formatReport({ ...EMPTY, locks })
+    expect(report).toContain('- `lock:supabase`: #57（PR） feat: A → 持ち主の完了（マージ・クローズ）まで触らない')
+    expect(report).toContain('- 注意: `lock:supabase` が #61 にも付いている → 番号の小さい #57 が持つ。ほかはラベルを外して待つ')
+    expect(report).toContain('- `lock:figma-master`: #3（Issue） Figma マスターの整理')
+    expect(formatReport({ ...EMPTY, locks: heldLocks([]) })).toContain('- `lock:supabase`: 空き\n- `lock:figma-master`: 空き')
+    expect(formatReport({ ...EMPTY, locks: new Error('403 rate limit') })).toContain('## 共有資源のロック（持ち主の PR・Issue）\n- 未確認: 403 rate limit')
+    expect(hasUnchecked({ locks: new Error('403') })).toBe(true)
+  })
+
+  test('一覧 API は最後のページまで読む（100 件を超える Issue の古いロックを見落とさない）', async () => {
+    const pages = { 1: Array.from({ length: 100 }, (_, i) => ({ number: 200 - i })), 2: [{ number: 51, labels: [{ name: 'lock:supabase' }] }] }
+    const urls = []
+    const fetchJson = async (url) => { urls.push(url); return pages[new URL(url).searchParams.get('page')] ?? [] }
+    const items = await fetchAllPages(fetchJson, 'https://api.github.com/repos/doc-gif/jtcc-group-e/issues?state=open')
+    expect(items).toHaveLength(101)
+    expect(urls).toEqual([
+      'https://api.github.com/repos/doc-gif/jtcc-group-e/issues?state=open&per_page=100&page=1',
+      'https://api.github.com/repos/doc-gif/jtcc-group-e/issues?state=open&per_page=100&page=2',
+    ])
+    expect(heldLocks(items)['lock:supabase'].map((item) => item.number)).toEqual([51])
+    expect(await fetchAllPages(async () => [], 'https://api.github.com/x')).toEqual([])
+    await expect(fetchAllPages(async () => ({ message: 'rate limited' }), 'https://api.github.com/x')).rejects.toThrow('一覧ではない応答')
   })
 
   test('報告: 確認した時刻を先頭に出し、実行中の公開・main にない migration・本番との差を知らせる', () => {
@@ -119,6 +158,7 @@ describe('live-state: 変わる事実をその場で調べる', () => {
     if (url.endsWith('deployment.json')) return deployment
     if (url.includes('/releases/latest')) return { tag_name: 'v0.3.1' }
     if (url.includes('/actions/workflows/')) return { workflow_runs: [{ id: 1, status: 'completed' }, { id: 2, status: 'queued', head_sha: 'bb688bb', created_at: '2026-09-26T06:24:00Z' }] }
+    if (url.includes('/issues?state=open')) return [{ number: 55, title: 'feat: F16 migration', labels: [{ name: 'lock:supabase' }], pull_request: {} }, { number: 12, title: 'bug', labels: [{ name: 'bug' }] }]
     if (url.includes('state=open')) return [{ number: 48, title: 'docs: handoff', head: { ref: 'claude/handoff', sha: 'c67d720' } }]
     if (url.includes('state=closed')) return [{ head: { ref: 'claude/done', sha: 'd0' } }]
     throw new Error(`unexpected ${url}`)
@@ -157,6 +197,8 @@ describe('live-state: 変わる事実をその場で調べる', () => {
     expect(state.production).toEqual({ deployment, latestRelease: 'v0.3.1' })
     expect(state.releaseRuns.map((run) => run.id)).toEqual([2])
     expect(state.orphanBranches.map((ref) => ref.branch)).toEqual(['claude/f15-pitch-photos', 'claude/orphan'])
+    expect(state.locks['lock:supabase'].map((item) => item.number)).toEqual([55])
+    expect(state.locks['lock:figma-master']).toEqual([])
     expect(state.strayMigrations).toEqual({
       items: [{ branch: 'claude/f15-pitch-photos', file: 'supabase/migrations/20260926052120_lp_pitch_goods_photos.sql', version: '20260926052120' }],
       unchecked: [{ branch: 'claude/orphan', reason: 'fatal: no merge base' }],
@@ -204,7 +246,7 @@ describe('情報の鮮度: 変わる事実を文書に書き写さない（AGENT
   ]
   const DOCS = ['docs/HANDOFF.md', 'docs/STATUS.md']
 
-  test.each(DOCS)('%s に、変わる事実（main の SHA・本番の版・今回のブランチ）を書き写していない', async (path) => {
+  test.each([...DOCS, ...STATUS_RECORDS])('%s に、変わる事実（main の SHA・本番の版・今回のブランチ）を書き写していない', async (path) => {
     const text = await readFile(path, 'utf8')
     for (const { pattern, what } of LIVE_FACTS) expect(pattern.test(text), `${path} に${what}がある。node scripts/live-state.mjs で確かめる形にする`).toBe(false)
   })
