@@ -145,6 +145,11 @@ export interface RoomState {
   /** 予定の時刻に開始できなかった理由。ホストだけ。次の予約・開始の後と、閉じた後は null。 */
   scheduleNotice: RoomNotice | null
   serverOffset: number
+  /**
+   * 起床通知（Supabase Realtime）の購読の状態。live はほかの端末の入室・準備・開始が数秒で届く。
+   * polling は購読できていない（未接続・失敗・切断）ので、ROOM_POLL_MS ごとのポーリングだけで取り直す。画面には出さない。
+   */
+  realtime: 'live' | 'polling'
   busy: RoomAction | null
   error: RoomNotice | null
 }
@@ -212,6 +217,7 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
   let attached = false
   let stopWake: (() => void) | null = null
   let unwatch: (() => void) | null = null
+  let hinted = false
   let generation = 0
   let roomId: string | null = null
   let snapshot: Snapshot | null = null
@@ -304,7 +310,7 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
         code: noticeCode === 'nobody-ready' || noticeCode === 'sold-out' || noticeCode === 'insufficient-coins' ? noticeCode : null,
         message: noticeText,
       },
-      serverOffset: offset, busy, error,
+      serverOffset: offset, realtime: hinted ? 'live' : 'polling', busy, error,
     }
   }
 
@@ -372,21 +378,39 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     if (attached && !unwatch) watch()
   }
 
-  function watch() {
+  function unwatchRoom() {
     unwatch?.()
     unwatch = null
+    hinted = false
+  }
+
+  function watch() {
+    unwatchRoom()
     const room = roomId
     if (!room) return
-    try {
-      unwatch = transport.subscribe(room, () => { if (roomId === room) void sync() })
-    } catch {
-      // 購読は起床通知だけ。失敗してもポーリングで最新状態を取得する。
-    }
+    let active = true
+    let dropped = false
+    const stop = (() => {
+      try {
+        return transport.subscribe(room, () => { if (active && roomId === room) void sync() }, status => {
+          if (!active || roomId !== room) return
+          const wasLive = hinted
+          hinted = status === 'live'
+          // 切れていた間の通知は届かないので、つながり直したら一度取り直す（最初の接続は直前の snapshot で足りる）。
+          if (hinted && dropped) void sync()
+          if (!hinted) dropped = true
+          if (hinted !== wasLive) emit()
+        })
+      } catch {
+        // 購読は起床通知だけ。失敗してもポーリングで最新状態を取得する。
+        return null
+      }
+    })()
+    unwatch = () => { active = false; stop?.() }
   }
 
   function enterRoom(id: string) {
-    unwatch?.()
-    unwatch = null
+    unwatchRoom()
     generation++
     roomId = id
     snapshot = null
@@ -412,8 +436,7 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
   function fail(caught: unknown) {
     if (roomErrorCode(caught) === 'room-unavailable') {
       connection = 'unavailable'
-      unwatch?.()
-      unwatch = null
+      unwatchRoom()
     } else {
       connection = 'reconnecting'
       retries++
@@ -517,8 +540,9 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       clearTimers()
       stopWake?.()
       stopWake = null
-      unwatch?.()
-      unwatch = null
+      unwatchRoom()
+      // 購読の状態だけ polling に戻す（聞き手には知らせない。detach 後の画面更新を起こさない）。
+      state = derive()
     },
     serverNow: () => clock.now() + offset,
     createAsHost(key, name = null) {

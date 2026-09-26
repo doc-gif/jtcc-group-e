@@ -1,9 +1,11 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { inviteUrl } from '../app/sharedRoom'
 import { hostLinkHash } from '../realtime/hostKey'
+import type { ShownPhoto } from '../app/pitchPhotos'
 import { PRIZE_ART, prizeName } from '../app/roomView'
 import { NICKNAME_MAX } from '../domain/game'
 import type { ScheduleMinutes, SharedPrize } from '../realtime/protocol'
+import { glowLabel } from '../domain/odds'
 import { GoodsImage } from './Goods'
 
 /*
@@ -13,16 +15,35 @@ import { GoodsImage } from './Goods'
 
 export type StageVariant = 'gift' | 'sparkle' | 'countdown' | 'open' | 'prize' | 'closed'
 
+/**
+ * ピッチ用の実物グッズ写真（F15。マスター 267:9379 の Prize hero と同じ位置）。
+ * 読み込めない・表示できないときは元の絵（public/assets/goods のオリジナル）に戻す。alt は賞品の名前。
+ */
+function PrizePicture({ prize, photo, onBroken }: { prize: SharedPrize; photo: ShownPhoto | null; onBroken: (url: string) => void }) {
+  const art = PRIZE_ART[prize]
+  if (!photo) return <GoodsImage art={art.art} glow={art.glow} size="lg" />
+  return (
+    <span className={`goods goods-lg goods-photo glow-${art.glow}`}>
+      <img src={photo.url} alt={prizeName(prize)} onError={() => onBroken(photo.url)} />
+      {art.glow !== 'normal' && <span className="visually-hidden">（{glowLabel[art.glow]}）</span>}
+    </span>
+  )
+}
+
 /** 舞台の絵（マスターの「街の開封広場」をコードの SVG で描き直したもの）。 */
-export function RoomStage({ caption, variant = 'gift', faces = [], countdown, prize, compact = false }: {
+export function RoomStage({ caption, variant = 'gift', faces = [], countdown, prize, photo = null, compact = false }: {
   caption: string
   variant?: StageVariant
   /** 集まっている人の頭文字（最大4人）。飾りなので読み上げない。 */
   faces?: string[]
   countdown?: string
   prize?: SharedPrize | null
+  /** ルームの中で読み込めた実物グッズ写真（F15）。null なら元の絵。 */
+  photo?: ShownPhoto | null
   compact?: boolean
 }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+  const shown = photo && failedUrl !== photo.url ? photo : null
   return (
     <figure className={`room-stage stage-${variant}${compact ? ' is-compact' : ''}`}>
       <figcaption className="room-stage-caption">{caption}</figcaption>
@@ -61,7 +82,7 @@ export function RoomStage({ caption, variant = 'gift', faces = [], countdown, pr
         {(variant === 'sparkle' || variant === 'open') && <p className="room-sparkles" aria-hidden="true">✦ ✦ ✦</p>}
         {variant === 'prize' && prize && (
           <div className="room-prize-card">
-            <GoodsImage art={PRIZE_ART[prize].art} glow={PRIZE_ART[prize].glow} size="lg" />
+            <PrizePicture prize={prize} photo={shown} onBroken={setFailedUrl} />
             <span>今日のピース</span>
           </div>
         )}
@@ -71,6 +92,7 @@ export function RoomStage({ caption, variant = 'gift', faces = [], countdown, pr
           </ul>
         )}
       </div>
+      {variant === 'prize' && prize && shown && <p className="fine room-photo-credit">{shown.credit}</p>}
     </figure>
   )
 }
