@@ -3,6 +3,7 @@ import '@testing-library/jest-dom/vitest'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, test } from 'vitest'
 import App from '../App'
+import { createAssetGate } from '../app/assets'
 import { createInitialState } from '../domain/game'
 import { STORAGE_KEY } from '../domain/storage'
 import type { AppState, WinRecord } from '../domain/types'
@@ -23,7 +24,7 @@ function start(hash: string, state: Partial<AppState> = {}) {
   store = new MemoryStorage()
   store.setItem(STORAGE_KEY, JSON.stringify({ ...createInitialState(), ...state }))
   window.location.hash = hash
-  return render(<App storage={store} />)
+  return render(<App storage={store} assets={createAssetGate([])} />)
 }
 function go(hash: string) {
   act(() => {

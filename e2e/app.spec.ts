@@ -174,6 +174,49 @@ test('街：動きを減らす設定では導入を1枚にし、自動では進�
   await expect(heading).toHaveText('ラストピース')
 })
 
+test('街の読み込み中（T07 Loading）：絵が遅いときだけ出て、準備できたら自動で街へ進む', async ({ page }) => {
+  const errors = watchErrors(page)
+  let release = () => {}
+  const held = new Promise<void>((resolve) => { release = resolve })
+  // 注目のピースの絵の読み込みを止めて、遅い通信を再現する
+  await page.route('**/assets/goods/**', async (route) => { await held; await route.continue() })
+  await page.goto('./#/')
+  const heading = page.getByRole('heading', { level: 1 })
+  await expect(heading).toHaveText('街の準備をしています')
+  await expect(heading).toBeFocused()
+  await expect(page.getByRole('status')).toContainText('先に街を見て回れます。')
+  await expect(page.getByRole('button', { name: '街を見る' })).toBeVisible()
+  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0)
+  release()
+  await expect(heading).toHaveText('ラストピース')
+  await expect(page.locator('.feature-card img')).toHaveJSProperty('complete', true)
+  expect(errors).toEqual([])
+
+  // 準備済みなら、街へもどっても読み込み中は出ない
+  await page.getByRole('navigation', { name: 'メイン' }).getByRole('link', { name: 'ガチャ' }).click()
+  await page.getByRole('navigation', { name: 'メイン' }).getByRole('link', { name: '街' }).click()
+  await expect(heading).toHaveText('ラストピース')
+})
+
+test('街の読み込み中：読み込めなかったら伝えて、もう一度読み込める。先に街も見られる', async ({ page }) => {
+  let fail = true
+  await page.route('**/assets/goods/**', (route) => (fail ? route.abort() : route.continue()))
+  await page.goto('./#/')
+  const heading = page.getByRole('heading', { level: 1 })
+  await expect(heading).toHaveText('街の準備ができませんでした')
+  await expect(page.getByRole('status')).toContainText('もう一度読み込んでください')
+  fail = false
+  await page.getByRole('button', { name: 'もう一度読み込む' }).click()
+  await expect(heading).toHaveText('ラストピース')
+
+  fail = true
+  await page.goto('./versions/v0.0.0/#/')
+  await expect(heading).toHaveText('街の準備ができませんでした')
+  await page.getByRole('button', { name: '街を見る' }).click()
+  await expect(heading).toHaveText('ラストピース')
+  await expect(page.getByRole('link', { name: 'ガチャのお店へ' })).toBeVisible()
+})
+
 test('履歴一覧から保存された版を開き、再読み込みできる', async ({ page }) => {
   await page.goto('./versions/')
   await page.getByRole('link', { name: 'v0.0.0', exact: true }).click()

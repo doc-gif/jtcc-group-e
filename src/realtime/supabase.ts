@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import type { RoomTransport, Snapshot } from './protocol'
+import { RoomContractError, type RoomTransport, type Snapshot } from './protocol'
 
 export function supabaseTransport(client: SupabaseClient): RoomTransport {
   let auth: Promise<void> | undefined
@@ -14,18 +14,23 @@ export function supabaseTransport(client: SupabaseClient): RoomTransport {
   const rpc = async (name: string, args: Record<string, unknown>) => {
     await authenticate()
     const { data, error } = await client.rpc(name, args)
-    if (error) throw new Error(error.message)
+    // name-taken carries the server's free alternative in the hint.
+    if (error) throw error.message.includes('name-taken') ? new RoomContractError('name-taken', error.hint || null) : new Error(error.message)
+    // Host-key failures are returned, not raised, so the failed attempt stays recorded for the rate limit.
+    const failure = (data as { error?: unknown } | null)?.error
+    if (typeof failure === 'string') throw new Error(failure)
     return data as Snapshot
   }
   return {
-    create: (request, name) => rpc('lp_create', { p_request: request, p_name: name }),
+    create: (request, hostKey, name) => rpc('lp_create', { p_request: request, p_key: hostKey, p_name: name }),
     join: (invite, name) => rpc('lp_join', { p_invite: invite, p_name: name }),
     snapshot: room => rpc('lp_snapshot', { p_room: room }),
     ready: (room, ready) => rpc('lp_ready', { p_room: room, p_ready: ready }),
     start: (room, request, expected) => rpc('lp_start', { p_room: room, p_request: request, p_expected: expected }),
     schedule: (room, minutes) => rpc('lp_schedule', { p_room: room, p_minutes: minutes }),
     setPitchMode: (room, on) => rpc('lp_set_pitch_mode', { p_room: room, p_on: on }),
-    claim: room => rpc('lp_claim_host', { p_room: room }),
+    resumeHost: (hostKey, room) => rpc('lp_resume_host', { p_key: hostKey, p_room: room }),
+    rename: (room, name) => rpc('lp_rename', { p_room: room, p_name: name }),
     leave: async room => { await rpc('lp_leave', { p_room: room }) },
     subscribe: (room, refresh) => {
       // Broadcast is an optional wake-up hint. Auth and every result still come from RPC snapshots.

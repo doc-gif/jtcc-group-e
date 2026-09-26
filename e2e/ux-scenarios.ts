@@ -16,8 +16,12 @@ export const SEED_STORAGE_KEY = 'lastpiece_app_v1'
 const gachaState = (extra: Record<string, unknown> = {}) => JSON.stringify({ version: 1, coins: 3000, nickname: 'あなた', stock: {}, wins: [], forceFeaturedNext: false, nextWinSeq: 1, ...extra })
 const soldOutStock = { 'sanrio-capsule': Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`sanrio-capsule-${i + 1}`, 0])) }
 
-export const uxScenarios: Array<{ name: string; path: string; scalableText: string; pauseTimers?: boolean; seed?: string }> = [
+// goods: 商品の絵（assets/goods）の読み込みを止める（hold）か失敗させる（fail）。街の読み込み中（T07 Loading）の確認に使う。
+
+export const uxScenarios: Array<{ name: string; path: string; scalableText: string; pauseTimers?: boolean; seed?: string; goods?: 'hold' | 'fail' }> = [
   { name: 'town-opening', path: './', scalableText: '.opening-lead', pauseTimers: true },
+  { name: 'town-loading', path: './#/', scalableText: '.loading-lead', goods: 'hold' },
+  { name: 'town-loading-error', path: './#/', scalableText: '.loading-lead', goods: 'fail' },
   { name: 'archived-town-opening', path: './versions/v0.0.0/', scalableText: '.opening-lead', pauseTimers: true },
   { name: 'town-home', path: './#/', scalableText: '.town-disclaimer' },
   { name: 'version-history', path: './versions/', scalableText: 'h1' },

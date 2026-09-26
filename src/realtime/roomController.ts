@@ -1,5 +1,6 @@
+import { browserHostKeyStore, HOST_KEY_PATTERN, type HostKeyStore } from './hostKey'
 import {
-  errorMessage, RoomContractError, SHARED_CAPACITY, SHARED_PRICE, SHARED_SCHEDULE_EXPIRY_MARGIN_MS, SHARED_SCHEDULE_MINUTES,
+  errorMessage, nameSuggestion, RoomContractError, SHARED_CAPACITY, SHARED_PRICE, SHARED_SCHEDULE_EXPIRY_MARGIN_MS, SHARED_SCHEDULE_MINUTES,
   scheduleMessage, secondsUntil, serverOffset,
   type Member, type RoomErrorCode, type RoomTransport, type Round, type ScheduleMinutes, type ScheduleOutcome,
   type SharedPrize, type Snapshot,
@@ -14,9 +15,9 @@ export const ROOM_RETRY_MS = [1_000, 2_000, 4_000, 8_000, 15_000] as const
 
 const ERROR_CODES = Object.keys({
   'auth-required': true, 'invalid-request': true, 'invalid-name': true, 'invalid-ready': true, 'invalid-round': true,
-  'room-full': true, 'room-unavailable': true, 'host-required': true, 'host-online': true,
+  'room-full': true, 'room-unavailable': true, 'host-required': true,
   'round-active': true, 'nobody-ready': true, 'sold-out': true, 'insufficient-coins': true, 'stale-round': true,
-  'invalid-schedule': true,
+  'invalid-schedule': true, 'host-key-invalid': true, 'too-many-attempts': true, 'no-room': true, 'name-taken': true,
 } satisfies Record<RoomErrorCode, true>) as RoomErrorCode[]
 
 /** 契約の失敗コードを取り出す。通信や SQL の想定外エラーは null（画面には一般的な文言だけを出す）。 */
@@ -59,13 +60,20 @@ export interface RoomControllerOptions {
   onWake?: (wake: () => void) => () => void
   /** 画面側で保存した「確認済みの自分の結果」。roundNo は部屋ごとに 1 から始まるので room ID ごとに持つ。 */
   seenResults?: Readonly<Record<string, readonly number[]>>
+  /** この端末だけに保存するホスト用キー。既定は localStorage（使えなければ保存しない）。 */
+  hostKeys?: HostKeyStore
 }
 
 export type RoomPhase =
   | 'idle' | 'connecting' | 'lobby' | 'ready' | 'countdown' | 'opening' | 'results' | 'cooldown'
   | 'unavailable' | 'reconnecting'
-export type RoomAction = 'create' | 'join' | 'ready' | 'start' | 'schedule' | 'pitch' | 'claim' | 'leave'
-export interface RoomNotice { code: RoomErrorCode | null; message: string }
+export type RoomAction = 'create' | 'join' | 'resume' | 'ready' | 'start' | 'schedule' | 'pitch' | 'rename' | 'leave'
+export interface RoomNotice {
+  code: RoomErrorCode | null
+  message: string
+  /** name-taken のときだけ。サーバーが空いていると確かめた名前（「もも2」で入る、などに使う）。 */
+  suggestion?: string
+}
 /** error が null の失敗は、別の操作の処理中で送信しなかったことを表す。 */
 export type RoomResult = { ok: true; error: null } | { ok: false; error: RoomNotice | null }
 export type MyResult = Snapshot['myResults'][number]
@@ -78,6 +86,14 @@ export interface RoomState {
   self: Member | null
   members: Member[]
   isHost: boolean
+  /** ホストが接続中か。不在でも交代はない（予約した開始は時刻になれば始まる）。 */
+  hostOnline: boolean
+  /** この端末に保存したホスト用キー。あればホスト用の操作（作成・ホストに戻る）を出せる。 */
+  hostKey: string | null
+  /** 直前の作成・参加・名前の変更が name-taken だったときの、空いている名前の候補。 */
+  nameSuggestion: string | null
+  /** 本人の名前を変えられるか（ロビーから）。 */
+  canRename: boolean
   /** 画面には taken だけを「N人が集まっています」として出す。capacity は内部の上限で表示しない。 */
   seats: { taken: number; capacity: number; full: boolean }
   /** 契約の開始条件に数える人数（ホストを含む、オンラインで準備済み）。 */
@@ -89,7 +105,6 @@ export interface RoomState {
   canStart: boolean
   /** ホストが開始できない理由。errorMessage(code) で案内に使える。 */
   startBlockedBy: 'host-required' | 'round-active' | 'nobody-ready' | null
-  canClaim: boolean
   /** countdown は startsAt まで、results/cooldown は nextReadyAt までの秒数。 */
   secondsLeft: number | null
   round: Round | null
@@ -128,8 +143,25 @@ export interface RoomController {
   detach(): void
   /** serverOffset で補正した現在のサーバー時刻（ms）。 */
   serverNow(): number
-  create(name: string): Promise<RoomResult>
-  join(invite: string, name: string): Promise<RoomResult>
+  /**
+   * ホスト用キーでルームを作る。key を省くと保存済みのキーを使う。成功したキーはこの端末に保存し、
+   * host-key-invalid なら保存済みのそのキーを消す。name を省く（null）とサーバーが重ならない名前を付ける。
+   */
+  createAsHost(key?: string | null, name?: string | null): Promise<RoomResult>
+  /**
+   * ホスト用キーで、別の端末から自分のルームのホストに戻る。roomId を省くとそのキーでいちばん新しい開いているルーム。
+   * 開いているルームがなければ no-room（createAsHost を案内する）。
+   */
+  resumeHost(key?: string | null, roomId?: string | null): Promise<RoomResult>
+  /**
+   * 招待で参加する。name が null ならサーバーが重ならない名前（例「ゲスト さくら12」）を付け、state.self.nickname で見せる。
+   * 使われている名前は name-taken で、state.nameSuggestion に空いている候補が入る。
+   */
+  join(invite: string, name: string | null): Promise<RoomResult>
+  /** ロビーで本人の名前を変える。重なる名前は join と同じく name-taken と候補。 */
+  rename(name: string): Promise<RoomResult>
+  /** この端末に保存したホスト用キーを消す。 */
+  forgetHostKey(): void
   /** 既に参加しているルームへ戻る（再読み込み後など）。 */
   open(roomId: string): Promise<void>
   setReady(ready: boolean): Promise<RoomResult>
@@ -138,7 +170,6 @@ export interface RoomController {
   schedule(minutes: ScheduleMinutes | null): Promise<RoomResult>
   /** ホストだけ。ピッチモードを切り替える。次に始まるラウンドから効く。 */
   setPitchMode(on: boolean): Promise<RoomResult>
-  claimHost(): Promise<RoomResult>
   leave(): Promise<RoomResult>
   refresh(): Promise<void>
   /** 結果画面を閉じ、今ある自分の結果を確認済みにする。 */
@@ -153,6 +184,9 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
   const clock = options.clock ?? systemClock
   const requestId = options.requestId ?? (() => crypto.randomUUID())
   const onWake = options.onWake ?? browserWake
+  const hostKeys = options.hostKeys ?? browserHostKeyStore()
+  let storedKey = hostKeys.get()
+  const saveKey = (key: string | null) => { storedKey = key; hostKeys.set(key) }
   const listeners = new Set<() => void>()
   const timers = new Set<unknown>()
   const seenKey = (room: string, roundNo: number) => `${room}\u0000${roundNo}`
@@ -194,12 +228,12 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     const isHost = snap !== null && snap.host === snap.self
     const readyOnline = members.filter(member => member.ready && member.online).length
     const readyOthers = members.filter(member => member.ready && member.online && member.id !== snap?.host).length
-    const host = members.find(member => member.id === snap?.host)
+    const hostOnline = members.some(member => member.id === snap?.host && member.online)
     const live = connection === 'ok' && snap !== null
 
     let phase: RoomPhase
     if (connection === 'unavailable') phase = 'unavailable'
-    else if (!roomId) phase = busy === 'create' || busy === 'join' ? 'connecting' : 'idle'
+    else if (!roomId) phase = busy === 'create' || busy === 'join' || busy === 'resume' ? 'connecting' : 'idle'
     else if (connection === 'reconnecting') phase = 'reconnecting'
     else if (!snap) phase = 'connecting'
     else if (round && round.results === null) phase = serverNow < Date.parse(round.startsAt) ? 'countdown' : 'opening'
@@ -223,13 +257,15 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     const noticeText = lastSchedule && isHost && !scheduledAt && !staleNotice ? scheduleMessage(lastSchedule.status) : null
     const noticeCode = lastSchedule?.status
     return {
-      phase, roomId, snapshot: snap, self, members, isHost,
+      phase, roomId, snapshot: snap, self, members, isHost, hostOnline,
+      hostKey: storedKey,
+      nameSuggestion: error?.code === 'name-taken' ? error.suggestion ?? null : null,
+      canRename: live && busy === null && self !== null,
       seats: { taken: members.length, capacity: SHARED_CAPACITY, full: members.length >= SHARED_CAPACITY },
       readyOnline, readyOthers, balance,
       canReady: live && self !== null && !locked && busy === null && (self.ready || (balance ?? 0) >= SHARED_PRICE),
       canStart: live && busy === null && startBlockedBy === null,
       startBlockedBy: snap ? startBlockedBy : null,
-      canClaim: live && busy === null && self !== null && !isHost && !host?.online,
       secondsLeft, round,
       myPrize: round?.results?.find(result => result.userId === snap?.self)?.prize ?? null,
       myResults, unseenResults,
@@ -396,7 +432,8 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       return { ok: true, error: null }
     } catch (caught) {
       const code = roomErrorCode(caught)
-      error = { code, message: errorMessage(caught) }
+      const suggestion = nameSuggestion(caught)
+      error = suggestion === null ? { code, message: errorMessage(caught) } : { code, message: errorMessage(caught), suggestion }
       handle.failure?.(code)
       // 失敗の理由は最新の snapshot で確かめる。通信断ならここで再接続に入る。
       if (!handle.enter && roomId && current === generation) {
@@ -408,6 +445,19 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       busy = null
       emit()
     }
+  }
+
+  function forgetKey(key: string) {
+    if (storedKey === key) saveKey(null)
+  }
+
+  /** 形の違うキーはサーバーへ送らずに無効として返す（保存済みなら消す）。 */
+  function rejectKey(key: string | null): Promise<RoomResult> {
+    if (busy) return Promise.resolve({ ok: false, error: null })
+    if (key !== null) forgetKey(key)
+    error = { code: 'host-key-invalid', message: errorMessage(new RoomContractError('host-key-invalid')) }
+    emit()
+    return Promise.resolve({ ok: false, error })
   }
 
   function requireRoom(): string | null {
@@ -437,13 +487,36 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       unwatch = null
     },
     serverNow: () => clock.now() + offset,
-    create(name) {
+    createAsHost(key, name = null) {
+      const hostKey = key ?? storedKey
+      if (hostKey === null || !HOST_KEY_PATTERN.test(hostKey)) return rejectKey(hostKey)
       const request = pendingCreate ??= requestId()
-      return perform('create', () => transport.create(request, name), {
+      return perform('create', () => transport.create(request, hostKey, name), {
         enter: true,
-        success: () => { pendingCreate = null },
-        failure: code => { if (code === 'room-unavailable') pendingCreate = null },
+        success: () => { pendingCreate = null; saveKey(hostKey) },
+        failure: code => {
+          if (code === 'room-unavailable') pendingCreate = null
+          if (code === 'host-key-invalid') forgetKey(hostKey)
+        },
       })
+    },
+    resumeHost(key, id = null) {
+      const hostKey = key ?? storedKey
+      if (hostKey === null || !HOST_KEY_PATTERN.test(hostKey)) return rejectKey(hostKey)
+      return perform('resume', () => transport.resumeHost(hostKey, id), {
+        enter: true,
+        success: () => { saveKey(hostKey) },
+        failure: code => { if (code === 'host-key-invalid') forgetKey(hostKey) },
+      })
+    },
+    rename(name) {
+      const room = requireRoom()
+      if (!room) return Promise.resolve({ ok: false, error: null })
+      return perform('rename', () => transport.rename(room, name))
+    },
+    forgetHostKey() {
+      saveKey(null)
+      emit()
     },
     join(invite, name) {
       return perform('join', () => transport.join(invite, name), {
@@ -482,11 +555,6 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       const room = requireRoom()
       if (!room) return Promise.resolve({ ok: false, error: null })
       return perform('pitch', () => transport.setPitchMode(room, on))
-    },
-    claimHost() {
-      const room = requireRoom()
-      if (!room) return Promise.resolve({ ok: false, error: null })
-      return perform('claim', () => transport.claim(room))
     },
     async leave() {
       const room = roomId

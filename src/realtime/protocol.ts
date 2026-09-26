@@ -20,11 +20,14 @@ export const SHARED_SCHEDULE_MINUTES = [1, 3, 5, 10] as const
 export type ScheduleMinutes = typeof SHARED_SCHEDULE_MINUTES[number]
 /** 予約はルームの期限のこの時間より前でなければならない（開始・公開を期限内に収める）。 */
 export const SHARED_SCHEDULE_EXPIRY_MARGIN_MS = 60_000
+/** ニックネームの上限（文字数）。 */
+export const SHARED_NAME_MAX = 12
 export type RoomErrorCode =
   | 'auth-required' | 'invalid-request' | 'invalid-name' | 'invalid-ready' | 'invalid-round'
-  | 'room-full' | 'room-unavailable' | 'host-required' | 'host-online'
+  | 'room-full' | 'room-unavailable' | 'host-required'
   | 'round-active' | 'nobody-ready' | 'sold-out' | 'insufficient-coins' | 'stale-round'
   | 'invalid-schedule'
+  | 'host-key-invalid' | 'too-many-attempts' | 'no-room' | 'name-taken'
 /**
  * 予約した開始の結末。started は開始済み、cancelled はホストの取り消し、
  * それ以外は予定の時刻に開始できなかった理由（コイン・在庫・準備は何も変えていない）。
@@ -33,7 +36,27 @@ export type ScheduleStatus = 'started' | 'cancelled' | 'nobody-ready' | 'sold-ou
 export interface ScheduleOutcome { status: ScheduleStatus; scheduledAt: string; roundNo: number | null }
 export class RoomContractError extends Error {
   readonly code: RoomErrorCode
-  constructor(code: RoomErrorCode) { super(code); this.code = code; this.name = 'RoomContractError' }
+  /** name-taken のとき、サーバーが空いていると確かめた別の名前（例: 「もも2」）。 */
+  readonly suggestion: string | null
+  constructor(code: RoomErrorCode, suggestion: string | null = null) {
+    super(code); this.code = code; this.suggestion = suggestion; this.name = 'RoomContractError'
+  }
+}
+/** 表示用の名前: 空白の連続を 1 つにして前後を除く。1〜12 文字でなければ null（SQL の lp_clean_name と同じ）。 */
+export function cleanName(name: string | null | undefined): string | null {
+  if (typeof name !== 'string') return null
+  const clean = name.replace(/\s+/g, ' ').trim()
+  const chars = [...clean]
+  const control = chars.some(char => { const code = char.codePointAt(0) ?? 0; return code < 0x20 || (code >= 0x7f && code < 0xa0) })
+  return chars.length >= 1 && chars.length <= SHARED_NAME_MAX && !control ? clean : null
+}
+/** 同じ名前とみなす比較用の形: NFKC（全角・半角）、空白なし、小文字（SQL の lp_name_key と同じ）。 */
+export function nameKey(name: string) {
+  return name.normalize('NFKC').replace(/\s+/g, '').toLowerCase()
+}
+/** name-taken の失敗に付いた、空いている名前の候補。 */
+export function nameSuggestion(error: unknown): string | null {
+  return error instanceof RoomContractError && error.code === 'name-taken' ? error.suggestion : null
 }
 export interface Member { id: string; nickname: string; ready: boolean; online: boolean }
 export interface Round {
@@ -65,8 +88,17 @@ export interface Snapshot {
   lastSchedule: ScheduleOutcome | null
 }
 export interface RoomTransport {
-  create(request: string, name: string): Promise<Snapshot>
-  join(invite: string, name: string): Promise<Snapshot>
+  /** 有効なホスト用キーを持つ人だけがルームを作れる。name が null ならサーバーが重ならない名前を付ける。 */
+  create(request: string, hostKey: string, name: string | null): Promise<Snapshot>
+  /** name が null なら、前の名前が空いていればそれを、なければサーバーが重ならない名前を付ける。 */
+  join(invite: string, name: string | null): Promise<Snapshot>
+  /**
+   * ホスト用キーで別の端末からホストに戻る。room が null ならそのキーでいちばん新しい開いているルーム。
+   * ホストの席（名前・コイン・結果）をこの端末へ移し、ほかの人の席と結果は変えない。
+   */
+  resumeHost(hostKey: string, room: string | null): Promise<Snapshot>
+  /** 本人の名前を変える。ほかの active メンバーと同じ名前（全角・半角・大小・空白を無視）は name-taken。 */
+  rename(room: string, name: string): Promise<Snapshot>
   snapshot(room: string): Promise<Snapshot>
   ready(room: string, ready: boolean): Promise<Snapshot>
   start(room: string, request: string, expected: number): Promise<Snapshot>
@@ -74,7 +106,6 @@ export interface RoomTransport {
   schedule(room: string, minutes: ScheduleMinutes | null): Promise<Snapshot>
   /** Host only. Turns pitch mode on or off for the following rounds. */
   setPitchMode(room: string, on: boolean): Promise<Snapshot>
-  claim(room: string): Promise<Snapshot>
   leave(room: string): Promise<void>
   /** A wake-up hint only. A fresh snapshot is always authoritative. */
   subscribe(room: string, refresh: () => void): () => void
@@ -99,15 +130,20 @@ export function errorMessage(error: unknown) {
     'invalid-round': '開封番号を確認できませんでした。最新の状態を取得してください。',
     'room-full': 'ただいま満員です。これ以上は入れません。',
     'room-unavailable': '招待が無効か、期限が切れています。',
-    'host-required': '開始できるのはホストだけです。',
-    'host-online': 'ホストは接続中です。',
+    'host-required': 'この操作はホストだけができます。',
     'round-active': '今の開封が終わるまでお待ちください。',
     'nobody-ready': '準備OKの参加者がいません。',
     'sold-out': '参加者全員分の中身が残っていません。見るだけで参加できます。',
     'insufficient-coins': 'このルームの体験コインが足りません。見るだけで参加できます。',
     'stale-round': 'すでに開始されています。最新の状態を確認してください。',
     'invalid-schedule': '開始の時間を選び直してください（1・3・5・10分後、ルームの期限の1分前まで）。',
+    'host-key-invalid': 'ホスト用リンクが無効です。期限が切れたか、正しくないリンクです。招待リンクなら参加者として入れます。',
+    'too-many-attempts': 'ホスト用リンクの確認に続けて失敗しました。1分ほど待ってからもう一度お試しください。',
+    'no-room': 'このホスト用リンクで開いているルームはありません。新しくルームを作れます。',
+    'name-taken': 'このルームに同じニックネームの人がいます。別のニックネームにしてください。',
   }
+  const suggestion = nameSuggestion(error)
+  if (suggestion) return `${codes['name-taken']}「${suggestion}」なら使えます。`
   return Object.entries(codes).find(([code]) => message.includes(code))?.[1]
     ?? (message.includes('Anonymous sign-ins are disabled') ? '接続の準備中です。今は1台デモをお試しください。'
       : '接続できませんでした。通信を確認して再試行してください。')

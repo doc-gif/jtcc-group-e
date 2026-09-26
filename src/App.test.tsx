@@ -3,6 +3,7 @@ import '@testing-library/jest-dom/vitest'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import App from './App'
+import { createAssetGate, LOADING_DELAY } from './app/assets'
 import { createInitialState } from './domain/game'
 import { STORAGE_KEY } from './domain/storage'
 import { TIMING } from './domain/spinScript'
@@ -27,7 +28,7 @@ const saved = () => JSON.parse(store.getItem(STORAGE_KEY) ?? '{}')
 
 function start(hash = '#/') {
   window.location.hash = hash
-  return render(<App storage={store} />)
+  return render(<App storage={store} assets={createAssetGate([])} />)
 }
 
 /** 回す前の確認で確定し、ハンドルの代わりに「1タップで1回転」を 3 回押し、カプセルを開ける */
@@ -130,7 +131,7 @@ describe('街（ホーム）と下のタブ', () => {
     expect(window.location.hash).toBe('#/')
     expect(heading()).toHaveFocus()
     cleanup()
-    render(<App storage={store} />)
+    render(<App storage={store} assets={createAssetGate([])} />)
     expect(heading()).toHaveTextContent('ラストピース')
   })
 
@@ -159,6 +160,137 @@ describe('街（ホーム）と下のタブ', () => {
     } finally {
       vi.unstubAllGlobals()
     }
+  })
+})
+
+describe('街の読み込み中（T07 Loading 267:8244）', () => {
+  const heading = () => screen.getByRole('heading', { level: 1 })
+  /** 街の絵の読み込みを、テストから終わらせたり失敗させたりできるようにする */
+  function slowAssets() {
+    const calls: Array<{ resolve: () => void; reject: () => void }> = []
+    const gate = createAssetGate([() => new Promise<void>((resolve, reject) => { calls.push({ resolve, reject }) })])
+    const settle = async (how: 'resolve' | 'reject') => { await act(async () => { calls[calls.length - 1][how]() }) }
+    return { gate, calls, finish: () => settle('resolve'), fail: () => settle('reject') }
+  }
+  function open(hash: string, gate: ReturnType<typeof slowAssets>['gate']) {
+    window.location.hash = hash
+    return render(<App storage={store} assets={gate} />)
+  }
+
+  test('すぐに準備できたら読み込み中は出さず、そのまま街を出す（わざと待たせない）', async () => {
+    const assets = slowAssets()
+    open('#/', assets.gate)
+    expect(assets.calls).toHaveLength(1)
+    expect(screen.queryByRole('heading')).toBeNull()
+    tick(LOADING_DELAY - 1)
+    await assets.finish()
+    expect(heading()).toHaveTextContent('ラストピース')
+    tick(LOADING_DELAY)
+    expect(screen.queryByText('街の準備をしています')).toBeNull()
+  })
+
+  test('待ちが続いたら読み込み中を出し、準備できたら自動で街へ進む', async () => {
+    const assets = slowAssets()
+    open('#/', assets.gate)
+    tick(LOADING_DELAY - 1)
+    expect(screen.queryByRole('heading')).toBeNull()
+    tick(1)
+    expect(heading()).toHaveTextContent('街の準備をしています')
+    expect(heading()).toHaveFocus()
+    const status = screen.getByRole('status')
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    expect(status).toHaveTextContent('先に街を見て回れます。')
+    expect(screen.getByText('提案モック・公式サービスではありません')).toBeVisible()
+    // 地図は飾り。進み具合の数字は出さない
+    const preview = document.querySelector('.loading-town')
+    expect(preview).toHaveAttribute('aria-hidden', 'true')
+    expect(preview).toHaveAttribute('inert')
+    expect(document.body).not.toHaveTextContent('%')
+    await assets.finish()
+    expect(heading()).toHaveTextContent('ラストピース')
+    expect(heading()).toHaveFocus()
+    expect(assets.calls).toHaveLength(1)
+  })
+
+  test('読み込み中でも、スキップ・街を見るで先に街へ行ける', async () => {
+    const assets = slowAssets()
+    open('#/', assets.gate)
+    tick(LOADING_DELAY)
+    fireEvent.click(button('街を見る'))
+    expect(heading()).toHaveTextContent('ラストピース')
+    cleanup()
+    const again = slowAssets()
+    open('#/', again.gate)
+    tick(LOADING_DELAY)
+    fireEvent.click(button('スキップ'))
+    expect(heading()).toHaveTextContent('ラストピース')
+    await again.finish()
+    expect(heading()).toHaveTextContent('ラストピース')
+  })
+
+  test('読み込めなかったら責めずに伝え、もう一度読み込める。先に街へも行ける', async () => {
+    const assets = slowAssets()
+    open('#/', assets.gate)
+    await assets.fail()
+    expect(heading()).toHaveTextContent('街の準備ができませんでした')
+    const status = screen.getByRole('status')
+    expect(status).toHaveAttribute('aria-busy', 'false')
+    expect(status).toHaveTextContent('もう一度読み込んでください')
+    expect(button('街を見る')).toBeVisible()
+    fireEvent.click(button('もう一度読み込む'))
+    expect(assets.calls).toHaveLength(2)
+    // もう一度読み込むあいだも、読み込み中の画面のまま（空白に戻らない）
+    expect(heading()).toHaveTextContent('街の準備をしています')
+    expect(heading()).toHaveFocus()
+    expect(screen.queryByRole('button', { name: 'もう一度読み込む' })).toBeNull()
+    tick(LOADING_DELAY * 2)
+    expect(heading()).toHaveTextContent('街の準備をしています')
+    await assets.finish()
+    expect(heading()).toHaveTextContent('ラストピース')
+  })
+
+  test('導入のあとも準備が続くときだけ読み込み中を出す。猶予のあいだは導入のまま', async () => {
+    const assets = slowAssets()
+    open('', assets.gate)
+    tick(3000)
+    expect(heading()).toHaveTextContent('いっしょに')
+    tick(LOADING_DELAY)
+    expect(heading()).toHaveTextContent('街の準備をしています')
+    expect(window.location.hash).toBe('#/')
+    await assets.finish()
+    expect(heading()).toHaveTextContent('ラストピース')
+    cleanup()
+    // 導入のあいだに準備できていれば、読み込み中は出ない
+    const fast = slowAssets()
+    open('', fast.gate)
+    await fast.finish()
+    fireEvent.click(button('スキップ'))
+    expect(heading()).toHaveTextContent('ラストピース')
+  })
+
+  test('動きを減らす設定でも同じ静止画面で、自動では動かない', () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query, addEventListener: () => {}, removeEventListener: () => {} }))
+    try {
+      const assets = slowAssets()
+      open('', assets.gate)
+      fireEvent.click(button('街へ'))
+      tick(LOADING_DELAY)
+      expect(heading()).toHaveTextContent('街の準備をしています')
+      expect(document.querySelector('.loading-screen .opening-fade')).toBeNull()
+      tick(10000)
+      expect(heading()).toHaveTextContent('街の準備をしています')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  test('ほかの画面から開いても裏で読み込みを始め、街へ行くときには待たない', async () => {
+    const assets = slowAssets()
+    open('#/gacha', assets.gate)
+    expect(assets.calls).toHaveLength(1)
+    await assets.finish()
+    go('#/')
+    expect(heading()).toHaveTextContent('ラストピース')
   })
 })
 
@@ -385,7 +517,7 @@ describe('ガチャの流れ（T08）', () => {
   test('回帰：保存できない端末では、結果に「保存されます」と出さず保存できないことを伝える', () => {
     const broken = { getItem: () => null, setItem: () => { throw new Error('quota') } }
     window.location.hash = '#/gacha/sanrio-capsule/spin'
-    render(<App storage={broken} />)
+    render(<App storage={broken} assets={createAssetGate([])} />)
     spinAndOpen()
     expect(screen.queryByText(/保存されます/)).toBeNull()
     expect(screen.getByRole('status')).toHaveTextContent('この端末では記録を保存できません')
@@ -576,7 +708,7 @@ describe('マイページ・はじめて・いっしょに', () => {
   test('保存できない端末では、その旨を伝えて遊べる', () => {
     const broken = { getItem: () => null, setItem: () => { throw new Error('quota') } }
     window.location.hash = '#/'
-    render(<App storage={broken} />)
+    render(<App storage={broken} assets={createAssetGate([])} />)
     expect(screen.getByRole('status')).toHaveTextContent('記録を保存できません')
   })
 })
