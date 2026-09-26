@@ -27,7 +27,7 @@ export type RoomErrorCode =
   | 'room-full' | 'room-unavailable' | 'host-required'
   | 'round-active' | 'nobody-ready' | 'sold-out' | 'insufficient-coins' | 'stale-round'
   | 'invalid-schedule'
-  | 'host-key-invalid' | 'too-many-attempts' | 'no-room' | 'name-taken'
+  | 'host-key-invalid' | 'too-many-attempts' | 'no-room' | 'name-taken' | 'rename-locked'
 /**
  * 予約した開始の結末。started は開始済み、cancelled はホストの取り消し、
  * それ以外は予定の時刻に開始できなかった理由（コイン・在庫・準備は何も変えていない）。
@@ -42,13 +42,19 @@ export class RoomContractError extends Error {
     super(code); this.code = code; this.suggestion = suggestion; this.name = 'RoomContractError'
   }
 }
-/** 表示用の名前: 空白の連続を 1 つにして前後を除く。1〜12 文字でなければ null（SQL の lp_clean_name と同じ）。 */
+/** 名前の中で 1 つの空白にまとめる文字（SQL の lp_clean_name と同じ集合）。 */
+const NAME_SPACES = /[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/g
+/**
+ * 名前に使えない文字: Unicode の一般カテゴリ Cc（制御文字）と Cf（ゼロ幅・双方向の上書き・BOM などの書式文字）。
+ * SQL の lp_name_forbidden は同じ集合を範囲で書き、scripts/shared-db.test.mjs が全コードポイントで照合する。
+ */
+export const NAME_FORBIDDEN = /[\p{Cc}\p{Cf}]/u
+/** 表示用の名前: 空白の連続を 1 つにして前後を除く。1〜12 文字で、Cc・Cf の文字がなければその名前、違えば null（SQL の lp_clean_name と同じ）。 */
 export function cleanName(name: string | null | undefined): string | null {
   if (typeof name !== 'string') return null
-  const clean = name.replace(/\s+/g, ' ').trim()
-  const chars = [...clean]
-  const control = chars.some(char => { const code = char.codePointAt(0) ?? 0; return code < 0x20 || (code >= 0x7f && code < 0xa0) })
-  return chars.length >= 1 && chars.length <= SHARED_NAME_MAX && !control ? clean : null
+  const clean = name.replace(NAME_SPACES, ' ').replace(/^ +| +$/g, '')
+  const length = [...clean].length
+  return length >= 1 && length <= SHARED_NAME_MAX && !NAME_FORBIDDEN.test(clean) ? clean : null
 }
 /** 同じ名前とみなす比較用の形: NFKC（全角・半角）、空白なし、小文字（SQL の lp_name_key と同じ）。 */
 export function nameKey(name: string) {
@@ -141,6 +147,7 @@ export function errorMessage(error: unknown) {
     'too-many-attempts': 'ホスト用リンクの確認に続けて失敗しました。1分ほど待ってからもう一度お試しください。',
     'no-room': 'このホスト用リンクで開いているルームはありません。新しくルームを作れます。',
     'name-taken': 'このルームに同じニックネームの人がいます。別のニックネームにしてください。',
+    'rename-locked': 'ニックネームは開封が終わってから、ロビーで変えられます。',
   }
   const suggestion = nameSuggestion(error)
   if (suggestion) return `${codes['name-taken']}「${suggestion}」なら使えます。`

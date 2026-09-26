@@ -212,12 +212,11 @@ export class MockRoomServer {
       create: async (request, hostKey, name) => {
         if (!request) throw new RoomContractError('invalid-request')
         const chosen = validName(name)
-        const key = this.checkHostKey(userId, hostKey)
         const existing = this.rooms.get(request)
-        if (existing) {
-          if (existing.host !== userId || existing.expiresAt <= this.now()) throw new RoomContractError('room-unavailable')
-          return snapshot(request)
-        }
+        // Like lp_create: a retry of this user's own open room needs no second key check.
+        if (existing && existing.host === userId && existing.expiresAt > this.now()) return snapshot(request)
+        const key = this.checkHostKey(userId, hostKey)
+        if (existing) throw new RoomContractError('room-unavailable')
         const room: MockRoom = {
           id: request, invite: this.id(), host: userId, hostKey: key, expiresAt: this.now() + 2 * 60 * 60_000,
           roundNo: 0, members: new Map(),
@@ -323,6 +322,8 @@ export class MockRoomServer {
       },
       rename: async (roomId, name) => {
         const room = locked(roomId)
+        // Like lp_rename: only in the lobby, not until the round's next ready time.
+        if (room.round && room.round.nextReadyAt > this.now()) throw new RoomContractError('rename-locked')
         const nickname = validName(typeof name === 'string' ? name : '')!
         const member = room.members.get(userId)!
         if (this.pickName(room, nickname, userId) !== member.nickname) { member.nickname = nickname; wake(roomId) }

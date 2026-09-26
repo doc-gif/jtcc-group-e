@@ -4,7 +4,7 @@
 
 ## 変更
 
-[`supabase/migrations/20260926023427_lp_host_key_names.sql`](../supabase/migrations/20260926023427_lp_host_key_names.sql) と、advisor の指摘に合わせた [`20260926023642_lp_host_attempts_pk.sql`](../supabase/migrations/20260926023642_lp_host_attempts_pk.sql)。適用済みの migration は変更していない。ファイル名の日時は実プロジェクトの `supabase_migrations.schema_migrations` の version と同じ。
+[`supabase/migrations/20260926023427_lp_host_key_names.sql`](../supabase/migrations/20260926023427_lp_host_key_names.sql)、advisor の指摘に合わせた [`20260926023642_lp_host_attempts_pk.sql`](../supabase/migrations/20260926023642_lp_host_attempts_pk.sql)、PR #33 のレビューに合わせた [`20260926025335_lp_name_chars_create_retry.sql`](../supabase/migrations/20260926025335_lp_name_chars_create_retry.sql)、PR #35 のレビューに合わせた [`20260926031422_lp_name_cf_rename_idle.sql`](../supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql)（下記）。適用済みの migration は変更していない。ファイル名の日時は実プロジェクトの `supabase_migrations.schema_migrations` の version と同じ。
 
 | 対象 | 内容 |
 | --- | --- |
@@ -17,7 +17,7 @@
 
 ロックの順は変えていない（部屋行→会員・在庫・ラウンド）。部屋をロックする新しい RPC（`lp_create`・`lp_resume_host`・`lp_rename`）も、ロックの直後に時刻を過ぎた予約を先に実行する（`lp_fire_due`、F07）。
 
-`lp_clean_name`・`lp_name_key` の正規表現の角かっこには、全角の空白（U+3000）をそのままの文字で入れている（適用時の SQL と同じ文字にして、本体の md5 を一致させるため）。
+`lp_name_key` の正規表現の角かっこには、全角の空白（U+3000）をそのままの文字で入れている（適用時の SQL と同じ文字にして、本体の md5 を一致させるため）。3 本目の migration の `lp_clean_name` は、見えない文字をソースに置かないよう `chr()` で書いた。
 
 ## ホスト用キーの作成・交換・取り消し
 
@@ -56,7 +56,7 @@ update public.lp_host_keys set revoked_at = now() where id = '<古い id>';
 
 ## ローカル（PGlite）
 
-`scripts/shared-db.test.mjs` に 6 本の migration を順に適用して確認した（16 件成功。F10 は 6 件）。
+`scripts/shared-db.test.mjs` に migration を順に適用して確認した（最初の 2 本の時点で 16 件成功、F10 は 6 件。3 本目の追加後は 18 件）。
 
 - 保存されるのは salt とハッシュだけで、行にキーの文字列を含まない。`authenticated`・`anon` は 2 つのテーブルを読めず、`lp_host_key_check`・`lp_auto_name` を実行できない。`anon` は `lp_create`・`lp_resume_host`・`lp_rename` を実行できない。
 - 違うキー・短いキー・`null`・1 文字違いのキーは `host-key-invalid` で部屋を作らない。5 回の失敗の後は正しいキーでも `too-many-attempts`、ほかの利用者には影響しない。1 分後は作れる。1 時間より古い記録は消える。期限切れ・取り消し済みのキーは無効。
@@ -78,6 +78,26 @@ update public.lp_host_keys set revoked_at = now() where id = '<古い id>';
 | RPC の動作（`authenticated` として、最後に例外で取り消す 1 つの DO ブロック。使い捨てのキーもその中で入れて取り消した） | 2 つのテーブルの読み取りと `lp_host_key_check` は `42501`（権限なし）。違うキーの作成は `{"error": "host-key-invalid"}`。正しいキーで作成（在庫 300）。「も　も」は `name-taken`、候補「も も2」。名前なしの参加は「ゲスト ゆず60」。「もも」への変更は `name-taken`・候補「もも2」。`lp_claim_host` は `42883`（関数がない）。参加者の開始は `host-required`。別の ID がキーで再開するとホストになり、名前「もも」を引き継ぎ（2 人のまま）、前の ID の snapshot は `room-unavailable`。5 回失敗した ID は正しいキーでも `too-many-attempts`。`anon` の作成は `42501` |
 | 後片付け | 確認後、6 テーブルとも 0 行（キーも入れていない） |
 | Advisors | performance: 最初の migration の後に `lp_host_attempts` の No Primary Key（INFO）が出たため、2 つ目の migration で主キーを加え、指摘なし。security: T14・F07 と同じ 3 種。RLS Enabled No Policy は新しい 2 テーブルを含む 6 テーブル（意図どおり）。Signed-In Users Can Execute SECURITY DEFINER Function に `lp_create`・`lp_resume_host`・`lp_rename` が加わり、`lp_claim_host` は消えた（本人とキーの確認は関数の中。[T14 の判断](SQL_MIGRATION_T14.md#security-advisor-の指摘と判断)）。Leaked Password Protection Disabled（匿名ログインだけなので変更なし） |
+
+## 追加の migration: 名前の文字と作成の再試行
+
+[`20260926025335_lp_name_chars_create_retry.sql`](../supabase/migrations/20260926025335_lp_name_chars_create_retry.sql)（PR #33 の Copilot の指摘への対応）。
+
+- **名前の文字:** 最初の版は `[[:cntrl:]]` だけを拒否していたため、ゼロ幅の文字（U+200B）・双方向の上書き（U+202E）・BOM などの見えない書式文字を通し、同じに見える名前や向きの変わる名前を作れた。制御文字と見えない書式文字（U+0001–001F、U+007F–009F、U+00AD、U+061C、U+180E、U+200B–200F、U+2028–202E、U+2060–206F、U+FEFF、U+FFF9–FFFB）を拒否し、Unicode の空白（NBSP、U+2000–200A、U+3000 など）は 1 つの空白にまとめる。状態層の `cleanName` も同じ集合にした（ロケールの `\s` に頼らない）。
+- **作成の再試行:** 応答を失った `lp_create` の再試行も毎回キーを確認していたため、その間にキーを交換したり回数制限に達したりすると、作れた部屋がエラーになった。本人が作った開いている部屋の再試行は、キーを確認せずにその部屋を返す。新しい部屋や他人の request は従来どおりキーが必要。
+- 状態層: 名前の変更はロビー（準備中を含む）でだけ `canRename`。保存したキーは使う直前と消す直前に読み直し、別のタブが保存した新しいキーを古いキーの失敗で消さない。
+- PGlite で修正前に失敗するテストを追加（見えない文字の拒否と空白のまとめ、キーの取り消し・回数制限の後の再試行）。PGlite 18 件成功。
+- 実 DB: `list_migrations` に `20260926025335 lp_name_chars_create_retry`。`lp_*` の 22 関数すべての本体の md5 がローカルと一致。権限は変わらない。コミットしない取引で `authenticated` として、キーを取り消した後の同じ部屋の再試行は成功・新しい部屋は `host-key-invalid`、「もも」+U+200B と U+202E+「もも」は `invalid-name`、「も」+NBSP+「も」は `name-taken`、U+3000・U+2003・タブ・NBSP を含む「ゆ ず」は「ゆ ず」になることを確認。後で 6 テーブルとも 0 行。Advisors は上と同じ（performance 指摘なし、security は意図どおりの 3 種）。
+
+## 追加の migration: 書式文字の全体と開封中の名前の変更
+
+[`20260926031422_lp_name_cf_rename_idle.sql`](../supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql)（PR #35 の Copilot の指摘への対応）。
+
+- **Cc・Cf の全体:** 前の版は手で選んだ範囲だけだったため、U+0600（アラビア数字記号）などの書式文字を通した。Unicode の一般カテゴリ Cc と Cf のすべて（Unicode 17、234 コードポイント、23 範囲）を拒否する。状態層は `/[\p{Cc}\p{Cf}]/u`、SQL は同じ集合を `chr()` の範囲で書いた内部関数 `lp_name_forbidden()`（実行権限なし）。`scripts/shared-db.test.mjs` が U+0001–U+10FFFF のすべて（サロゲートを除く）で SQL と JS の集合が一致することを確かめる。Node の Unicode が新しくなり Cf が増えたら、このテストが失敗して知らせる。行・段落の区切り（U+2028・U+2029）は JS と同じく空白にまとめる。
+- **開封中の名前の変更:** `lp_rename` は、ラウンドの `next_ready_at` までは `rename-locked`（「ニックネームは開封が終わってから、ロビーで変えられます。」）。保存済みの結果は開始時の名前のままなので、開封中に変えると同じ人に 2 つの名前が出るため。時刻を過ぎた予約はこの確認の前に始まる（`lp_fire_due`）ので、予約の時刻の後の変更も断る（取引ごと戻り、次の snapshot で開始する）。模擬サーバーも同じ。状態層の `rename` はロビーと準備中のほかはサーバーへ送らずに `rename-locked` を返す。
+- **キーの保存（状態層）:** 作成・再開が成功しても、応答を待つ間に別のタブが別のキーを保存・削除していたら上書きしない（要求の開始時の値のままのときだけ書く compare-and-set）。
+- PGlite で修正前に失敗するテストを追加（U+0600・U+200B・U+202E・U+FEFF・U+2060・U+E0001、全コードポイントの照合、開封中と予約の時刻の後の変更）。PGlite 20 件成功。
+- 実 DB: `list_migrations` に `20260926031422 lp_name_cf_rename_idle`。`lp_*` の 23 関数すべての本体の md5 がローカルと一致（関数ごとの md5 をつないだ md5 `bf8b0f3c…` が同じ）。全コードポイントで `lp_name_forbidden()` に当たる数は 234 で、並びの md5 もローカルと同じ。`lp_name_forbidden` は `anon`・`authenticated` とも実行不可、`lp_rename` は `authenticated` だけ。コミットしない取引で `authenticated` として、上の 6 文字入りの名前は `invalid-name`、開封中はホスト・参加者とも `rename-locked`、開封の後は変更でき U+2028 は空白になることを確認。後で 6 テーブルとも 0 行。Advisors は上と同じ（performance 指摘なし、security は意図どおりの 3 種）。
 
 ## 未確認
 

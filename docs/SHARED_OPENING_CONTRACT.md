@@ -16,10 +16,10 @@ T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で�
 
 | 操作 | 許可主体と成功状態 | 前提を満たさない場合のコード（変更なし） |
 | --- | --- | --- |
-| `create(request, hostKey, name)` | 有効なホスト用キーを持つゲストだけ（F10）。部屋・ホスト・本人の 3,000 デモコイン・300 個の架空在庫（目玉 `plush` 30・`pouch` 90・`badge` 180。F07 で 100 個から同じ比率で 3 倍にした。100 人でも 1 回で売り切れない）を一度だけ作る。同じ本人と request の再試行は同じ部屋を返す。`name` が `null` ならサーバーが名前を付ける。 | `auth-required`、`invalid-request`、`invalid-name`、キーが違う・取り消し・期限切れなら `host-key-invalid`、1 分に 5 回失敗した後は `too-many-attempts`、他人の request と衝突または失効なら `room-unavailable`。 |
+| `create(request, hostKey, name)` | 有効なホスト用キーを持つゲストだけ（F10）。部屋・ホスト・本人の 3,000 デモコイン・300 個の架空在庫（目玉 `plush` 30・`pouch` 90・`badge` 180。F07 で 100 個から同じ比率で 3 倍にした。100 人でも 1 回で売り切れない）を一度だけ作る。同じ本人と request の再試行は同じ部屋を返す（開いている自分の部屋の再試行はキーを確かめ直さない）。`name` が `null` ならサーバーが名前を付ける。 | `auth-required`、`invalid-request`、`invalid-name`、キーが違う・取り消し・期限切れなら `host-key-invalid`、1 分に 5 回失敗した後は `too-many-attempts`、他人の request と衝突または失効なら `room-unavailable`。 |
 | `resumeHost(hostKey, room)` | 有効なホスト用キーを持つゲスト（F10）。そのキーで作った開いている部屋（`room` が `null` ならいちばん新しいもの）のホストになる。新しい端末ならホストの席（名前・コイン・準備・保存済みの結果）をこの端末へ移す。この端末がすでに参加者として席を持っていれば、その席のまま、前のホストの席を空ける。ほかの人の席・コイン・結果は変えない。前の端末はその部屋を読めなくなる。 | `auth-required`、`host-key-invalid`、`too-many-attempts`、開いている部屋がなければ `no-room`、席が空いていなければ `room-full`。 |
 | `join(invite, name)` | 有効な招待を持つゲスト。100 席以内で入室。同じ ID の再接続は既存残高・結果を保持し、ニックネームと接続時刻を更新する。`name` はルームのほかの active メンバーと重ならないこと（下記「ニックネーム」）。`null` なら、前の名前が空いていればそれを、なければサーバーが重ならない名前（例「ゲスト さくら12」）を付け、入った後の snapshot で本人に見せる。 | `auth-required`、`invalid-name`、使われている名前は `name-taken`（空いている候補付き）、招待なし・期限切れは `room-unavailable`、新たに席を取れなければ `room-full`。 |
-| `rename(room, name)` | active メンバー本人（F10）。ロビーなどで名前を変える。重ならない規則は `join` と同じ。 | `room-unavailable`、`invalid-name`、`name-taken`（候補付き）。 |
+| `rename(room, name)` | active メンバー本人（F10）。ロビーで名前を変える。重ならない規則は `join` と同じ。ラウンドの開始から `nextReadyAt` までは変えられない（保存済みの結果は開始時の名前のまま）。 | `room-unavailable`、開封中は `rename-locked`、`invalid-name`、`name-taken`（候補付き）。 |
 | `snapshot(room)` | 有効な active メンバーのみ。本人残高、メンバー、最新ラウンド、自分の公開済み全結果、サーバー時刻、予約（`scheduledAt`）、ピッチモード（`pitchMode`）、最後の予約の結末（`lastSchedule`）を返し、接続時刻を更新する。予約の時刻を過ぎていれば、この呼び出しが開始を 1 回だけ実行する（下記）。 | 非メンバー・退室済み・失効は `room-unavailable`。通信失敗は安全な一般エラー。 |
 | `ready(room, bool)` | active メンバー本人だけ。`true` は 500 コイン以上のとき、`false` は取り消し。最新ラウンドの `nextReadyAt` 以後に設定する。 | `room-unavailable`、`round-active`、真偽値でなければ `invalid-ready`、不足なら `insufficient-coins`。 |
 | `start(room, request, expected)` | 現在のホストだけ。現在の roundNo と expected が一致し、オンラインで準備済みの人が 1 人以上なら全員分を単一トランザクションで抽選・減算・記録。同じ request の再試行は二重処理しない。予約があれば「今すぐ開始」として置き換える（`scheduledAt`・`lastSchedule` を消す）。 | `room-unavailable`、`host-required`、`invalid-request`、`invalid-round`、`stale-round`、`round-active`、`nobody-ready`、`sold-out`、`insufficient-coins`。失敗時はコイン・在庫・roundNo・ready を変えない。 |
@@ -51,7 +51,7 @@ T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で�
 
 ## ニックネーム（F10）
 
-- 1〜12 文字。空白の続きは 1 つにし、前後の空白を除いて保存する。制御文字は使えない。
+- 1〜12 文字。空白（全角・NBSP などの Unicode の空白を含む）の続きは 1 つにし、前後の空白を除いて保存する。Unicode の一般カテゴリ Cc（制御文字）と Cf（ゼロ幅・双方向の上書き・BOM・U+0600 などの書式文字）はすべて使えない（SQL と状態層で同じ集合）。
 - ルームの active メンバーの間で重ならない。比べるときは NFKC（全角・半角をそろえる）、空白を除く、小文字にする。「ＭＯＭＯ」と「momo」、「も　も」と「もも」は同じ名前。退室した人の名前は空く（戻ったときに使われていれば、名前を選ばない再参加では別の名前になる）。
 - 使われている名前は `name-taken`。サーバーが空いていると確かめた候補を付ける（「もも」→「もも2」、「もも2」→「もも3」。12 文字に収まるよう短くする）。Supabase では例外の `hint`、transport では `RoomContractError.suggestion`、状態層では `nameSuggestion` に入る。
 - 名前を選ばずに入ると「ゲスト さくら12」のような名前を付ける（12 の単語と数字）。画面は入った後の `self.nickname` を見せ、「自分で名前を決める」は `rename` を使う。

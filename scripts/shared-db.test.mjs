@@ -9,7 +9,7 @@ const KEY=createHostKey()
 const users=Array.from({length:102},()=>randomUUID())
 const room=randomUUID()
 let invite
-const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql']
+const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql','supabase/migrations/20260926025335_lp_name_chars_create_retry.sql','supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql']
 const call=async(user,sql,args=[])=>{
  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user])
  return (await db.query(sql,args)).rows[0]?.result
@@ -464,6 +464,65 @@ describe('F10: owner-only host key and unique names', () => {
   await call(a,'select public.lp_leave($1)',[id])
   expect((await join(a,invite,null)).members.find(member=>member.id===a).nickname).toBe('もも2')
  },30000)
+
+ test('names reject control and invisible format characters and fold every Unicode space', async()=>{
+  const cp=String.fromCodePoint
+  const [owner,a]=[randomUUID(),randomUUID()]
+  const id=randomUUID()
+  const {invite}=await create(owner,id,'もも')
+  for(const code of [0x600,0x200b,0x202e,0xfeff,0x2060,0xe0001,0xad,0x85,0x2066,0x1d173]) {
+   expect((await failure(join(a,invite,`ゆ${cp(code)}ず`))).message).toBe('invalid-name')
+  }
+  expect((await failure(join(a,invite,`も${cp(0xa0)}も`))).message).toBe('name-taken')
+  expect((await join(a,invite,`${cp(0x3000)}ゆ${cp(0x2003)}${cp(0x9)}ず${cp(0xa0)}`)).members.find(member=>member.id===a).nickname).toBe('ゆ ず')
+  expect((await rename(a,id,`ゆ${cp(0x2028)}ず`)).members.find(member=>member.id===a).nickname).toBe('ゆ ず')
+ })
+
+ test('the SQL forbidden set is exactly Unicode Cc and Cf, like the JS side', async()=>{
+  const js=[]
+  for(let code=1;code<=0x10ffff;code++) if((code<0xd800||code>0xdfff)&&/[\p{Cc}\p{Cf}]/u.test(String.fromCodePoint(code))) js.push(code)
+  const sql=(await db.query("select coalesce(array_agg(cp order by cp),'{}') codes from generate_series(1,1114111) cp where (cp<55296 or cp>57343) and chr(cp) ~ public.lp_name_forbidden()")).rows[0].codes
+  expect(sql).toEqual(js)
+  for(const code of [0x600,0x200b,0x202e,0xfeff,0x2060,0xe0001]) expect(js).toContain(code)
+ },120000)
+
+ test('names cannot change while a round is active, including a scheduled one that just fired', async()=>{
+  const [owner,friend]=[randomUUID(),randomUUID()]
+  const id=randomUUID()
+  const {invite}=await create(owner,id,'オーナー')
+  await join(friend,invite,'友だち')
+  await call(friend,'select public.lp_ready($1,true) result',[id])
+  await call(owner,'select public.lp_start($1,$2,0) result',[id,randomUUID()])
+  for(const user of [owner,friend]) expect((await failure(rename(user,id,'新しい名前'))).message).toBe('rename-locked')
+  await db.query("update public.lp_rounds set starts_at=now()-interval '30 seconds',next_ready_at=now()-interval '15 seconds' where room=$1",[id])
+  const done=await snap(friend,id)
+  expect(done.round.results.find(result=>result.userId===friend).nickname).toBe('友だち')
+  expect((await rename(friend,id,'新しい名前')).members.find(member=>member.id===friend).nickname).toBe('新しい名前')
+  // A due schedule fires first; the rename is then refused and rolled back with it, and the next snapshot starts it.
+  await call(friend,'select public.lp_ready($1,true) result',[id])
+  await call(owner,'select public.lp_schedule($1,1) result',[id])
+  await db.query("update public.lp_rooms set scheduled_at=now()-interval '1 second' where id=$1",[id])
+  expect((await failure(rename(friend,id,'予約中の名前'))).message).toBe('rename-locked')
+  const started=await snap(owner,id)
+  expect(started).toMatchObject({roundNo:2,lastSchedule:{status:'started'}})
+  expect(started.members.find(member=>member.id===friend).nickname).toBe('新しい名前')
+ },30000)
+
+ test('a retry of a created room returns it even after the key is revoked or the user is limited', async()=>{
+  const other=createHostKey()
+  const inserted=(await db.query(hostKeySql('retry',hostKeyRecord(other)))).rows[0].id
+  const owner=randomUUID()
+  const id=randomUUID()
+  const created=await create(owner,id,'オーナー',other)
+  await db.query("update public.lp_host_keys set revoked_at=now() where id=$1",[inserted])
+  expect(await create(owner,id,'オーナー',other)).toMatchObject({id,host:owner,invite:created.invite})
+  for(let i=0;i<5;i++) await create(owner,randomUUID(),null,other)
+  expect(await create(owner,randomUUID(),null,other)).toEqual({error:'too-many-attempts'})
+  expect(await create(owner,id,null,null)).toMatchObject({id,host:owner})
+  // Someone else's request id still needs a valid key and never returns their room.
+  expect(await create(randomUUID(),id,null,createHostKey())).toEqual({error:'host-key-invalid'})
+  await expect(create(randomUUID(),id,null,KEY)).rejects.toThrow('room-unavailable')
+ })
 
  test('joining without a name gives unique friendly names, even in a full room', async()=>{
   const owner=randomUUID()

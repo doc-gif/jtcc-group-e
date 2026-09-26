@@ -18,6 +18,7 @@ const ERROR_CODES = Object.keys({
   'room-full': true, 'room-unavailable': true, 'host-required': true,
   'round-active': true, 'nobody-ready': true, 'sold-out': true, 'insufficient-coins': true, 'stale-round': true,
   'invalid-schedule': true, 'host-key-invalid': true, 'too-many-attempts': true, 'no-room': true, 'name-taken': true,
+  'rename-locked': true,
 } satisfies Record<RoomErrorCode, true>) as RoomErrorCode[]
 
 /** 契約の失敗コードを取り出す。通信や SQL の想定外エラーは null（画面には一般的な文言だけを出す）。 */
@@ -187,6 +188,8 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
   const hostKeys = options.hostKeys ?? browserHostKeyStore()
   let storedKey = hostKeys.get()
   const saveKey = (key: string | null) => { storedKey = key; hostKeys.set(key) }
+  /** 別のタブが保存・削除したかもしれないので、使う直前に読み直す。 */
+  const currentKey = () => (storedKey = hostKeys.get())
   const listeners = new Set<() => void>()
   const timers = new Set<unknown>()
   const seenKey = (room: string, roundNo: number) => `${room}\u0000${roundNo}`
@@ -260,7 +263,7 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       phase, roomId, snapshot: snap, self, members, isHost, hostOnline,
       hostKey: storedKey,
       nameSuggestion: error?.code === 'name-taken' ? error.suggestion ?? null : null,
-      canRename: live && busy === null && self !== null,
+      canRename: live && busy === null && self !== null && (phase === 'lobby' || phase === 'ready'),
       seats: { taken: members.length, capacity: SHARED_CAPACITY, full: members.length >= SHARED_CAPACITY },
       readyOnline, readyOthers, balance,
       canReady: live && self !== null && !locked && busy === null && (self.ready || (balance ?? 0) >= SHARED_PRICE),
@@ -447,8 +450,17 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     }
   }
 
+  /**
+   * 成功したキーを保存する。ただし応答を待つ間に別のタブが別のキーを保存・削除していたら、その値を残す
+   * （保存先が要求の開始時の値のままのときだけ書く compare-and-set）。
+   */
+  function keepKey(before: string | null, key: string) {
+    if (currentKey() === before) saveKey(key)
+  }
+
   function forgetKey(key: string) {
-    if (storedKey === key) saveKey(null)
+    // 応答を待つ間に別のタブが別のキーを保存していたら、それは消さない。
+    if (currentKey() === key) saveKey(null)
   }
 
   /** 形の違うキーはサーバーへ送らずに無効として返す（保存済みなら消す）。 */
@@ -488,12 +500,13 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     },
     serverNow: () => clock.now() + offset,
     createAsHost(key, name = null) {
-      const hostKey = key ?? storedKey
+      const before = currentKey()
+      const hostKey = key ?? before
       if (hostKey === null || !HOST_KEY_PATTERN.test(hostKey)) return rejectKey(hostKey)
       const request = pendingCreate ??= requestId()
       return perform('create', () => transport.create(request, hostKey, name), {
         enter: true,
-        success: () => { pendingCreate = null; saveKey(hostKey) },
+        success: () => { pendingCreate = null; keepKey(before, hostKey) },
         failure: code => {
           if (code === 'room-unavailable') pendingCreate = null
           if (code === 'host-key-invalid') forgetKey(hostKey)
@@ -501,17 +514,25 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       })
     },
     resumeHost(key, id = null) {
-      const hostKey = key ?? storedKey
+      const before = currentKey()
+      const hostKey = key ?? before
       if (hostKey === null || !HOST_KEY_PATTERN.test(hostKey)) return rejectKey(hostKey)
       return perform('resume', () => transport.resumeHost(hostKey, id), {
         enter: true,
-        success: () => { saveKey(hostKey) },
+        success: () => { keepKey(before, hostKey) },
         failure: code => { if (code === 'host-key-invalid') forgetKey(hostKey) },
       })
     },
     rename(name) {
       const room = requireRoom()
-      if (!room) return Promise.resolve({ ok: false, error: null })
+      if (!room || busy || connection !== 'ok') return Promise.resolve({ ok: false, error: null })
+      // 名前はロビー（準備中を含む）でだけ変える。開封中に変えると、保存済みの結果と名前が食い違う。
+      const { phase } = derive()
+      if (phase !== 'lobby' && phase !== 'ready') {
+        error = { code: 'rename-locked', message: errorMessage(new RoomContractError('rename-locked')) }
+        emit()
+        return Promise.resolve({ ok: false, error })
+      }
       return perform('rename', () => transport.rename(room, name))
     },
     forgetHostKey() {
