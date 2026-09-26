@@ -32,12 +32,12 @@
 
 ## デザインの管理先
 
-- 指定 Figma ファイル `yeDF1BwhrxpXI57Daainle` をアプリのデザイン管理先とする。[Screens](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-10) に画面、[Foundations](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-4) に共通ルールを置く。詳細・各部品のリンクは `docs/DESIGN.md`。
-- 新しい UI は Figma に画面と状態を記録してから実装する。JTCC の変数・文字スタイル・部品インスタンスを使い、現行アプリの緑系を維持する。既存のピッチ資料をアプリ仕様として確定扱いしない。
+- 指定 Figma ファイル `yeDF1BwhrxpXI57Daainle` をアプリのデザイン管理先とする。ラストピースの画面の正は [デザインマスター `267:8198`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-8198)。45画面・状態と node の対応は [`docs/ADOPTED_DESIGN.md`](docs/ADOPTED_DESIGN.md)。緑アクセントの `252:2` は不採用なので元にしない。詳細・各部品のリンクは `docs/DESIGN.md`。
+- 新しい UI は Figma に画面と状態を記録してから実装する。配色はピンク基調の「さくらミルク」とし、主操作を緑にしない。マスターと同じ部品インスタンスを使う。既存のピッチ資料をアプリ仕様として確定扱いしない。
 - Figma の作業領域も `task/<branch>` ごとに分け、担当・関連 PR・状態を記載する。共通変数と本体部品は変更前に他の Draft PR と調整し、別の作業領域を上書きしない。
 - UI の PR に対象 node URL、確認した状態、変更前後の画像と Figma 照合結果を添える。実画面を確認し、既存の全10項目のレビューで、特に GAME-01 にデザインとの対応を記録する。
 - トークンを変えたら `design-system/tokens.css` と `design-system/figma-manifest.json` を同じ PR で更新する。これらは初版時点では参照用で、アプリに自動反映されない。React 部品はまだ未実装なので、存在しない実装や Code Connect 対応を装わない。
-- Figma にアクセスできない場合は参照した画像・仕様と未確認箇所を記録し、照合済みと記載しない。Figma のライブ URL は過去デザインを固定しないため、採用版は PR に画像と node ID を残す。
+- Figma にアクセスできない場合は参照した画像・仕様と未確認箇所を記録し、照合済みと記載しない。Figma のライブ URL は過去デザインを固定しないため、採用版は node と状態の対応を Git commit で残す。内部素材を含む画像は公開 PR に置かない。
 
 ## PR・自動承認
 

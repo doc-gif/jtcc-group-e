@@ -1,6 +1,6 @@
 # 開発進捗
 
-最終更新: 2026-09-26 08:30 JST。今回の進捗ブランチは `feat/t13-sql-review`、基点の `main` は [`835d73a`](https://github.com/doc-gif/jtcc-group-e/commit/835d73ae13c6dc4cee439711c9ca009391e4f3e9) です。`DONE` は各タスクの受け入れ条件を確認した意味で、アプリ全体の完成や本番公開を意味しません。Figma はライブ状態です。内部画像は公開リポジトリに置かず、AIレビューの変更前後画像を作業計画フォルダに保持します。
+最終更新: 2026-09-26 JST。今回の進捗ブランチは `claude/hopeful-archimedes-n2zb86`（T11）、基点の `main` は [`b8673f0`](https://github.com/doc-gif/jtcc-group-e/commit/b8673f0) です。`DONE` は各タスクの受け入れ条件を確認した意味で、アプリ全体の完成や本番公開を意味しません。Figma はライブ状態です。内部画像は公開リポジトリに置かず、AIレビューの変更前後画像を作業計画フォルダに保持します。
 
 ## 完了したタスク
 
@@ -16,20 +16,20 @@
 | T08 | ガチャ一覧から詳細・9種の確率・支払い確認・3回転・3段階の開封・結果まで、390×844の13画面を専用領域に設計。売り切れとコイン不足も作成。 | [Catalog 204:2341](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=204-2341)、[確率 204:2411](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=204-2411)、[結果 204:2666](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=204-2666)、[Figma内の固定比較画像 202:2338](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=202-2338)。24件の遷移を設定値で確認。AI視覚レビュー10/12、[詳細](design-reviews/T08.md)。 | 実装・ブラウザ再生・対象ユーザー評価は未実施。500コインと9種は未マージの共有オープニング草案に合わせた設計値。写真は内部検討専用。T09で棚への接続を設計し、T11で統合・採用を判断。 | docs/t08-gacha-progress、このPRのGit履歴を参照。 |
 | T09 | 9固定枠の空・所有済み棚、一覧、商品詳細とお気に入り、友だちからの見え方、友だちの棚・リアクション・不在状態を専用領域に12画面で設計。 | [所有棚 215:2624](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=215-2624)、[友だち棚 215:2969](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=215-2969)、[Figma内の固定比較画像 215:2531](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=215-2531)。所有・未入手を写真と文言で区別し、友だちの持ち物の境界を表示。AI視覚レビュー11/12、[詳細](design-reviews/T09.md)。 | 実装・ブラウザ再生・対象ユーザー評価は未実施。2/9の所有と友だちはデモ例。内部写真は公開不可。招待・共有範囲はT10、統合と採用はT11で判断。 | docs/t09-collection-progress、このPRのGit履歴を参照。 |
 | T10 | 40人ルームの招待・待機・抽選/見守り・満席・同時開封・結果・復帰・ホスト交代・終了を390×844の15状態で設計。 | [T10専用領域 227:2702](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=227-2702)、[ロビー 227:2770](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=227-2770)、[結果 228:2833](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=228-2833)。41遷移設定を確認、AI視覚レビュー10/12で内部基準PASS。[詳細](design-reviews/T10.md)。 | 実装・実DB・40端末・320px/文字200%・対象ユーザー評価は未実施。内部商品写真はFigma限定。T11で統合・採用を判断。 | `docs/t10-room-design`、このPRのGit履歴を参照。 |
+| T11 | T07–T10 の45画面と部品2点（街マップ・ガチャ筐体）を、ピンク基調のデザインマスターとして新ページに1つにまとめた。緑アクセント版 `252:2` は不採用として Archive に改名。 | [マスター `267:8198`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-8198)、[45画面の node/状態一覧](ADOPTED_DESIGN.md)、[統合記録](design-reviews/T11.md)。全45画面 390×844、遷移149件をマスター内へ張り替え（元ページを指すもの0件）、塗り・線5,370件で `#16634D` 0件。 | 淡いミント `#E3F1E7`（タブ選択背景など）を Web で残すかは未決。`design-system/` トークンは緑系のまま。画像の内部保存・SHA-256、Web 実装、320px/文字200%、対象ユーザー評価は未実施。 | `claude/hopeful-archimedes-n2zb86`、この PR の Git 履歴を参照。 |
 | T12 | 専用 Supabase プロジェクトの匿名ログインと保存済み制限を確認。 | 匿名ログイン 1 件を実行後サインアウト。Dashboard で 60 件/時/IP の保存状態を確認。管理画面へのアクセスが必要な証拠。 | 実 DB・40 人・負荷テストは未実施。T03 の契約確定後に検証する。 | 外部設定の読み取り、固有コミットなし。 |
 | T13 | 共有オープニング SQL 草案のスキーマ・認可・原子性をレビューし、スナップショット読み取りを部屋行ロックで直列化。 | [レビュー記録](SQL_REVIEW_T13.md)、コミット [`31fe48f`](https://github.com/doc-gif/jtcc-group-e/commit/31fe48f40f647e9c8197c360dc9b8c9c30167e89)。PGlite で重複 start の非再減算・40席上限・非参加者拒否・公開前非表示・Realtime 未初期化時の動作を確認（`vitest run scripts/shared-db.test.mjs` 5件成功）。 | 実 Supabase への適用・RLS の実ロール監査・並行負荷・40端末は未実施（T14 以降）。 | `feat/t13-sql-review`、この PR の Git 履歴を参照。 |
 | H01 | GitHub で読める進捗記録と、希望時だけ使う引き継ぎ手順を追加。 | このファイル、[引き継ぎ手順](HANDOFF.md)、README・AGENTS からの参照。コミットと push の結果は Git 履歴と作業報告で確認する。 | H01 の文書はアプリの実装・デプロイを変更しない。 | `docs/progress-handoff`、このファイルの Git 履歴を参照。 |
 
 ## 未完了と次の候補
 
-残り 31 件: `T11`, `T14`–`T43`。現時点で前提がそろった候補は次のとおりです。ここに載せたことは自動割当ではありません。
+残り 30 件: `T14`–`T43`。現時点で前提がそろった候補は次のとおりです。ここに載せたことは自動割当ではありません。
 
 | 候補 | 前提 | 次に確認する内容 |
 | --- | --- | --- |
-| T11 | T07–T10 | Figma の同じファイルに新しいページを作り、デザインのマスターを1つにまとめる。担当者の指示（2026-09-26）により、正はピンク基調の TASK7・8・9 セクション。緑アクセントの版は不採用とする。T10 はピンク基調に色を直してから入れる。 |
 | T14 | T13 | SQL 草案を正式 migration にし、実 Supabase で適用と RLS・ロール権限を確認する。 |
 
-`T11` と `T14` の前提はそろいました。後続の実装・検証・公開カードは前提完了後に選びます。通常依頼を優先し、引き継ぎは[担当者が明示的に希望した場合](HANDOFF.md)だけ開始します。
+`T14` の前提はそろいました。T11 の完了で、デザインマスターを参照する後続の実装タスクも選べます。後続の実装・検証・公開カードは前提完了後に選びます。通常依頼を優先し、引き継ぎは[担当者が明示的に希望した場合](HANDOFF.md)だけ開始します。
 
 ## 完了ごとの更新方法
 
