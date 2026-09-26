@@ -51,22 +51,33 @@ test('計測: ?internal=1 で内部フラグを保存し、?internal=0 で消す
 // Clarity の録画にニックネームを映さない（#67）。ルームのすべての状態見本で、画面に出るニックネームが data-clarity-mask の中にあること。
 // ニックネームは状態見本のデータと、名前を決めずに入ったときの見出し（「〇〇」で入ります）から集める。
 // ルームの画面は Clarity を止めてから開くので録画されないが、止め方をすり抜けた場合に備えて二重に隠す。
-for (const scenario of uxScenarios.filter((item) => item.room)) {
-  test(`計測: ${scenario.name} のニックネームは録画で隠す`, async ({ page }, testInfo) => {
-    // 隠す印は画面の幅に関係しない HTML の属性なので、1 つの端末構成で確かめる（全体 CI の時間を増やさない）
-    test.skip(testInfo.project.name !== 'small-mobile', 'HTML の属性の確認は 1 構成で足りる')
-    if (scenario.pauseTimers) { await page.clock.install({ time: 0 }); await page.clock.pauseAt(1000) }
+// 隠す印は画面の幅に関係しない HTML の属性なので、状態見本を 5 つの端末構成に分けて 1 回ずつ確かめる（CI は skip を認めないため、
+// 構成ごとに分担する。全体 CI の時間をほとんど増やさない）。
+const PROJECTS = ['small-mobile', 'android', 'iphone', 'landscape', 'desktop']
+const roomScenarios = uxScenarios.filter((item) => item.room)
+
+test('計測: ルームの状態見本のニックネームは録画で隠す（端末構成ごとに分担）', async ({ context }, testInfo) => {
+  const index = PROJECTS.indexOf(testInfo.project.name)
+  const mine = roomScenarios.filter((_, i) => index < 0 || i % PROJECTS.length === index)
+  expect(mine.length).toBeGreaterThan(0)
+  const exposed: string[] = []
+  for (const scenario of mine) {
+    const page = await context.newPage()
+    await page.addInitScript(() => { localStorage.clear(); localStorage.setItem('lastpiece_room_force_demo', '1') })
     if (scenario.seed) await page.addInitScript(([key, value]) => { localStorage.setItem(key, value) }, [SEED_STORAGE_KEY, scenario.seed])
     await openScenario(page, scenario, (heading) => expect(heading1(page)).toHaveText(heading))
     const names = new Set([...scenario.room!.demo.matchAll(/"nickname":"([^"]+)"/g)].map((match) => match[1]))
-    const auto = (await page.locator('.room-card-title').allTextContents()).map((text) => text.match(/^「(.+)」で入ります$/)?.[1]).filter((name) => name)
-    for (const name of auto) names.add(name!)
-    expect(names.size, 'ニックネームを集められた').toBeGreaterThan(0)
-    const exposed = await page.evaluate((list) => [...document.querySelectorAll('body *')].flatMap((element) => {
+    for (const text of await page.locator('.room-card-title').allTextContents()) {
+      const auto = text.match(/^「(.+)」で入ります$/)?.[1]
+      if (auto) names.add(auto)
+    }
+    expect(names.size, `${scenario.name}: ニックネームを集められた`).toBeGreaterThan(0)
+    exposed.push(...(await page.evaluate((list) => [...document.querySelectorAll('body *')].flatMap((element) => {
       const own = [...element.childNodes].filter((node) => node.nodeType === Node.TEXT_NODE).map((node) => node.textContent ?? '').join('')
       const hit = list.find((name) => own.includes(name))
       return hit && !element.closest('[data-clarity-mask]') && (element as HTMLElement).checkVisibility() ? [`${element.tagName}.${element.className}: ${own.trim().slice(0, 30)}`] : []
-    }), [...names])
-    expect(exposed).toEqual([])
-  })
-}
+    }), [...names])).map((item) => `${scenario.name} ${item}`))
+    await page.close()
+  }
+  expect(exposed).toEqual([])
+})

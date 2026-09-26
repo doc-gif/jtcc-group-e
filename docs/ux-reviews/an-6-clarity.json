@@ -1,5 +1,5 @@
 {
-  "uiDigest": "ccfd8c1bb03876264605bf4fb29750526cc80caa1c978414ae3611660db7555b",
+  "uiDigest": "ac0c6f7d033fd54387db742279973f023fc194ae3a0383722fd74f1cf33dc581",
   "reviewer": "Claude (AN-6 / #67: Microsoft Clarity)",
   "reviewedAt": "2026-09-26",
   "summary": "#67。担当者の指示で、LP と同じ Microsoft Clarity（プロジェクト yo6yjo7ath）をデモにも入れた。GA4 と同じ shouldTrack を満たす本番の公開 URL でだけ読み込む。Clarity は開始時と送信のたびに、その時点の location.href をハッシュ込みで記録する。伏せる設定はない。そこで招待・ホストの画面（#/room/<招待>・#/host）と解釈できないハッシュへは、URL が変わる前に止める（リンクを押したとき・アプリの navigate()・Navigation API）。そのまま開いたときは start を渡さず、いったん止めたらこのページでは再開しない。URL が変わる前に止める手段（Navigation API）がないブラウザでは Clarity を読み込まない（Copilot の指摘）。ニックネームの入力欄・エラー・保存の知らせ・ルームの名前・顔の文字・「〇〇」で入りますの見出し・「〇〇さんのルーム」の補足・名前の候補のボタン・「いまのルームに戻る」リンクに data-clarity-mask を付けた。ルームのすべての状態見本で、画面のニックネームが隠す印の中にあることを E2E で確かめた。見た目は変えていない（属性だけ）。320px でマイページ・ルームを作る・ようこそを見て、表示と JS エラーなしを確認した。",
