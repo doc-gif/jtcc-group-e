@@ -1,3 +1,5 @@
+@import './fonts/zen-maru-gothic.css';
+
 /*
  * 配色「さくらミルク」。値はデザインマスター（Figma 267:8198）の変数「Lastpiece v2 / Tokens」(177:16) に合わせる。
  * 対応と比は design-system/tokens.css・docs/DESIGN.md。
@@ -35,6 +37,26 @@
   --shadow: 0 2px 12px rgba(222, 127, 156, 0.18);
   --radius: 14px;
   --mincho: 'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', serif;
+  /*
+   * F14 サンリオの世界観（2026-09-26 にマスターへ反映、このアプリ実装で Web に反映）。
+   * 値は Figma の変数「Lastpiece v2 / Sanrio World (F14)」(323:3784) と同じ名前・同じ値（design-system/tokens.css）。
+   * 地の色（空色・クリーム・ラベンダー）とリボン・飾りの色。文字に使えるのは kuromi-ink と cocoa だけ（このアプリでは文字に使っていない）。
+   * キャラクターの絵と © 表記の札は入れない（docs/ADOPTED_DESIGN.md「実装時の境界」）。
+   */
+  --lp-v2-sanrio-sky: #DDF1FB;            /* sanrio/sky（T09 フレンド・T10 ルーム・T08 結果の地） */
+  --lp-v2-sanrio-sky-deep: #A6D6F0;       /* sanrio/sky-deep */
+  --lp-v2-sanrio-cream: #FFF6E0;          /* sanrio/cream（T07 街・T09 棚の地） */
+  --lp-v2-sanrio-lavender: #EFE7F9;       /* sanrio/lavender（T08 ガチャの地） */
+  --lp-v2-sanrio-lavender-deep: #8C6BB8;  /* sanrio/lavender-deep（目玉のカードの点線・ラベンダーのリボン） */
+  --lp-v2-sanrio-ribbon-red: #E0344F;     /* sanrio/ribbon-red（赤いリボン） */
+  --lp-v2-sanrio-melody-pink: #F8BCD0;    /* sanrio/melody-pink（水玉・カードの点線と枠・日よけ・リボンの帯） */
+  --lp-v2-sanrio-kuromi-ink: #3E2C58;     /* sanrio/kuromi-ink（文字可。空色の地で 10.58:1） */
+  --lp-v2-sanrio-cinnamon-blue: #8FCDEF;  /* sanrio/cinnamon-blue（星の飾り） */
+  --lp-v2-sanrio-purin-yellow: #FBE28C;   /* sanrio/purin-yellow（星の飾り） */
+  --lp-v2-sanrio-cocoa: #7A4A28;          /* sanrio/cocoa（文字可。空色の地で 6.36:1） */
+  --petal: #F7CBD9;                       /* primitive/petal（ルームの幕の縁・小さな家の屋根） */
+  /* 画面の見出し（F14）: Zen Maru Gothic Bold。同梱の分割フォントにない文字は丸ゴシック系の OS フォントで出す */
+  --font-heading: 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', 'Yu Gothic', 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
   font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif;
   color: var(--text);
   background: var(--bg);

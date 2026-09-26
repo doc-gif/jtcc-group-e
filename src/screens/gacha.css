@@ -15,13 +15,18 @@
 .machine .m-click text { font-family: inherit; }
 .spin-content .machine-wrap { width: min(100%, 22rem); }
 
-/* ガチャ詳細（267:8279）：ガチャの名前 */
-.detail-title { font-size: 1.25rem; font-weight: 800; color: var(--text); line-height: 1.45; }
+/* ガチャ詳細（267:8279）：ガチャの名前。F14 はリボンの帯（360:5835 Ribbon banner）の上に書く */
+.detail-title {
+  align-self: flex-start; max-width: 100%; margin-left: -0.5rem; padding: 0.15rem 1.5rem; overflow-wrap: anywhere;
+  font-size: 1.125rem; font-weight: 700; color: var(--text); line-height: 1.6;
+  background: var(--lp-v2-sanrio-melody-pink);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 0.6rem) 50%, 100% 100%, 0 100%, 0.6rem 50%);
+}
 
-/* ガチャ詳細（267:8279）：目玉の候補 */
+/* ガチャ詳細（267:8279）：目玉の候補。F14 は白地に lavender-deep の点線、左上にラベンダーのリボン */
 .gacha-feature {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 0.9rem;
+  position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem;
+  background: var(--surface); border: 2.5px dashed var(--lp-v2-sanrio-lavender-deep); border-radius: 20px; padding: 0.9rem;
 }
 .gacha-feature .goods-lg { width: 8rem; height: 8rem; }
 .gacha-feature-text { flex: 1 1 9rem; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
@@ -31,7 +36,8 @@
 .gacha-feature-odds b { font-size: 1.375rem; font-variant-numeric: tabular-nums; }
 
 /* 支払う金額（詳細 267:8279・回す前 267:8335） */
-.pay-card { display: flex; flex-direction: column; gap: 0.3rem; background: var(--soft); border-radius: 18px; padding: 0.9rem 1rem; }
+/* F14: 白地に melody-pink の枠（267:8292 Price before commitment） */
+.pay-card { display: flex; flex-direction: column; gap: 0.3rem; background: var(--surface); border: 2px solid var(--lp-v2-sanrio-melody-pink); border-radius: 20px; padding: 0.9rem 1rem; }
 .pay-kicker { font-size: 1.0625rem; font-weight: 800; color: var(--text); }
 .pay-price, .pay-need { font-size: 1.0625rem; font-weight: 700; color: var(--deep); }
 .pay-price b { font-size: 1.625rem; font-variant-numeric: tabular-nums; margin-right: 0.15rem; }

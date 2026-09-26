@@ -20,9 +20,9 @@ for (const path of ['./', './versions/v0.0.0/', '/jtcc-group-e-preview/pr-5/runs
     expect(manifest.display).toBe('standalone')
     expect(new URL(manifest.start_url, href).href).toBe(base)
     expect(new URL(manifest.scope, href).href).toBe(base)
-    // マスターの色（ピンクの帯・背景）。index.html の theme-color と同じ
-    expect(manifest.theme_color).toBe('#F2A7BC')
-    expect(manifest.background_color).toBe('#FFF9FA')
+    // マスターの色（F14 の街の地のクリーム sanrio/cream）。index.html の theme-color と同じ
+    expect(manifest.theme_color).toBe('#FFF6E0')
+    expect(manifest.background_color).toBe('#FFF6E0')
     expect(await page.locator('meta[name="theme-color"]').getAttribute('content')).toBe(manifest.theme_color)
     expect(manifest.icons.map((icon) => `${icon.sizes} ${icon.purpose ?? 'any'}`)).toEqual(['192x192 any', '512x512 any', '512x512 maskable'])
     for (const icon of manifest.icons) {
