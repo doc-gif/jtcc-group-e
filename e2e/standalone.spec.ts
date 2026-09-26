@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 // F16: ホーム画面から全画面（standalone）で開けることと、画面全体のジェスチャー（ピンチ・引っぱって再読み込み・長押し）の抑制。
 // 実際のピンチ・端スワイプはヘッドレスのブラウザで再現できない（抑制なしでも合成したピンチで拡大しない）ため、
 // ここでは計算された CSS と iOS のジェスチャーイベントの抑制を確かめ、実機の確認は docs/MULTI_DEVICE.md の手順で行う。
-// 「ホーム画面に追加」の案内は Figma のマスターに状態を足してから別に実装する。
+// 「ホーム画面に追加」の案内（#57、マスター 448:14192・448:14267）は、タブで開いたときだけ街ホームに出し、閉じたら出さない。
 
 type Manifest = { display: string, start_url: string, scope: string, theme_color: string, background_color: string, icons: { src: string, sizes: string, type: string, purpose?: string }[] }
 
@@ -86,4 +86,33 @@ test('街の地図は中でスクロールしても、画面の外側を引っ�
   await expect(viewport).toBeVisible()
   if (await page.evaluate(() => CSS.supports('overscroll-behavior', 'contain'))) expect(await viewport.evaluate((el) => getComputedStyle(el).overscrollBehaviorY)).toBe('contain')
   expect(await viewport.evaluate((el) => getComputedStyle(el).touchAction)).toBe('auto')
+})
+
+test('「ホーム画面に追加」の案内はタブで開いた街ホームにだけ出し、閉じたら再読み込みしても出さない', async ({ page }) => {
+  await page.goto('./#/')
+  const guide = page.getByRole('region', { name: 'ホーム画面に追加すると、全画面で遊べます' })
+  await expect(guide).toBeVisible()
+  await expect(guide).toContainText('iPhone：共有ボタン →「ホーム画面に追加」')
+  // ルームには出さない（ホーム画面のアプリは保存データがブラウザと別のため）
+  await page.goto('./#/room/new')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await expect(guide).toHaveCount(0)
+  await page.goto('./#/')
+  await guide.getByRole('button', { name: '閉じる' }).click()
+  await expect(guide).toHaveCount(0)
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused()
+  await page.reload()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('ラストピース')
+  await expect(guide).toHaveCount(0)
+})
+
+test('ホーム画面から開いた（standalone）ときは案内を出さない', async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = window.matchMedia.bind(window)
+    window.matchMedia = (query: string) => (query === '(display-mode: standalone)' ? { ...original(query), matches: true, media: query } : original(query))
+  })
+  await page.goto('./#/')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('ラストピース')
+  await expect(page.getByRole('link', { name: 'ガチャのお店へ' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'ホーム画面に追加すると、全画面で遊べます' })).toHaveCount(0)
 })

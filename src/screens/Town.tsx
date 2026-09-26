@@ -6,6 +6,7 @@ import { paths } from '../app/router'
 import { townFeature } from '../app/townAssets'
 import { Bow, Cloud, CoinPill, ExampleNotice, SaveWarning, ServiceNotice, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
+import { InstallGuide } from '../components/InstallGuide'
 import { TownMapLayer, TownViewport } from '../components/TownMap'
 
 const OPENING_COPY = {
@@ -152,6 +153,8 @@ function TownHome() {
           <p className="town-hint" aria-hidden="true"><b className="town-hint-title">ようこそ、ラストピースの街へ！</b>街をドラッグして探索</p>
         </div>
         <div className="content town-content">
+          {/* ブラウザのタブで開いたときだけ（マスター 448:14192・448:14267） */}
+          <InstallGuide />
           {!state.welcomed && <a className="welcome-card" href={paths.welcome}><b>はじめての方へ</b><span>ラストピースの遊び方とニックネーム ›</span></a>}
           <a className="feature-card has-bow" href={paths.gacha(gacha.id)}>
             <Bow className="card-bow" />

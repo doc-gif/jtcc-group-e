@@ -427,6 +427,14 @@ details p { font-size: 0.9375rem; padding-bottom: 0.5rem; }
 .feature-desc { color: var(--sub); font-size: 1.0625rem; line-height: 1.6; }
 .feature-more { color: var(--deep); font-size: 1.0625rem; font-weight: 700; }
 .town-actions { display: flex; flex-direction: column; gap: 0.1rem; }
+/* 「ホーム画面に追加」の案内（#57、マスター 448:14192・448:14267）。文字 200% でも折り返し、ボタンは縦に並ぶ */
+.install-guide { display: flex; flex-direction: column; gap: 0.5rem; padding: 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.install-guide-title { margin: 0; font-size: 1rem; line-height: 1.5; color: var(--text); word-break: auto-phrase; }
+.install-guide-text, .install-guide-steps { margin: 0; font-size: 0.875rem; line-height: 1.7; color: var(--sub); overflow-wrap: anywhere; }
+.install-guide-steps { padding: 0; list-style: none; }
+.install-guide-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.install-guide-actions .btn { flex: 1 1 9rem; }
+.install-guide-actions .btn-main { flex-grow: 3; }
 .town-sub-link { display: flex; align-items: center; justify-content: center; color: var(--deep); font-size: 0.9375rem; font-weight: 700; text-underline-offset: 0.25em; }
 
 /* ===== 導入（T07 Opening） ===== */
