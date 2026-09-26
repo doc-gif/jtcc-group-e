@@ -31,3 +31,8 @@
 - 置き場所: Supabase `lastpiece-pitch` の非公開バケット `pitch-goods` だけ。担当者が Dashboard からアップロードし、開いているルームの参加者とホストだけが読める。リポジトリ・`public/`・確認用プレビュー・本番のビルドには入れない（上の 4 は変わらない）。手順は [PITCH_PHOTOS.md](PITCH_PHOTOS.md)、権限の確認は [SQL_MIGRATION_F15.md](SQL_MIGRATION_F15.md)。
 - 権利表記: 各カードの copyright（L001・L011 は © 2024、L015 は © 2025）を写真の下に出す（`src/app/pitchPhotos.ts`）。
 - 一般公開のデモ（HANDOFF の 7）に広げるのは、担当者が許諾の範囲を確かめてからの別の作業。画像の公開利用が必要な場合は、用途・権利・配布範囲が確定した別の指示として扱う。
+
+### 例外: 限定公開アプリのキャラクターの絵（#144 案 D、#149）
+
+- 範囲: **限定公開アプリ（開いているルームのホストと参加者）だけ**。一般公開アプリ・確認用プレビュー・リポジトリ・`public/`・ビルドには入れない（上の 4 は変わらない）。
+- 置き場所: Supabase `lastpiece-pitch` の非公開バケット `pitch-characters` だけ。担当者が Dashboard からアップロードし、アプリは本人のログインで読む（公開 URL・署名付き URL は作らない）。場所と素材の対応・手順は [PITCH_CHARACTERS.md](PITCH_CHARACTERS.md)。成果物に入っていないことは `scripts/check-dist.mjs`（`pnpm build`）が確かめる。

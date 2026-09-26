@@ -73,6 +73,22 @@ test('画像は assets/lastpiece 由来のオリジナル素材だけ（許可�
   }
 })
 
+// #144 案 D・#149: 限定公開アプリのキャラクターの絵は非公開バケットから本人の認証で読むだけ。ビルドは scripts/check-dist.mjs でも検査する。
+test('キャラクターの絵を public/ に置かず、アプリのコードで公開 URL・署名付き URL を作らない', async () => {
+  for (const path of await files('public')) {
+    const relative = path.slice('public/'.length).replaceAll('\\', '/')
+    expect(/(^|\/)chars?\//i.test(relative), `public/ にキャラクターの置き場所: ${relative}`).toBe(false)
+  }
+  for (const path of sources) {
+    expect((await read(path)).match(/createSignedUrls?|getPublicUrl/g), path).toBeNull()
+  }
+})
+
+test('ビルドの最後に成果物の検査（scripts/check-dist.mjs）を走らせる', async () => {
+  const { scripts } = JSON.parse(await read('package.json'))
+  expect(scripts.build).toMatch(/&& node scripts\/check-dist\.mjs dist$/)
+})
+
 test('コインの交換率は一律 20%、出金不可と取り消し不可を交換シートに書く', async () => {
   expect(await read('src/domain/odds.ts')).toMatch(/EXCHANGE_RATE = 0\.2\b/)
   const sheet = await read('src/screens/Collection.tsx')
