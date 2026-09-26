@@ -43,7 +43,7 @@
 
 ## デザインの管理先
 
-- 指定 Figma ファイル `yeDF1BwhrxpXI57Daainle` をアプリのデザイン管理先とする。ラストピースの画面の正は [デザインマスター `267:8198`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-8198)。64画面・状態と node の対応は [`docs/ADOPTED_DESIGN.md`](docs/ADOPTED_DESIGN.md)。緑アクセントの `252:2` は不採用なので元にしない。詳細・各部品のリンクは `docs/DESIGN.md`。
+- 指定 Figma ファイル `yeDF1BwhrxpXI57Daainle` をアプリのデザイン管理先とする。ラストピースの画面の正は [デザインマスター `267:8198`](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-8198)。画面・状態と node の対応は [`docs/ADOPTED_DESIGN.md`](docs/ADOPTED_DESIGN.md)。緑アクセントの `252:2` は不採用なので元にしない。詳細・各部品のリンクは `docs/DESIGN.md`。
 - **デザインは Figma が先、アプリが後。** 見た目・画面構成・状態の変更は、まず Figma のマスターを直し、その Figma に合わせてアプリを実装する（担当者の指示、2026-09-26）。実装中に Figma と違う形にしたくなったら（色のコントラスト不足などの基準違反を含む）、アプリだけで変えずに、Figma の修正案を担当者に確認して Figma を先に直す。アプリだけの「許容差分」を新しく作らない。Figma の修正待ちの差分は PR に「Figma 修正待ち」と明記し、完了扱いにしない。
 - 新しい UI は Figma に画面と状態を記録してから実装する。配色はピンク基調の「さくらミルク」とし、主操作を緑にしない。マスターと同じ部品インスタンスを使う。既存のピッチ資料をアプリ仕様として確定扱いしない。
 - Figma の作業領域も `task/<branch>` ごとに分け、担当・関連 PR・状態を記載する。共通変数と本体部品は変更前に他の Draft PR と調整し、別の作業領域を上書きしない。
@@ -56,7 +56,7 @@
 - 1タスク・1ブランチ・1worktree。新規作業は最新の `origin/main` から開始する。共有 worktree、main への直接 push、保護を迂回したマージは禁止。
 - 作業中は Draft PR。Ready にすると `Quality gate` と `UI/UX gate` の成功後、Bot が現在の SHA を承認して squash merge する。
 - 作業者自身が影響範囲の検証と必要なレビューを完了し、PR を Ready に変更する。GitHub CLI なら `gh pr ready <番号>`。マージ許可を毎回聞き直さず、必須 CI と Bot のマージ完了まで追跡する。失敗は修正して再検証する。保護ルールを外さない。
-- main が進んでいたら作業ブランチへ取り込み、競合を解消して再テスト・push する。手順は `docs/DEVELOPMENT.md`。
+- Ready で CI が成功した後に main が進んだ場合は、Bot の**マージのキュー**が1本ずつ main を取り込み、CI を回してマージする。自分で取り込み直さない。キューから外れた（競合・取り込み後の CI の失敗）と Bot がコメントしたら、作業ブランチへ取り込み、競合を解消して再テスト・push する。手順は `docs/DEVELOPMENT.md` の「マージのキュー」。
 - 不具合には回帰テストを追加する。見た目の変更は HIG・ゲーム UX 基準も満たす。未確認の記録を合格として生成しない。
 
 ## 本番公開を指示されたとき

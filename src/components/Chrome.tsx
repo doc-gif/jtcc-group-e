@@ -43,7 +43,7 @@ export function BackBar({ title, back, backLabel = 'もどる', children }: { ti
 }
 
 /**
- * デザインマスター（T08・T09）の上部。提案モックの1行、枠付きの「戻る」、見出しの順に並べる。
+ * デザインマスター（T08・T09）の上部。「開発中のサービス」の1行、枠付きの「戻る」、見出しの順に並べる。
  * 回転・開封の途中など、マスターに戻る操作がない画面では back を渡さない。
  */
 export function PageHeader({ title, back, onBack, children }: {
@@ -54,7 +54,7 @@ export function PageHeader({ title, back, onBack, children }: {
 }) {
   return (
     <header className="page-header">
-      <p className="page-header-notice">提案モック・公式サービスではありません</p>
+      <ServiceNotice className="page-header-notice" />
       <div className="page-header-row">
         {back && <a className="btn btn-outline page-header-back" href={back}>戻る</a>}
         {!back && onBack && <button type="button" className="btn btn-outline page-header-back" onClick={onBack}>戻る</button>}
@@ -108,10 +108,18 @@ export function TabBar({ active }: { active?: Tab }) {
   )
 }
 
-export function MockNotice() {
+/** 各画面の上部の1行（マスター T07〜T10。担当者の決定 #69）。 */
+export const SERVICE_NOTICE = 'ラストピースは開発中のサービスです'
+
+export function ServiceNotice({ className }: { className: string }) {
+  return <p className={className}>{SERVICE_NOTICE}</p>
+}
+
+/** 各画面の下の注記。上部の1行がない入口（はじめに・ガチャのお店・マイページ）でも同じ1文を出す。 */
+export function ExampleNotice() {
   return (
     <p className="mock-notice">
-      提案モック・公式サービスではありません。掲載の商品・価格・在庫・確率は説明用の架空データで、各権利者とは関係ありません。
+      {SERVICE_NOTICE}。商品・価格・在庫は例です。各権利者とは関係ありません。
     </p>
   )
 }

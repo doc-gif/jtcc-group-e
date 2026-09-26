@@ -2,7 +2,7 @@ import './shelf.css'
 import { useApp } from '../app/appContext'
 import { paths } from '../app/router'
 import { friendsOf } from '../domain/shelf'
-import { MockNotice, PageHeader, TabBar } from '../components/Chrome'
+import { ExampleNotice, PageHeader, TabBar } from '../components/Chrome'
 
 /** フレンドなしのイラスト（T09 267:8884 のベクター画をコードで描き直したもの）。 */
 function FriendsArt() {
@@ -56,7 +56,7 @@ export function Together() {
             <a className="btn btn-outline btn-block" href={paths.gachaList}>ガチャのお店へ</a>
           </section>
         )}
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <TabBar active="friend" />
     </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { track } from '../app/analytics'
 import { useApp } from '../app/appContext'
 import { paths } from '../app/router'
 import { findGacha, findPrize, seriesList } from '../domain/catalog'
@@ -6,7 +7,7 @@ import { exchange, exchangeQuote, requestDelivery, summarize } from '../domain/g
 import { coinText, EXCHANGE_RATE, yen } from '../domain/odds'
 import type { SeriesId, WinRecord, WinStatus } from '../domain/types'
 import { shelfOf, slotText } from '../domain/shelf'
-import { MockNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
+import { ExampleNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { Sheet } from '../components/Sheet'
 
@@ -48,11 +49,14 @@ export function Collection() {
 
   const doExchange = () => {
     update((current) => exchange(current, selected))
+    // 計測（#45）: 点数と得たコインの合計だけ。賞品名・ニックネームは送らない
+    track('exchange', { count: quote.length, coins: quoteTotal })
     setMessage(`${quote.length}点をコインに交換しました（+${coinText(quoteTotal)}コイン）`)
     setSelected([]); setSheet(null)
   }
   const doDelivery = () => {
     update((current) => requestDelivery(current, selected))
+    track('deliver', { count: selected.length })
     setMessage(`${selected.length}点を届け待ちにしました`)
     setSelected([]); setSheet(null)
   }
@@ -138,7 +142,7 @@ export function Collection() {
           </ul>
         )}
         <SaveWarning />
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <div className="dock">
         {selected.length > 0 && (

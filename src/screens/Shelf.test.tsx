@@ -42,7 +42,7 @@ describe('わたしの棚', () => {
     start('#/shelf')
     expect(heading()).toHaveTextContent('わたしの棚')
     expect(screen.getByRole('link', { name: '戻る' })).toHaveAttribute('href', '#/')
-    expect(screen.getByText(/提案モック・公式サービスではありません/, { selector: '.page-header-notice' })).toBeVisible()
+    expect(screen.getByText(/ラストピースは開発中のサービスです/, { selector: '.page-header-notice' })).toBeVisible()
     expect(screen.getByText('0 / 9 枠')).toBeVisible()
     expect(screen.getByText('サンリオ カプセルミックスの中身9種の棚')).toBeVisible()
     expect(screen.queryByRole('link', { name: '当てたもの一覧' })).toBeNull()
