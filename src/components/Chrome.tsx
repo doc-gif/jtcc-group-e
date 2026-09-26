@@ -19,10 +19,51 @@ export function CoinPill({ demo = false }: { demo?: boolean }) {
   )
 }
 
+/*
+ * F14 サンリオの世界観の飾り（マスターの「F14 / BG」の雲、「Kitty bow / Lavender bow」のリボン、「Heart」「Star」）。
+ * すべてコードで描いたオリジナルの図形で、キャラクターの絵・© 表記の札・サンリオのアセット画像は使わない
+ * （docs/ADOPTED_DESIGN.md「実装時の境界」）。色は src/index.css の --lp-v2-sanrio-* だけ。読み上げには出さない。
+ */
+
+/** 白い雲（マスターの F14 / BG の右上）。 */
+export function Cloud({ className = '' }: { className?: string }) {
+  return (
+    <svg className={`deco-cloud ${className}`.trim()} viewBox="0 0 64 29" aria-hidden="true" focusable="false">
+      <path d="M14 29a9 9 0 0 1-2-17.8A12 12 0 0 1 35 8a9 9 0 0 1 14 5.5A8 8 0 0 1 56 29z" />
+    </svg>
+  )
+}
+
+/** リボン（マスターのカードの留めのリボン・題のリボン）。tone は赤かラベンダー。 */
+export function Bow({ className = '', tone = 'red' }: { className?: string; tone?: 'red' | 'lavender' }) {
+  return (
+    <svg className={`bow bow-${tone} ${className}`.trim()} viewBox="0 0 34 18" aria-hidden="true" focusable="false">
+      <path className="bow-tail" d="M12.5 10 8 17.5h5l3-5zM21.5 10l4.5 7.5h-5l-3-5z" />
+      <path className="bow-loop" d="M17 8.5C13 2.5 6.5.5 3.5 2.5.5 4.5 1 12.5 4 14.8c3 2.4 9-.8 13-6.3z" />
+      <path className="bow-loop" d="M17 8.5c4-6 10.5-8 13.5-6 3 2 2.5 10-.5 12.3-3 2.4-9-.8-13-6.3z" />
+      <circle className="bow-knot" cx="17" cy="8.5" r="3.6" />
+      <circle className="bow-shine" cx="16" cy="7.4" r="1.1" />
+    </svg>
+  )
+}
+
+/** カードのまわりのハートと星（マスターの結果・詳細の飾り）。 */
+export function Sparkles() {
+  return (
+    <span className="sparkles" aria-hidden="true">
+      <svg className="sparkle sparkle-1" viewBox="0 0 12 11"><path d="M6 11 1.2 6.2A3.2 3.2 0 0 1 6 2a3.2 3.2 0 0 1 4.8 4.2z" /></svg>
+      <svg className="sparkle sparkle-2" viewBox="0 0 12 12"><path d="m6 0 1.7 4.1L12 4.6 8.7 7.5l1 4.3L6 9.6 2.3 11.8l1-4.3L0 4.6l4.3-.5z" /></svg>
+      <svg className="sparkle sparkle-3" viewBox="0 0 12 12"><path d="m6 0 1.7 4.1L12 4.6 8.7 7.5l1 4.3L6 9.6 2.3 11.8l1-4.3L0 4.6l4.3-.5z" /></svg>
+      <svg className="sparkle sparkle-4" viewBox="0 0 12 11"><path d="M6 11 1.2 6.2A3.2 3.2 0 0 1 6 2a3.2 3.2 0 0 1 4.8 4.2z" /></svg>
+    </span>
+  )
+}
+
 /** タブで行き来する画面の上部。 */
 export function TopBar({ title, sub }: { title: string; sub: string }) {
   return (
     <header className="topbar">
+      <Cloud />
       <div className="topbar-title">
         <h1 id="page-title" tabIndex={-1}>{title}<small lang="en">{sub}</small></h1>
       </div>
@@ -35,6 +76,7 @@ export function TopBar({ title, sub }: { title: string; sub: string }) {
 export function BackBar({ title, back, backLabel = 'もどる', children }: { title: string; back: string; backLabel?: string; children?: ReactNode }) {
   return (
     <header className="backbar">
+      <Cloud />
       <a className="back-link" href={back}><span aria-hidden="true">‹</span>{backLabel}</a>
       <h1 id="page-title" tabIndex={-1}>{title}</h1>
       {children}
@@ -54,6 +96,7 @@ export function PageHeader({ title, back, onBack, children }: {
 }) {
   return (
     <header className="page-header">
+      <Cloud />
       <ServiceNotice className="page-header-notice" />
       <div className="page-header-row">
         {back && <a className="btn btn-outline page-header-back" href={back}>戻る</a>}

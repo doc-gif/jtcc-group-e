@@ -1,10 +1,10 @@
 {
-  "version": "0.4.0",
+  "version": "0.4.1",
   "date": "2026-09-26",
   "fileKey": "yeDF1BwhrxpXI57Daainle",
   "designStatus": "adopted-master",
   "implementationStatus": "applied-to-app-css",
-  "implementationNote": "アプリは tokens.css を import せず、同じ値を src/index.css に持つ（F06、2026-09-26）。対応は appMapping。 ただし F14 の Lastpiece v2 / Sanrio World (F14)（323:3784）の --lp-v2-sanrio-* はアプリ未実装（collections の implementationStatus を見る）。",
+  "implementationNote": "アプリは tokens.css を import せず、同じ値を src/index.css に持つ（F06、2026-09-26）。対応は appMapping。F14 の Lastpiece v2 / Sanrio World (F14)（323:3784）の --lp-v2-sanrio-* も、Issue #70 のアプリ実装で src/index.css に同じ名前・同じ値で持つ（0.4.1）。見出しの Zen Maru Gothic Bold は src/fonts/ に OFL の woff2（アプリで使う文字だけの subset）を同梱。",
   "paletteDecision": "Pink \"Sakura Milk\" (さくらミルク) is the adopted palette (owner, 2026-09-26). Green accent version 252:2 is rejected; primary actions are not green. Primary stays #be6482 with 19px bold button labels (WCAG large text); smaller pink text uses wine #a94a68; mint #e3f1e7 is kept for the selected tab and coin badge (owner, 2026-09-26).",
   "pinkTextRule": {
     "decidedOn": "2026-09-26",
@@ -109,8 +109,8 @@
       "count": 11,
       "adoptedOn": "2026-09-26",
       "note": "F14 サンリオの世界観。作業領域 323:3796 で作り、担当者の承認でマスターへ反映（Issue #50 のロック下）。旧名 \"(F14 draft)\"。177:15・177:16 は変えていない",
-      "implementationStatus": "pending-app",
-      "implementationNote": "マスターには反映済み。src/index.css にはまだない。アプリへの反映は別タスク（STATUS.md の「F14 のアプリ実装」）"
+      "implementationStatus": "applied-to-app-css",
+      "implementationNote": "マスターに反映済み。Issue #70 で src/index.css に同じ名前（--lp-v2-sanrio-*）で持ち、地の色（cream・lavender・sky）と水玉・点線の枠・リボン・日よけ・ハートと星の飾りに使う。文字には使っていない（文字はこれまでどおり text/primary・secondary・accent/wine）。キャラクターの絵と © 表記の札は入れていない（docs/ux-reviews/f14-app.json）"
     }
   ],
   "cssNaming": "CSS 名は Figma 変数の WEB code syntax と同じ。--bg/--surface/--soft/--main/--deep は src/index.css と同名・同値。それ以外は --lp-v2-*。v0.1 の --jtcc-* は使わない。文字スタイル由来の --lp-v2-type-*（button を含む） と --lp-v2-focus-ring は CSS 側で付けた名前。",
@@ -986,6 +986,21 @@
       "token": "Lastpiece v2/Button",
       "figma": "19/28 Bold",
       "app": "--button-size 1.1875rem / --button-line 1.75rem（.btn・.town-spot）"
+    },
+    {
+      "token": "sanrio/sky・sky-deep・cream・lavender・lavender-deep・ribbon-red・melody-pink・kuromi-ink・cinnamon-blue・purin-yellow・cocoa",
+      "figma": "323:3784 の11色",
+      "app": "同じ名前 --lp-v2-sanrio-*（.screen の地と水玉、.world-lavender・.world-sky、カードの点線と枠、.bow、.town-awning、.detail-title のリボンの帯、.sparkle）。F14 のアプリ実装（#70）"
+    },
+    {
+      "token": "primitive/petal",
+      "figma": "#f7cbd9",
+      "app": "--petal（ルームの幕の縁・小さな家の屋根）"
+    },
+    {
+      "token": "見出し Zen Maru Gothic Bold 24（文字スタイルなし）",
+      "figma": "F14 の画面の見出し 85 件",
+      "app": "--font-heading（.page-header h1・.town-header h1・.topbar h1・回す前/回転/開封/売り切れの題）。src/fonts/zen-maru-gothic.css の OFL の woff2 を同梱、1.5rem"
     }
   ],
   "differencesFromApp": [

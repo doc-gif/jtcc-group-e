@@ -14,7 +14,7 @@ import { NotFound } from './NotFound'
  */
 function Unavailable({ friend }: { friend: DemoFriend }) {
   return (
-    <div className="screen">
+    <div className="screen world-sky">
       <PageHeader title="今は見られません" back={paths.together} />
       <main className="content">
         <span className="friend-art" aria-hidden="true">
@@ -52,7 +52,7 @@ export function FriendShelf({ id }: { id: string }) {
     return found ? [{ id: prizeId, name: found.prize.name, art: found.prize.art, glow: found.prize.glow, note: `${friend.name}さんの品` }] : []
   })
   return (
-    <div className="screen">
+    <div className="screen world-sky">
       <PageHeader title={`${friend.name}さんの棚`} back={paths.together} />
       <main className="content">
         <p className="item-eyebrow">友だちの持ち物・あなたの棚ではありません</p>
@@ -85,7 +85,7 @@ export function FriendItem({ id, item }: { id: string; item: string }) {
   if (!visible) return <Unavailable friend={friend} />
   const sent = hasReacted(state, friend.id, item)
   return (
-    <div className="screen">
+    <div className="screen world-sky">
       <PageHeader title={sent ? '気持ちを送った' : `${friend.name}さんの1点`} back={paths.friend(friend.id)} />
       <main className="content">
         <p className="item-eyebrow">{friend.name}さんの持ち物・あなたの品ではありません</p>
