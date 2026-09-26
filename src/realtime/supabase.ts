@@ -11,6 +11,14 @@ export function supabaseTransport(client: SupabaseClient): RoomTransport {
       if (result.error) throw result.error
     }
   })().catch(error => { auth = undefined; throw error })
+  /** The signed-in user's current JWT (read after sign-in, so a refreshed token is used, not a cached one). */
+  const accessToken = async () => {
+    await authenticate()
+    const { data, error } = await client.auth.getSession()
+    const token = data.session?.access_token
+    if (error || !token) throw error ?? new Error('auth-required')
+    return token
+  }
   const rpc = async (name: string, args: Record<string, unknown>) => {
     await authenticate()
     const { data, error } = await client.rpc(name, args)
@@ -36,8 +44,9 @@ export function supabaseTransport(client: SupabaseClient): RoomTransport {
       // Broadcast is an optional wake-up hint. Auth and every result still come from RPC snapshots.
       let disposed = false
       let channel: ReturnType<SupabaseClient['channel']> | null = null
-      void authenticate().then(async () => {
-        await client.realtime.setAuth()
+      void accessToken().then(async token => {
+        // Private channels authorize with the user's JWT (Realtime RLS), never with the publishable key.
+        await client.realtime.setAuth(token)
         if (disposed) return
         channel = client.channel(`lp:${room}`, { config: { private: true } })
           .on('broadcast', { event: 'round' }, refresh).subscribe()
@@ -46,15 +55,44 @@ export function supabaseTransport(client: SupabaseClient): RoomTransport {
     },
   }
 }
+let client: SupabaseClient | null | undefined
 let instance: RoomTransport | null | undefined
+
+/**
+ * ビルドの設定（`.env.production` の `VITE_SUPABASE_URL`・`VITE_SUPABASE_PUBLISHABLE_KEY`、どちらもブラウザに公開してよい値）から
+ * 作る Supabase の接続。設定がない・形が違うビルド（開発・単体テスト）は null で、ルームは端末内デモになる。
+ */
+export function configuredClient(): SupabaseClient | null {
+  if (client !== undefined) return client
+  const config = supabaseConfig(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)
+  if (!config) return client = null
+  try {
+    // Anonymous identity stays in this browser. No service-role key, no cross-device handover.
+    return client = createClient(config.url, config.key, {
+      auth: { storageKey: `lastpiece_guest_${config.host}_${location.pathname}`, detectSessionInUrl: false },
+    })
+  } catch {
+    return client = null
+  }
+}
+
+const PUBLISHABLE_KEY = /^sb_publishable_[A-Za-z0-9_-]{16,}$/
+
+/**
+ * ビルドの設定の形を確かめる。URL は `https://<ホスト>` だけ（パス・資格情報・クエリなし）、キーは publishable の形だけ。
+ * 形が違えば null（ルームは端末内デモ。壊れた設定で画面を落とさない）。
+ */
+export function supabaseConfig(url: unknown, key: unknown): { url: string; key: string; host: string } | null {
+  if (typeof url !== 'string' || typeof key !== 'string' || !PUBLISHABLE_KEY.test(key)) return null
+  let parsed: URL
+  try { parsed = new URL(url) } catch { return null }
+  if (parsed.protocol !== 'https:' || !parsed.hostname || parsed.username || parsed.password || parsed.port) return null
+  if (parsed.pathname !== '/' || parsed.search || parsed.hash || url.replace(/\/$/, '') !== parsed.origin) return null
+  return { url: parsed.origin, key, host: parsed.hostname }
+}
+
 export function configuredTransport(): RoomTransport | null {
   if (instance !== undefined) return instance
-  const url = import.meta.env.VITE_SUPABASE_URL
-  const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-  if (!url || !key) return instance = null
-  if (!url.startsWith('https://') || !key.startsWith('sb_publishable_')) return instance = null
-  // Anonymous identity stays in this browser. No service-role key, no cross-device handover.
-  return instance = supabaseTransport(createClient(url, key, {
-    auth: { storageKey: `lastpiece_guest_${new URL(url).hostname}_${location.pathname}`, detectSessionInUrl: false },
-  }))
+  const real = configuredClient()
+  return instance = real ? supabaseTransport(real) : null
 }

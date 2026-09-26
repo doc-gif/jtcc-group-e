@@ -34,7 +34,8 @@ Linux の CI は `playwright install --with-deps chromium webkit` で OS 依存�
 - 画面の操作（ホームの絞り込み、詳細、ひとりで回す、当てたもの、マイページ、はじめて、保存できない端末）を `src/App.test.tsx` で検証。
 - 街の読み込み中（すぐ準備できたら出さない、0.3秒待ったら出す、準備できたら街へ、先に街へ行く、失敗とやり直し、導入のあと、動きを減らす設定）を `src/App.test.tsx` と `src/app/assets.test.ts`、ブラウザでは絵の読み込みを止めて `e2e/app.spec.ts` と UI/UX 検査（`town-loading`・`town-loading-error`）で検証。
 - 棚（9枠・お気に入りと取り消し・棚の外・共有前の見え方）とフレンド（友だちなし・友だちの棚・「いいな〜」は1回だけ・見られない状態）を `src/domain/shelf.test.ts` と `src/screens/Shelf.test.tsx`、ブラウザでは `e2e/app.spec.ts` で検証。
-- 共有ルームの画面（T10 の24画面の選び方、ホストの作成・予約・ピッチ用・開始、参加者の名前・重なり・自動の名前・名前の変更・準備・見守り、秒読み → 同時開封 → 結果、満員、期限切れ、ホスト不在、再接続、結果の回収、ホスト用リンク）を `src/app/room.test.ts` と `src/screens/Room.test.tsx`（偽タイマーと模擬サーバー）で、ブラウザでは `e2e/room.spec.ts`（同じブラウザの2つのタブ＝端末内デモ）で検証。UI/UX の場面は `e2e/room-seeds.ts` の保存データで各状態を開く。
+- 共有ルームの画面（T10 の28画面の選び方、ホストの作成・予約・ピッチ用・開始、参加者の名前・重なり・自動の名前・名前の変更・準備・見守り、秒読み → 同時開封 → 結果、満員、期限切れ、ホスト不在、再接続、結果の回収、ホスト用リンク）を `src/app/room.test.ts` と `src/screens/Room.test.tsx`（偽タイマーと模擬サーバー）で、ブラウザでは `e2e/room.spec.ts`（同じブラウザの2つのタブ＝端末内デモ）で検証。UI/UX の場面は `e2e/room-seeds.ts` の保存データで各状態を開く。
+- 複数の端末（F15）: ビルドは `.env.production` で実 Supabase を指す。**E2E・UI/UX 検査は実 Supabase へ通信しない**よう、`playwright.config.ts` の `storageState` が全ページの `localStorage` に `lastpiece_room_force_demo=1` を入れ、ルームを端末内デモにする（新しいテストで `browser.newContext()` を使うときも同じ値を入れる）。`e2e/room.spec.ts` が、成果物に Supabase の URL が入っていることと `*.supabase.co` への要求が 0 件であることを確かめる。設定の有無・形・E2E の指定によるルームの選び方は `src/app/roomSession.test.ts`、匿名ログイン（1回だけ・失敗後のやり直し）と購読（JWT を渡してから非公開チャンネル、失敗してもポーリング）は `src/realtime/supabase.test.ts`、`.env.production` に publishable キーと URL だけがあることは `scripts/governance.test.mjs`。実 DB の確認とブラウザの HTTP 経路が未確認であることは [MULTI_DEVICE.md](MULTI_DEVICE.md)。
 - 法務・ブランドのきまり（禁止語、注記、ピピのセリフ、画像の許可リスト、交換シートの文言、残り口数を出さない）を `scripts/governance.test.mjs` で検証。
 - ブラウザで、ひとりで回す → 当てたもの → コインに交換、右のハンドルのタップで回す操作を `e2e/app.spec.ts` で検証。
 - Chromium の小型スマホ・Android 相当・デスクトップ、WebKit の iPhone 相当・横向き。

@@ -53,7 +53,7 @@ pnpm verify
 
 ## 構成
 
-デザインは[指定 Figma](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-2)で管理します。ラストピースの画面の正は、ピンク基調「さくらミルク」の [デザインマスター](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-8198)です（T07–T10 の64画面、[node と状態の一覧](docs/ADOPTED_DESIGN.md)）。現行 Web は端末内のデモで、マスターの40席共有画面や棚はまだ実装していません。`design-system/` のトークンは、マスターが参照するピンク系の Figma 変数に合わせています（アプリへの適用はまだ。現行 Web との色の差は [docs/DESIGN.md](docs/DESIGN.md)）。
+デザインは[指定 Figma](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-2)で管理します。ラストピースの画面の正は、ピンク基調「さくらミルク」の [デザインマスター](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-8198)です（T07–T10 の64画面、[node と状態の一覧](docs/ADOPTED_DESIGN.md)）。Web はマスターの画面（街・ガチャの流れ・棚とフレンド・T10 のみんなの開封ルーム）を実装済みです。ルームは、本番・確認用プレビュー・CI のビルドでは専用の Supabase（`lastpiece-pitch`）につながり、別々のスマホで同じルームに入れます（F15、[記録](docs/MULTI_DEVICE.md)）。開発サーバー・単体テスト・E2E は Supabase を使わず、同じブラウザのタブの間だけで動く端末内デモになります（画面に「デモ」と明記）。コイン・商品・在庫・確率は説明用の架空データです。`design-system/` のトークンは、マスターが参照するピンク系の Figma 変数に合わせています（アプリへの適用はまだ。現行 Web との色の差は [docs/DESIGN.md](docs/DESIGN.md)）。
 
 - `src/domain/`: 画面から切り離した純粋な関数とデータ（抽選・確率・一律20%の交換・保存・演出の台本・架空カタログ）。Vitest で検証
 - `src/app/`: ルーター（ハッシュ）、状態の置き場所、ルームのデモ再現、声・音・振動

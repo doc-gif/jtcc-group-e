@@ -11,6 +11,12 @@ export const ROOM_DEMO_KEY = 'lastpiece_room_demo_v1'
 export const ROOM_DEMO_WAKE_KEY = 'lastpiece_room_demo_wake'
 /** 端末内デモの参加者 ID。タブごとに別の人として扱う（sessionStorage）。 */
 export const ROOM_DEMO_USER_KEY = 'lastpiece_room_demo_user'
+/**
+ * この値が '1' のブラウザは、ビルドに Supabase の設定があっても端末内デモを使う（E2E・UI/UX 検査用。
+ * playwright.config.ts が全ページの localStorage に入れる。テストが実 Supabase へ通信しないため）。
+ * 利用者が自分で入れても、その端末が「デモ」と明記されたルームになるだけで、ほかの人には影響しない。
+ */
+export const ROOM_FORCE_DEMO_KEY = 'lastpiece_room_force_demo'
 /** 入ったルームの記録（招待 → ルーム ID・見守りの選択・確認済みの結果）。 */
 export const ROOM_RECORDS_KEY = 'lastpiece_rooms_v1'
 
@@ -195,12 +201,17 @@ export function demoHostKey(): string {
 
 let fallback: RoomSession | null = null
 
-/** アプリ全体で 1 つのルームの接続。Supabase の設定がなければ、この端末の中だけのデモにする。 */
+/** ROOM_FORCE_DEMO_KEY が '1' なら true（E2E で実 Supabase へ通信しない）。 */
+export function forcedDemo(storage: KeyValue): boolean {
+  return storage.getItem(ROOM_FORCE_DEMO_KEY) === '1'
+}
+
+/** アプリ全体で 1 つのルームの接続。Supabase の設定がなければ（または E2E の指定があれば）、この端末の中だけのデモにする。 */
 export function defaultRoomSession(): RoomSession {
   if (fallback) return fallback
-  const real = configuredTransport()
   const local = safeStorage(() => window.localStorage)
   const session = safeStorage(() => window.sessionStorage)
+  const real = forcedDemo(local) ? null : configuredTransport()
   if (real) return fallback = createRoomSession(real, false, local)
   const transport = demoTransport({
     storage: local, session,

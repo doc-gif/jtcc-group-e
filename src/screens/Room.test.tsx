@@ -465,5 +465,22 @@ describe('復帰・ホスト不在・期限', () => {
     expect(screen.getByRole('heading', { name: 'ルームを作れるのはホストだけです' })).toBeVisible()
     expect(screen.getByRole('link', { name: 'ガチャのお店へ' })).toHaveAttribute('href', '#/gacha')
     expect(screen.queryByLabelText('表示する名前')).toBeNull()
+    // F15: 実 transport ではデモの注記を出さない
+    expect(screen.queryByText(/デモ：/)).toBeNull()
+  })
+
+  test('F15: 実 transport のルーム（別の端末とつながる）では、ロビー・共有シートにデモの注記を出さない', async () => {
+    const host = createRoomSession(server.asUser('real-host'), false, new MemoryStorage(), { hostKeys: memoryKeys(HOST_KEY), onWake: () => () => {} })
+    open('#/room/new', host)
+    expect(screen.getByRole('heading', { name: 'どんな名前で始める？' })).toBeVisible()
+    expect(screen.queryByText(/デモ：/)).toBeNull()
+    fireEvent.change(screen.getByLabelText('表示する名前'), { target: { value: 'ミオ' } })
+    await click('ルームを作る')
+    await flush()
+    expect(heading()).toHaveTextContent('あと2人で始められます')
+    expect(screen.queryByText(/デモ：/)).toBeNull()
+    await click('招待リンクを共有')
+    expect(screen.getByRole('dialog', { name: '招待リンクを共有' })).toBeVisible()
+    expect(screen.queryByText(/デモ：|別のスマホとはつながりません/)).toBeNull()
   })
 })

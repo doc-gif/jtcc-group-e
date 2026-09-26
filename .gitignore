@@ -18,6 +18,8 @@ test-results/
 .env
 .env.*
 !.env.example
+# ブラウザに公開してよい Supabase の URL と publishable キーだけ（F15）
+!.env.production
 
 # Editor directories and files
 .vscode/*
