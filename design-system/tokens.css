@@ -1,6 +1,6 @@
-/* ラストピース「さくらミルク」デザイントークン v0.3 — Figma スナップショット（2026-09-26）。
+/* ラストピース「さくらミルク」デザイントークン v0.4 — Figma スナップショット（2026-09-26）。
  * 出典: Figma yeDF1BwhrxpXI57Daainle の変数コレクション
- *   「Lastpiece v2 / Primitives」(177:15) と「Lastpiece v2 / Tokens」(177:16)。
+ *   「Lastpiece v2 / Primitives」(177:15)・「Lastpiece v2 / Tokens」(177:16)・「Lastpiece v2 / Sanrio World (F14)」(323:3784)。
  *   デザインマスター Lastpiece / Master · T11 (267:8198) の画面と部品が参照する変数。
  * CSS 名は Figma 変数の WEB code syntax と同じ。--bg / --surface / --soft / --main / --deep は
  *   src/index.css と同じ名前・同じ値。それ以外は --lp-v2-*。詳細は docs/DESIGN.md と figma-manifest.json。
@@ -55,8 +55,24 @@
   --lp-v2-touch-min: 44px;
   --lp-v2-touch-primary: 48px;
 
+  /* Lastpiece v2 / Sanrio World (F14) (323:3784), mode Value。2026-09-26 にマスターへ反映（担当者承認）。
+   * 空色・クリーム・ラベンダーの地、リボンの赤、キャラクターの色。文字に使えるのは kuromi-ink と cocoa だけ（TEXT_FILL）。
+   * キャラクターの絵はアプリに入れない（Figma だけ）。アプリへの反映は別タスク。 */
+  --lp-v2-sanrio-sky: #ddf1fb;
+  --lp-v2-sanrio-sky-deep: #a6d6f0;
+  --lp-v2-sanrio-cream: #fff6e0;
+  --lp-v2-sanrio-lavender: #efe7f9;
+  --lp-v2-sanrio-lavender-deep: #8c6bb8;
+  --lp-v2-sanrio-ribbon-red: #e0344f;
+  --lp-v2-sanrio-melody-pink: #f8bcd0;
+  --lp-v2-sanrio-kuromi-ink: #3e2c58;     /* 文字可。空色の地で 10.58:1 */
+  --lp-v2-sanrio-cinnamon-blue: #8fcdef;
+  --lp-v2-sanrio-purin-yellow: #fbe28c;
+  --lp-v2-sanrio-cocoa: #7a4a28;          /* 文字可。空色の地で 6.36:1 */
+
   /* 文字スタイル「Lastpiece v2/*」由来（Figma 変数ではない。CSS 側で付けた名前）。
-   * Display は Shippori Mincho Bold、他は Noto Sans JP（Title・Label・Button は Bold、Body・Caption は Regular）。 */
+   * Display は Shippori Mincho Bold、他は Noto Sans JP（Title・Label・Button は Bold、Body・Caption は Regular）。
+   * F14 で画面の見出しは Zen Maru Gothic Bold 24px（文字スタイルなし）になった。 */
   --lp-v2-type-display-size: 2rem;        /* 32px */
   --lp-v2-type-display-line: 2.75rem;     /* 44px */
   --lp-v2-type-title-size: 1.5rem;        /* 24px */

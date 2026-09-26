@@ -1,5 +1,5 @@
 {
-  "version": "0.3.0",
+  "version": "0.4.0",
   "date": "2026-09-26",
   "fileKey": "yeDF1BwhrxpXI57Daainle",
   "designStatus": "adopted-master",
@@ -16,7 +16,7 @@
   "master": {
     "pageId": "267:8198",
     "name": "Lastpiece / Master · T11",
-    "screens": 45,
+    "screens": 64,
     "localComponents": [
       {
         "nodeId": "267:10063",
@@ -94,6 +94,19 @@
         }
       ],
       "count": 30
+    },
+    {
+      "id": "VariableCollectionId:323:3784",
+      "name": "Lastpiece v2 / Sanrio World (F14)",
+      "modes": [
+        {
+          "name": "Value",
+          "modeId": "323:0"
+        }
+      ],
+      "count": 11,
+      "adoptedOn": "2026-09-26",
+      "note": "F14 サンリオの世界観。作業領域 323:3796 で作り、担当者の承認でマスターへ反映（Issue #50 のロック下）。旧名 \"(F14 draft)\"。177:15・177:16 は変えていない"
     }
   ],
   "cssNaming": "CSS 名は Figma 変数の WEB code syntax と同じ。--bg/--surface/--soft/--main/--deep は src/index.css と同名・同値。それ以外は --lp-v2-*。v0.1 の --jtcc-* は使わない。文字スタイル由来の --lp-v2-type-*（button を含む） と --lp-v2-focus-ring は CSS 側で付けた名前。",
@@ -669,6 +682,170 @@
       ],
       "value": 48,
       "bindingsInMaster": 90
+    },
+    {
+      "id": "VariableID:323:3785",
+      "collection": "Lastpiece v2 / Sanrio World (F14)",
+      "name": "sanrio/sky",
+      "syntax": {
+        "WEB": "var(--lp-v2-sanrio-sky)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "value": "#ddf1fb",
+      "bindingsInMaster": 44
+    },
+    {
+      "id": "VariableID:323:3786",
+      "collection": "Lastpiece v2 / Sanrio World (F14)",
+      "name": "sanrio/sky-deep",
+      "syntax": {
+        "WEB": "var(--lp-v2-sanrio-sky-deep)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL",
+        "STROKE_COLOR"
+      ],
+      "value": "#a6d6f0",
+      "bindingsInMaster": 14
+    },
+    {
+      "id": "VariableID:323:3787",
+      "collection": "Lastpiece v2 / Sanrio World (F14)",
+      "name": "sanrio/cream",
+      "syntax": {
+        "WEB": "var(--lp-v2-sanrio-cream)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "value": "#fff6e0",
+      "bindingsInMaster": 16
+    },
+    {
+      "id": "VariableID:323:3788",
+      "collection": "Lastpiece v2 / Sanrio World (F14)",
+      "name": "sanrio/lavender",
+      "syntax": {
+        "WEB": "var(--lp-v2-sanrio-lavender)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "value": "#efe7f9",
+      "bindingsInMaster": 10
+    },
+    {
+      "id": "VariableID:323:3789",
+      "collection": "Lastpiece v2 / Sanrio World (F14)",
+      "name": "sanrio/lavender-deep",
+      "syntax": {
+        "WEB": "var(--lp-v2-sanrio-lavender-deep)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL",
+        "STROKE_COLOR"
+      ],
+      "value": "#8c6bb8",
+      "bindingsInMaster": 15
+    },
+    {
+      "id": "VariableID:323:3790",
+      "collection": "Lastpiece v2 / Sanrio World (F14)",
+      "name": "sanrio/ribbon-red",
+      "syntax": {
+        "WEB": "var(--lp-v2-sanrio-ribbon-red)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL",
+        "STROKE_COLOR"
+      ],
+      "value": "#e0344f",
+      "bindingsInMaster": 33
+    },
+    {
+      "id": "VariableID:323:3791",
+      "collection": "Lastpiece v2 / Sanrio World (F14)",
+      "name": "sanrio/melody-pink",
+      "syntax": {
+        "WEB": "var(--lp-v2-sanrio-melody-pink)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL",
+        "STROKE_COLOR"
+      ],
+      "value": "#f8bcd0",
+      "bindingsInMaster": 96
+    },
+    {
+      "id": "VariableID:323:3792",
+      "collection": "Lastpiece v2 / Sanrio World (F14)",
+      "name": "sanrio/kuromi-ink",
+      "syntax": {
+        "WEB": "var(--lp-v2-sanrio-kuromi-ink)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL",
+        "TEXT_FILL",
+        "STROKE_COLOR"
+      ],
+      "value": "#3e2c58",
+      "bindingsInMaster": 7
+    },
+    {
+      "id": "VariableID:323:3793",
+      "collection": "Lastpiece v2 / Sanrio World (F14)",
+      "name": "sanrio/cinnamon-blue",
+      "syntax": {
+        "WEB": "var(--lp-v2-sanrio-cinnamon-blue)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL",
+        "STROKE_COLOR"
+      ],
+      "value": "#8fcdef",
+      "bindingsInMaster": 10
+    },
+    {
+      "id": "VariableID:323:3794",
+      "collection": "Lastpiece v2 / Sanrio World (F14)",
+      "name": "sanrio/purin-yellow",
+      "syntax": {
+        "WEB": "var(--lp-v2-sanrio-purin-yellow)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL",
+        "STROKE_COLOR"
+      ],
+      "value": "#fbe28c",
+      "bindingsInMaster": 17
+    },
+    {
+      "id": "VariableID:323:3795",
+      "collection": "Lastpiece v2 / Sanrio World (F14)",
+      "name": "sanrio/cocoa",
+      "syntax": {
+        "WEB": "var(--lp-v2-sanrio-cocoa)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL",
+        "TEXT_FILL",
+        "STROKE_COLOR"
+      ],
+      "value": "#7a4a28",
+      "bindingsInMaster": 7
     }
   ],
   "excluded": [
@@ -738,7 +915,7 @@
       "usesInMaster": 180
     }
   ],
-  "textStylesNote": "マスターの文字898件のうち501件は文字スタイル未適用（Noto Sans JP の Bold/Regular、Shippori Mincho Bold 1件）。2026-09-26 に Button 部品のラベル 90 件を Label から Button へ移した。",
+  "textStylesNote": "マスターの文字898件のうち501件は文字スタイル未適用（Noto Sans JP の Bold/Regular、Shippori Mincho Bold 1件）。2026-09-26 に Button 部品のラベル 90 件を Label から Button へ移した。 2026-09-26 の F14 で、見出しの Zen Maru Gothic Bold 24（85件）など Zen Maru Gothic の文字は文字スタイルを外した（Lastpiece v2/Title から外れたものを含む）。上の usesInMaster は F14 前の集計。",
   "effects": {
     "usedInMaster": [],
     "buttonFocus": {
@@ -1004,6 +1181,94 @@
       "pass": false,
       "usage": "not-used",
       "note": "使わない組合せ"
+    },
+    {
+      "name": "sanrio/kuromi-ink / sanrio/sky",
+      "fg": "#3e2c58",
+      "bg": "#ddf1fb",
+      "minimum": 4.5,
+      "ratio": 10.58,
+      "pass": true
+    },
+    {
+      "name": "sanrio/kuromi-ink / sanrio/cream",
+      "fg": "#3e2c58",
+      "bg": "#fff6e0",
+      "minimum": 4.5,
+      "ratio": 11.44,
+      "pass": true
+    },
+    {
+      "name": "sanrio/kuromi-ink / sanrio/lavender",
+      "fg": "#3e2c58",
+      "bg": "#efe7f9",
+      "minimum": 4.5,
+      "ratio": 10.24,
+      "pass": true
+    },
+    {
+      "name": "sanrio/kuromi-ink / bg/surface",
+      "fg": "#3e2c58",
+      "bg": "#ffffff",
+      "minimum": 4.5,
+      "ratio": 12.31,
+      "pass": true
+    },
+    {
+      "name": "sanrio/cocoa / sanrio/sky",
+      "fg": "#7a4a28",
+      "bg": "#ddf1fb",
+      "minimum": 4.5,
+      "ratio": 6.36,
+      "pass": true
+    },
+    {
+      "name": "sanrio/cocoa / sanrio/cream",
+      "fg": "#7a4a28",
+      "bg": "#fff6e0",
+      "minimum": 4.5,
+      "ratio": 6.88,
+      "pass": true
+    },
+    {
+      "name": "sanrio/cocoa / sanrio/lavender",
+      "fg": "#7a4a28",
+      "bg": "#efe7f9",
+      "minimum": 4.5,
+      "ratio": 6.16,
+      "pass": true
+    },
+    {
+      "name": "sanrio/cocoa / bg/surface",
+      "fg": "#7a4a28",
+      "bg": "#ffffff",
+      "minimum": 4.5,
+      "ratio": 7.4,
+      "pass": true
+    },
+    {
+      "name": "accent/wine / sanrio/sky",
+      "fg": "#a94a68",
+      "bg": "#ddf1fb",
+      "minimum": 4.5,
+      "ratio": 4.67,
+      "pass": true
+    },
+    {
+      "name": "accent/wine / sanrio/cream",
+      "fg": "#a94a68",
+      "bg": "#fff6e0",
+      "minimum": 4.5,
+      "ratio": 5.05,
+      "pass": true
+    },
+    {
+      "name": "accent/wine / sanrio/lavender",
+      "fg": "#a94a68",
+      "bg": "#efe7f9",
+      "minimum": 4.5,
+      "ratio": 4.52,
+      "pass": true
     }
   ],
   "contrastMethod": "WCAG 2.x 相対輝度。比は小数第3位を切り捨て（#be6482 と白の 3.936… だけ Figma の記載に合わせ 3.94）。本文・操作ラベルは4.5:1、19px 以上の太字（大きい文字）は3:1、非文字の境界は3:1以上。",
@@ -1084,6 +1349,14 @@
     }
   ],
   "history": [
+    {
+      "version": "0.3.0",
+      "date": "2026-09-26",
+      "status": "superseded",
+      "supersededOn": "2026-09-26",
+      "summary": "F14 前。マスターの変数は 177:15・177:16 の2つだけ",
+      "snapshot": "git show 02e5478:design-system/figma-manifest.json"
+    },
     {
       "version": "0.1.0",
       "date": "2026-09-25",

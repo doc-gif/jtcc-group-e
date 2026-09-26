@@ -22,7 +22,8 @@
 
 ラストピースの画面は、2026-09-26 の担当者の指示によりピンク基調の「さくらミルク」を正とし、緑の主操作は採用しない（[デザインマスター](ADOPTED_DESIGN.md)）。`design-system/` はマスターが参照する Figma 変数の記録で、2026-09-26 に v0.2 としてピンク系へ整理した。ピッチ資料のコーラル・ラベンダーとは別の用途として管理する。
 
-- 変数: `Lastpiece v2 / Primitives`（`177:15`、14変数）と `Lastpiece v2 / Tokens`（`177:16`、30変数、mode Light）。マスター `267:8198` の変数結合はすべてこの2つ。
+- 変数: `Lastpiece v2 / Primitives`（`177:15`、14変数）、`Lastpiece v2 / Tokens`（`177:16`、30変数、mode Light）、`Lastpiece v2 / Sanrio World (F14)`（`323:3784`、11色、2026-09-26 の F14 で採用）。マスター `267:8198` の変数結合はすべてこの3つ。F14 の色は空色・クリーム・ラベンダーの地とリボン・キャラクターの色で、文字に使えるのは `sanrio/kuromi-ink` と `sanrio/cocoa` だけ。
+- 世界観（F14、2026-09-26）: 画面の見出しは Zen Maru Gothic Bold（文字スタイルなし）。キャラクターの絵と © 表記の札は内部検討用で Figma だけに置き、アプリ・公開リポジトリ・プレビューに入れない（[ADOPTED_DESIGN.md の実装時の境界](ADOPTED_DESIGN.md#実装時の境界)）。
 - 部品: `LP v2 / Button`（`179:34`、説明 `179:19`）Primary / Outline × Default / Focus / Disabled = 6、高さ48px。`LP v2 / Navigation Item`（`180:27`）Selected / Default / Focus、`LP v2 / Bottom Navigation`（`180:28`）。本体は Town v2 `134:2` にあり、マスターが live 参照する。
 - 文字スタイル: `Lastpiece v2/` の Display 32/44（Shippori Mincho Bold）、Title 24/32、Body 17/29、Label 16/24、**Button 19/28（Bold）**、Caption 14/22（サイズ/行高、px。Noto Sans JP）の6種。Button は 2026-09-26 に追加し、Button 部品の6状態に適用した（マスター内 90 か所）。
 - 色の使い分け（担当者の判断、2026-09-26。Figma を先に直し、F06 で Web に反映）: `color/action/primary` `#be6482` は主ボタンの塗りと、枠ボタンの文字・枠だけに使う。ボタンの文字は 19px 太字で WCAG の「大きい文字」（18.66px 以上の太字）に当たるので、白/`#be6482` の 3.94:1 が 3:1 の基準を満たす。基準は下げていない。19px 太字より小さいピンクの文字はすべて `color/accent/wine` `#a94a68`。下のタブの選択中はミント `color/nav/selected` `#e3f1e7` の地にワインの文字。
