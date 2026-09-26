@@ -93,7 +93,8 @@ test('F15: セッションがなければ匿名ログインを1回だけして�
 
 test('F15: 購読は本人の JWT を Realtime に渡してから非公開チャンネルに入り、失敗してもポーリングに任せる', async () => {
   const on = vi.fn()
-  const channel = { on: (...args: unknown[]) => { on(...args); return channel }, subscribe: vi.fn(() => channel) }
+  let joined: ((status: string) => void) | undefined
+  const channel = { on: (...args: unknown[]) => { on(...args); return channel }, subscribe: vi.fn((callback: (status: string) => void) => { joined = callback; return channel }) }
   const removeChannel = vi.fn(async () => 'ok')
   const setAuth = vi.fn(async (_token?: string | null) => {})
   const makeChannel = vi.fn(() => channel)
@@ -106,8 +107,13 @@ test('F15: 購読は本人の JWT を Realtime に渡してから非公開チャ
     removeChannel,
   } as unknown as SupabaseClient
   const refresh = vi.fn()
-  const stop = supabaseTransport(client).subscribe('room-1', refresh)
+  const status = vi.fn()
+  const stop = supabaseTransport(client).subscribe('room-1', refresh, status)
   await vi.waitFor(() => expect(channel.subscribe).toHaveBeenCalled())
+  // #68: 入れたら live、エラー・時間切れ・切断は down（supabase-js が入り直すと再び live）
+  expect(status).not.toHaveBeenCalled()
+  for (const value of ['SUBSCRIBED', 'CHANNEL_ERROR', 'TIMED_OUT', 'SUBSCRIBED', 'CLOSED']) joined!(value)
+  expect(status.mock.calls.map(([value]) => value)).toEqual(['live', 'down', 'down', 'live', 'down'])
   expect(setAuth).toHaveBeenCalledTimes(1)
   expect(setAuth).toHaveBeenCalledWith('jwt-current')
   expect(setAuth.mock.invocationCallOrder[0]).toBeLessThan(channel.subscribe.mock.invocationCallOrder[0])
@@ -115,6 +121,9 @@ test('F15: 購読は本人の JWT を Realtime に渡してから非公開チャ
   expect(on).toHaveBeenCalledWith('broadcast', { event: 'round' }, refresh)
   stop()
   expect(removeChannel).toHaveBeenCalledWith(channel)
+  // 止めた後の状態は知らせない
+  joined!('SUBSCRIBED')
+  expect(status).toHaveBeenCalledTimes(5)
 
   // Realtime に入れなくても例外を外に出さない（ポーリングが正）
   const brokenChannel = vi.fn()
@@ -124,9 +133,11 @@ test('F15: 購読は本人の JWT を Realtime に渡してから非公開チャ
     channel: brokenChannel,
     removeChannel,
   } as unknown as SupabaseClient
-  const stopBroken = supabaseTransport(broken).subscribe('room-1', refresh)
+  const brokenStatus = vi.fn()
+  const stopBroken = supabaseTransport(broken).subscribe('room-1', refresh, brokenStatus)
   await new Promise((resolve) => setTimeout(resolve, 0))
   expect(brokenChannel).not.toHaveBeenCalled()
+  expect(brokenStatus).toHaveBeenCalledWith('down')
   stopBroken()
 })
 

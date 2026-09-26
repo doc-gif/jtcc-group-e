@@ -126,10 +126,16 @@ export interface RoomTransport {
   /** Host only. Turns pitch mode on or off for the following rounds. */
   setPitchMode(room: string, on: boolean): Promise<Snapshot>
   leave(room: string): Promise<void>
-  /** A wake-up hint only. A fresh snapshot is always authoritative. */
-  subscribe(room: string, refresh: () => void): () => void
+  /**
+   * A wake-up hint only. A fresh snapshot is always authoritative. The server sends one on every room change
+   * (join, ready, leave, start, schedule, pitch mode, rename, host resume) with no names, keys or results in it.
+   * onStatus reports whether the hint channel is connected ('live') or not ('down'); polling continues either way.
+   */
+  subscribe(room: string, refresh: () => void, onStatus?: (status: LiveStatus) => void): () => void
 }
 /** ホスト以外の active メンバーの人数。snapshot の members は active な人だけなので、ホストを除いて数える。 */
+/** 起床通知の購読の状態。live はサーバーの通知を受け取れる。down はポーリングだけ。 */
+export type LiveStatus = 'live' | 'down'
 export function guestCount(snapshot: Pick<Snapshot, 'host' | 'members'>) {
   return snapshot.members.filter(member => member.id !== snapshot.host).length
 }

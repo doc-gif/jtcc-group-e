@@ -422,11 +422,13 @@ export class MockRoomServer {
         member.ready = false
         wake(roomId)
       },
-      subscribe: (roomId, refresh) => {
+      subscribe: (roomId, refresh, onStatus) => {
         current(roomId)
         const listeners = this.listeners.get(roomId) ?? new Set<() => void>()
         listeners.add(refresh)
         this.listeners.set(roomId, listeners)
+        // Like a private channel that joined: every later change calls refresh synchronously.
+        onStatus?.('live')
         return () => { listeners.delete(refresh); if (!listeners.size) this.listeners.delete(roomId) }
       },
     }

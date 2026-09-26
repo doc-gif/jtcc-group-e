@@ -1,0 +1,58 @@
+{
+  "uiDigest": "af9f75e8dd6a2984c083b63e3baf5a57ca20ea12a66abc7c566933e026acf7ee",
+  "reviewer": "Claude (implementation agent, #68 room realtime)",
+  "reviewedAt": "2026-09-26",
+  "summary": "#68: ルームの入室・準備・退室・「今すぐ開始」・予約・名前の変更が、ほかの端末にポーリング（15 秒）を待たず数秒で届くようにした。サーバーの RPC が非公開チャンネル lp:<roomId> に起床通知（内容は roomId・roundNo・reason だけ）を送り、受け取った端末は snapshot を取り直す。画面の部品・文言・レイアウト・色は変えていない（src/ の変更は transport・状態層・端末内デモの購読の状態だけ）。購読の状態は状態層の realtime（live／polling）に持ち、画面には出さない。ポーリングは残すので、Realtime に入れない端末は今までどおり動く。単体（roomController・supabase transport・sharedRoom）と PGlite の SQL テストで確認。E2E・UI/UX 検査（*.supabase.co への要求 0 件を含む）は CI の全構成で確認する。",
+  "criteria": [
+    {
+      "id": "HIG-01",
+      "result": "pass",
+      "evidence": "色・文字・部品は変えていない。表示の中身はサーバーの snapshot のままで、届く時刻だけが早くなる。"
+    },
+    {
+      "id": "HIG-02",
+      "result": "pass",
+      "evidence": "操作は増減していない。タップ領域・フォーカスの順は F15 の記録のまま。"
+    },
+    {
+      "id": "HIG-03",
+      "result": "pass",
+      "evidence": "レイアウトは変えていない。人数・準備の表示が早く更新されるだけで、要素の数や大きさは同じ。"
+    },
+    {
+      "id": "HIG-04",
+      "result": "pass",
+      "evidence": "表示と実態のずれが短くなる（入室・準備が数秒で出る）。Realtime に入れない・切れた端末はポーリングで取り直し、つながり直したら一度取り直すので、古い人数を出し続けない（roomController.test.ts の #68 の2件）。"
+    },
+    {
+      "id": "HIG-05",
+      "result": "pass",
+      "evidence": "動き・音は変えていない。「今すぐ開始」で参加者の秒読みが 8 秒から始まるようになり、秒読みを飛ばして開封から始まることが減る（単体テストで秒読み 8 秒を確認）。"
+    },
+    {
+      "id": "GAME-01",
+      "result": "pass",
+      "evidence": "マスター T10 の画面と状態の対応（ADOPTED_DESIGN.md）は変えていない。新しい画面・状態は作っていない（購読の状態は画面に出さない）ので、Figma の変更は不要。"
+    },
+    {
+      "id": "GAME-02",
+      "result": "pass",
+      "evidence": "全員が同じサーバーの状態を数秒で受け取る。通知は起床の合図だけで、結果・権限は必ず snapshot から決める。取り消された RPC は通知を送らない（shared-db.test.mjs の #68）。"
+    },
+    {
+      "id": "GAME-03",
+      "result": "pass",
+      "evidence": "通知・バッジ・引き止めは増やしていない。起床通知は画面に出ず、端末のプッシュ通知でもない。"
+    },
+    {
+      "id": "GAME-04",
+      "result": "pass",
+      "evidence": "通知を受け取れるのはそのルームの参加中の人・ホストだけ（受信ポリシー）で、クライアントからは送れない。通知に名前・招待コード・キー・結果・ユーザー ID を入れない（SQL テストで確認）。"
+    },
+    {
+      "id": "GAME-05",
+      "result": "pass",
+      "evidence": "専門用語（Realtime・ポーリング）は画面に出さない。担当者向けの説明と無料プランの上限は docs/MULTI_DEVICE.md に書いた。"
+    }
+  ]
+}
