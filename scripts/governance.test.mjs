@@ -1,4 +1,5 @@
 // 法務・ブランドのきまりを CI で落とせる状態にする（docs/PRODUCT.md「守ること」）。
+import { execFileSync } from 'node:child_process'
 import { readdir, readFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import { expect, test } from 'vitest'
@@ -74,4 +75,14 @@ test('F15: ビルドの Supabase 設定（.env.production）はブラウザに�
     const text = await read(path)
     expect(/sb_secret_|service_role|eyJhbGciOi/.test(text), path).toBe(false)
   }
+})
+
+test('文書（*.md・docs/）に秘密の値（secret キー・JWT・GitHub トークン・秘密鍵・ホスト用キー入りのリンク）を書かない', async () => {
+  // 文書だけの PR はブラウザのテストを飛ばすので、この検査が文書の秘密を止める（scripts/change-scope.mjs）
+  const docs = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' }).split('\0')
+    .filter((path) => path.endsWith('.md') || (path.startsWith('docs/') && /\.(json|txt|csv)$/.test(path)))
+  expect(docs).toContain('AGENTS.md')
+  const secret = /sb_secret_[A-Za-z0-9]|eyJhbGciOi[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|#\/host\/[A-Za-z0-9_-]{43}/
+  for (const path of docs) expect(secret.exec(await read(path))?.[0], path).toBeUndefined()
+  expect(secret.test(`https://example.test/#/host/${'a'.repeat(43)}`)).toBe(true)
 })

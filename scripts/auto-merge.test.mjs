@@ -1,11 +1,12 @@
 import { beforeEach, expect, test, vi } from 'vitest'
 import { autoMerge } from './auto-merge.mjs'
 
-let github, run, pr, jobs, base, comparison, reviews
+let github, run, pr, jobs, base, comparison, reviews, files
 beforeEach(() => {
   run = { path: '.github/workflows/ci.yml', event: 'pull_request', conclusion: 'success', head_repository: { full_name: 'doc-gif/jtcc-group-e' }, head_sha: 'head', html_url: 'https://github.com/doc-gif/jtcc-group-e/actions/runs/1' }
   pr = { number: 1, draft: false, head: { sha: 'head', repo: { full_name: 'doc-gif/jtcc-group-e' } }, base: { ref: 'main' }, user: { login: 'developer' }, mergeable: true }
-  jobs = [{ name: 'Quality gate', conclusion: 'success' }, { name: 'UI/UX gate', conclusion: 'success' }]
+  jobs = ['Quality gate', 'UI/UX gate', 'Build and unit tests', 'Complete browser reports'].map((name) => ({ name, conclusion: 'success' }))
+  files = [{ filename: 'src/App.tsx' }]
   base = { protected: true, commit: { sha: 'main' } }
   comparison = { behind_by: 0 }
   reviews = []
@@ -14,7 +15,7 @@ beforeEach(() => {
       actions: { getWorkflowRun: vi.fn(async () => ({ data: run })), listJobsForWorkflowRun: vi.fn(async () => jobs) },
       repos: { getBranch: vi.fn(async () => ({ data: base })), compareCommits: vi.fn(async () => ({ data: comparison })) },
       pulls: {
-        list: vi.fn(async () => [pr]), get: vi.fn(async () => ({ data: pr })), listReviews: vi.fn(async () => reviews),
+        list: vi.fn(async () => [pr]), listFiles: vi.fn(async () => files), get: vi.fn(async () => ({ data: pr })), listReviews: vi.fn(async () => reviews),
         createReview: vi.fn(async () => ({})), merge: vi.fn(async () => ({ data: { merged: true, sha: 'merged' } })),
       },
     },
@@ -76,4 +77,33 @@ test('existing approval is reused and merge failure is not reported as success',
 })
 test('invalid run IDs are rejected', async () => {
   await expect(autoMerge({ github, owner: 'a', repo: 'b', runId: NaN })).rejects.toThrow('Invalid')
+})
+
+const docsOnlyJobs = () => [{ name: 'Quality gate', conclusion: 'success' }, { name: 'UI/UX gate', conclusion: 'success' }, { name: 'Docs-only checks', conclusion: 'success' }, { name: 'Build and unit tests', conclusion: 'skipped' }]
+test('the light docs-only CI merges only when main re-classifies the PR files as documents', async () => {
+  jobs = docsOnlyJobs()
+  files = [{ filename: 'docs/STATUS.md' }, { filename: 'docs/new.md', previous_filename: 'docs/old.md' }]
+  pr.changed_files = 2
+  expect(await execute()).toContain('merged PR #1')
+})
+test.each([
+  ['code', [{ filename: 'docs/STATUS.md' }, { filename: 'src/App.tsx' }]],
+  ['rules', [{ filename: 'AGENTS.md' }]],
+  ['a rename out of code', [{ filename: 'docs/App.md', previous_filename: 'src/App.tsx' }]],
+  ['the classifier itself', [{ filename: 'scripts/change-scope.mjs' }]],
+])('the light docs-only CI never approves a PR that changes %s', async (_, changed) => {
+  jobs = docsOnlyJobs()
+  files = changed
+  pr.changed_files = changed.length
+  expect(await execute()).toContain('changes code')
+  expect(github.rest.pulls.createReview).not.toHaveBeenCalled()
+})
+test('the light CI is not trusted with a truncated file list or without its own job', async () => {
+  jobs = docsOnlyJobs()
+  files = [{ filename: 'docs/STATUS.md' }]
+  pr.changed_files = 3001
+  expect(await execute()).toContain('changes code')
+  jobs = docsOnlyJobs().filter((job) => job.name !== 'Docs-only checks')
+  expect(await execute()).toContain('quality gate missing')
+  expect(github.rest.pulls.createReview).not.toHaveBeenCalled()
 })
