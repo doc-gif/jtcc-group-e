@@ -3,7 +3,7 @@ import { exchangeCoins, pickPrize, remainingOf } from './odds'
 import type { AppState, Gacha, Prize, Stock, WinRecord } from './types'
 
 /** はじめての人に入れておく体験用コイン（デモ。決済はしない）。 */
-export const STARTER_COINS = 3000
+export const STARTER_COINS = 30000
 export const COIN_PACKS = [1000, 5000, 10000] as const
 export const NICKNAME_MAX = 12
 /** ルームの友達（デモ）。実在の利用者ではない。ルームは自分を含めて最大4人。 */

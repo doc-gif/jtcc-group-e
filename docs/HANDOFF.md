@@ -156,7 +156,7 @@
 **完了の条件**: 回す画面で、ハンドルを指で丸く1周なぞるたびに1回転進み、3回転で開封に進む。タップ・ボタンでも今までどおり回せる。iPhone と Android の実機で、なぞってもページがスクロール・拡大しない。
 
 ## 大事な情報
-- Figma: ファイル `yeDF1BwhrxpXI57Daainle`。マスター `267:8198`（64画面: T07 6・T08 14・T09 16・T10 28）。作業領域 Town v2 `134:2`。デモ画面のアーカイブ `331:8041`。素材ライブラリ `MYYMoB2wL7LvA2oXZ2gxpT`（内部検討用）。
+- Figma: ファイル `yeDF1BwhrxpXI57Daainle`。マスター `267:8198`（69画面: T07 6・T08 19・T09 16・T10 28）。作業領域 Town v2 `134:2`。デモ画面のアーカイブ `331:8041`。素材ライブラリ `MYYMoB2wL7LvA2oXZ2gxpT`（内部検討用）。
 - 「Figma が先、アプリが後」。マスターと違う実装は PR に「Figma 修正待ち」と書く。
 - Supabase `lastpiece-pitch`（ref `vfwlulahhjtuqnrjjohd`）。migration は `supabase/migrations/`。適用済みは編集しない。新しい migration は適用後、記録された version にファイル名をそろえる。
 - ホスト用キーの本体は担当者に渡したファイル `host-key.md` にだけある。**チャット・PR・Issue に貼らない**。

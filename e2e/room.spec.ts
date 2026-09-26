@@ -25,6 +25,10 @@ async function seeded(page: Page, seed: RoomSeed) {
 }
 
 test('ホストが作って予約・ピッチ用・今すぐ開始、参加者は名前を選んで準備し、秒読み → 同時開封 → 結果', async ({ page, context }) => {
+  // 実時間の待ちが2つある。3つ目のタブの入室はタブ間の知らせが出ない（入室の後に購読する）ので、ホストは
+  // ROOM_POLL_MS（15秒）ごとのポーリングで受け取る（最大15秒）。開始後は SHARED_START_DELAY_MS（8秒）の秒読み。
+  // 合わせて最大23秒で、3つのタブの操作（WebKit で15〜20秒）を足すと既定の30秒を超えることがあるため、通常の3倍の時間を許す
+  test.slow()
   const errors = watchErrors(page)
   await page.goto('./#/gacha/melody-anniv')
   await page.getByRole('link', { name: /友達と回す/ }).click()
@@ -65,7 +69,7 @@ test('ホストが作って予約・ピッチ用・今すぐ開始、参加者�
   await third.getByRole('button', { name: '名前を決めずに入る' }).click()
   await third.getByRole('button', { name: 'この名前で入る' }).click()
   await expect(heading(third)).toHaveText('みんなの開封ルーム')
-  // ホストのタブにも届く（タブ間の知らせ、またはポーリング）
+  // ホストのタブにも届く（入室はタブ間の知らせが出ないので、ポーリングで最大 ROOM_POLL_MS）
   await expect(heading(page)).toHaveText('開封の準備ができたよ', { timeout: 20_000 })
   await expect(page.getByText('1人 準備完了')).toBeVisible()
   await page.getByRole('button', { name: /開始の時間を予約する/ }).click()
