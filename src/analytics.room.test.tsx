@@ -26,9 +26,14 @@ const readyAssets = createAssetGate([])
 let server: MockRoomServer
 let ids = 0
 
+function memoryKeys() {
+  let key: string | null = null
+  return { get: () => key, set: (next: string | null) => { key = next } }
+}
+
 function sessionFor(user: string): RoomSession {
   const transport = Object.assign(server.asUser(user), { addHostKey: (key: string) => server.addHostKey(key) })
-  return createRoomSession(transport, true, new MemoryStorage(), { requestId: () => `request-${++ids}`, onWake: () => () => {} })
+  return createRoomSession(transport, true, new MemoryStorage(), { requestId: () => `request-${++ids}`, onWake: () => () => {}, hostKeys: memoryKeys() })
 }
 
 const flush = () => act(async () => { await vi.advanceTimersByTimeAsync(0) })
@@ -142,6 +147,29 @@ describe('room_join（参加者）', () => {
     expect(heading()).toHaveTextContent('みんなの開封ルーム')
     expect(events()).toEqual(['room_join'])
     expectNoPersonalData(['もも', 'さくら'])
+  })
+
+  test('ホスト用リンクで別の端末からホストとして戻ると room_join（via=host-link）。controller.join は通らない', async () => {
+    const { invite } = await hostRoom('ミオ')
+    const phone = sessionFor('host-phone')
+    open(`#/host/${HOST_KEY}`, phone)
+    await flush()
+    expect(window.location.hash).toBe(`#/room/${invite}`)
+    expect(track).toHaveBeenCalledTimes(1)
+    expect(track).toHaveBeenCalledWith('room_join', { via: 'host-link', watching: false })
+    await act(async () => { window.dispatchEvent(new HashChangeEvent('hashchange')) })
+    await flush()
+    expect(heading()).toHaveTextContent('ホストとして戻りました')
+    // ルームの画面に移っても送り直さず、参加者がいないので room_ready も送らない
+    expect(events()).toEqual(['room_join'])
+    expectNoPersonalData(['ミオ'])
+  })
+
+  test('ホスト用リンクが無効なら送らない', async () => {
+    open(`#/host/${'x'.repeat(40)}`, sessionFor('stranger'))
+    await flush()
+    expect(heading()).toHaveTextContent('ホスト用リンクが無効です')
+    expect(track).not.toHaveBeenCalled()
   })
 
   test('満員で入れなかったときは送らない', async () => {

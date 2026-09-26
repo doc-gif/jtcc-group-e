@@ -253,7 +253,7 @@ export function Room({ invite }: { invite: string }) {
     if (result.ok) {
       const snap = controller.getState().snapshot
       if (!renaming && snap) writeRecord(records, invite, { roomId: snap.id, watching })
-      if (!renaming && snap) trackOnceHere(`join:${snap.id}`, 'room_join', { via: viaHostLink ? 'host-link' : 'invite', watching })
+      if (!renaming && snap) trackOnceHere(`join:${snap.id}`, 'room_join', { via: 'invite', watching })
       setLastName(snap?.members.find((member) => member.id === snap.self)?.nickname ?? clean)
       setJoinError(null)
       setTaken(null)
@@ -884,6 +884,8 @@ export function HostLink({ hostKey }: { hostKey: string | null }) {
       const snap = controller.getState().snapshot
       if (snap) {
         writeRecord(records, snap.invite, { roomId: snap.id, viaHostLink: true })
+        // 計測（#44）: ホスト用リンクからの復帰も入室として数える（controller.join は通らない）。見守りの記録はまだない
+        track('room_join', { via: 'host-link', watching: false })
         navigate(paths.room(snap.invite))
       }
       return

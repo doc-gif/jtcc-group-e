@@ -1,8 +1,8 @@
 {
-  "uiDigest": "b6e5154a7064da1e0587dae41d5949f7d4a87c6733dc68445f2078baa7f7b870",
+  "uiDigest": "acd37b04434df31dec088eeca3b7165b4d52a6e60c9e3f7a4375f49889162b8e",
   "reviewer": "Claude (AN-3 / #44: room analytics events)",
   "reviewedAt": "2026-09-26",
-  "summary": "#44 のルームの計測。src/screens/Room.tsx に、ルームを作った直後の room_create（scheduled）、招待リンクからの入室成功の room_join（via・watching）、ホスト以外に 2 人以上そろった時点の room_ready（members）、秒読みに入った round_start（members・round）、結果の公開の result_view（members・osoroi＝同じ賞品を 2 人以上が当てたか）を足した。同じ状態は再描画で繰り返し来るので useRef の Set でルーム ID＋回数ごとに 1 回だけ送る。送るのは人数・回数・真偽値・invite/host-link だけで、名前・招待コード・ホストキー・賞品名は送らない（track は #42 の analytics.ts で、本番の公開 URL 以外では何も送らない）。画面・CSS・文言・遷移・操作は変えていない。320px（small-mobile）・Android・デスクトップの Chromium で ux.spec.ts のルームの 31 状態（作る・招待・名前・ロビー・準備・見守り・満員・秒読み・開封・結果・みんなの結果・履歴・復帰・予約・人数待ちほか）と room.spec.ts・app.spec.ts を実行し、以前と同じ見出し・表示で JS エラーがなく、*.supabase.co への要求 0 件を確認した。iPhone・横向き（WebKit）はこの環境に無いため CI の UI/UX gate で確認する。",
+  "summary": "#44 のルームの計測。src/screens/Room.tsx に、ルームを作った直後の room_create（scheduled）、招待リンクからの入室成功とホスト用リンクからの復帰の room_join（via=invite/host-link・watching）、ホスト以外に 2 人以上そろった時点の room_ready（members）、秒読みに入った round_start（members・round）、結果の公開の result_view（members・osoroi＝同じ賞品を 2 人以上が当てたか）を足した。同じ状態は再描画で繰り返し来るので useRef の Set でルーム ID＋回数ごとに 1 回だけ送る。送るのは人数・回数・真偽値・invite/host-link だけで、名前・招待コード・ホストキー・賞品名は送らない（track は #42 の analytics.ts で、本番の公開 URL 以外では何も送らない）。画面・CSS・文言・遷移・操作は変えていない。320px（small-mobile）・Android・デスクトップの Chromium（この環境の /opt/pw-browsers/chromium）で ux.spec.ts のルームの 31 状態（作る・招待・名前・ロビー・準備・見守り・満員・秒読み・開封・結果・みんなの結果・履歴・復帰・予約・人数待ちほか）と analytics.spec.ts・room.spec.ts・app.spec.ts を実行し、ルームの画面は以前と同じ見出し・表示で JS エラーがなく、*.supabase.co への要求 0 件を確認した。app.spec.ts のプレビューのホスト画面のテスト 1 件だけは、この環境の Chromium がルートの /favicon.ico を自動で取りにいって 404 になるため失敗（ルームとは無関係。CI の headless shell では起きない）。iPhone・横向き（WebKit）はこの環境に無いため、これらは CI の UI/UX gate で確認する。",
   "criteria": [
     {
       "id": "HIG-01",
@@ -22,7 +22,7 @@
     {
       "id": "HIG-04",
       "result": "pass",
-      "evidence": "計測は画面の処理から独立し、track は例外を握りつぶす（#42 の analytics.test.ts「gtag が壊れていても画面の処理に例外を返さない」）。入室・名前の変更・開始・結果の各操作の流れと文言は変えていない（Room.test.tsx 20 件がそのまま通る。analytics.room.test.tsx で、入室に失敗した満員のときや名前の変更では送らず、成功した入室で 1 回だけ送る）。"
+      "evidence": "計測は画面の処理から独立し、track は例外を握りつぶす（#42 の analytics.test.ts「gtag が壊れていても画面の処理に例外を返さない」）。入室・名前の変更・開始・結果の各操作の流れと文言は変えていない（Room.test.tsx 20 件がそのまま通る。analytics.room.test.tsx で、入室に失敗した満員のときや無効なホスト用リンク・名前の変更では送らず、成功した入室（招待）とホスト用リンクでの復帰で 1 回だけ送る）。"
     },
     {
       "id": "HIG-05",
