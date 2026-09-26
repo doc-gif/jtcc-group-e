@@ -14,6 +14,10 @@
 
 関数を写真と分けたのは、#58 で一般公開アプリの部屋（`kind='demo'`）ができたとき、キャラの方だけ `kind='pitch'` に絞るため（写真は一般公開アプリでも可、キャラは不可）。
 
+### 先に DB に入っていた `lp_open_self_paced` のファイル
+
+この migration より前に、#88 の `20260926133919_lp_open_self_paced`（ロック #129）が DB に適用済みで、ファイルは PR #130 のブランチにだけあった（2026-09-26 17:35 UTC 時点。#130 は main との競合で止まっている）。この PR だけを先にマージすると main の最新が `20260926172325` になり、#130 が後から足す `20260926133919` が順番の検査（`scripts/shared-resources.test.mjs`）で落ちる。そこで #130 のブランチのファイルを**1 バイトも変えずに**この PR に入れた（中身の md5 `a773a770f696d9b1e70b6047b5cf92df` は DB の `supabase_migrations.schema_migrations` に記録された本文と同じ）。#130 が main を取り込むときは同じ中身のファイルなので競合しない。`scripts/shared-db.test.mjs` の適用の一覧には入れていない（#130 がアプリ・テストの変更と一緒に足す）。
+
 ## 名前とパスの規則（アプリ側 #149 向け）
 
 - バケット名 `pitch-characters`。オブジェクトは `chars/` の下に置く（`chars/town-shop.png`・`chars/town-house-left.png`・`chars/town-house-right.png`・`chars/town-fountain.png`・`chars/spin-corner.png`・`chars/result.png`・`chars/result-featured.png`。対応は #144 の 2-2）。
