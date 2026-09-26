@@ -1,4 +1,4 @@
-# 計測の集計（GA4・Clarity → 毎日 1 コメント）
+# 計測の集計（GA4・Clarity → 手動実行で Issue に 1 コメント）
 
 LP（https://doc-gif.github.io/lastpiece-lp/ ）とデモ（https://doc-gif.github.io/jtcc-group-e/ ）は同じ GA4 プロパティ（測定 ID `G-3DDS1NJZXS`）なので、**LP に入った人がデモに進んだ割合**は GA4 で出せる。Clarity はスクロールの奥行き・デッドクリックなど「見え方」の補助。
 

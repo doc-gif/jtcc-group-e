@@ -40,11 +40,13 @@ test('GA4 の要約: しっかり見た割合・デモへの到達（複数ペ�
 
 test('GA4 の要約: プロパティ全体と入口の一覧（LP が 0 のときの手がかり）', () => {
   const overview = { rows: [row(['/other/'], [12, 10]), row([LP_PATH], [3, 3])] }
-  const s = summarizeGa4({ landing: {}, funnel: {}, events: {}, overview })
-  expect(s.allSessions).toBe(15)
+  const total = { rows: [row([], [40, 33])] } // 次元なしの合計は上位 10 件の合計より大きい
+  const s = summarizeGa4({ landing: {}, funnel: {}, events: {}, overview, total })
+  expect(s.allSessions).toBe(40)
+  expect(summarizeGa4({ landing: {}, funnel: {}, events: {}, overview }).allSessions).toBe(15)
   expect(s.topLanding[0]).toEqual({ path: '/other/', sessions: 12, users: 10 })
   const md = renderMarkdown({ days: 7, ga4: s, clarity: null })
-  expect(md).toContain('プロパティ全体のセッション（同じ期間）: **15**')
+  expect(md).toContain('プロパティ全体のセッション（同じ期間）: **40**')
   expect(md).toContain('| `/other/` | 12 | 10 |')
   const zero = renderMarkdown({ days: 7, ga4: summarizeGa4({ landing: {}, funnel: {}, events: {}, overview: {} }), clarity: null })
   expect(zero).toContain('GA4_PROPERTY_ID')
@@ -119,11 +121,11 @@ test('GA4 の取得: トークン → 3 つの runReport を property に送る'
   const calls = []
   const f = fakeFetch([
     ['oauth2.googleapis.com/token', (u, i) => { calls.push(['token', i.body.get('grant_type')]); return okJson({ access_token: 'tok' }) }],
-    [':runReport', (u, i) => { const b = JSON.parse(i.body); calls.push(['report', String(u), i.headers.authorization, b.dimensions.map((d) => d.name).join('+')]); return okJson(b.dimensions[0].name === 'eventName' ? events : b.dimensions.length === 2 ? funnel : b.orderBys ? { rows: [] } : landing) }],
+    [':runReport', (u, i) => { const b = JSON.parse(i.body); calls.push(['report', String(u), i.headers.authorization, (b.dimensions ?? []).map((d) => d.name).join('+')]); return okJson(!b.dimensions ? { rows: [] } : b.dimensions[0].name === 'eventName' ? events : b.dimensions.length === 2 ? funnel : b.orderBys ? { rows: [] } : landing) }],
   ])
   const s = await fetchGa4({ propertyId: '123456', saKey: JSON.stringify(sa), days: 7, fetchImpl: f })
   expect(calls[0]).toEqual(['token', 'urn:ietf:params:oauth:grant-type:jwt-bearer'])
-  expect(calls.filter((c) => c[0] === 'report')).toHaveLength(4)
+  expect(calls.filter((c) => c[0] === 'report')).toHaveLength(5)
   expect(calls[1][1]).toContain('/properties/123456:runReport')
   expect(calls[1][2]).toBe('Bearer tok')
   expect(s.toDemoSessions).toBe(8)

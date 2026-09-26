@@ -39,7 +39,9 @@ export function buildGa4Requests({ days = 7, lpPath = LP_PATH } = {}) {
       dimensionFilter: landingIsLp,
       limit: 200,
     },
-    // プロパティ全体（LP が 0 のとき、データが来ているか・入口の URL が想定と違うかを見分ける）
+    // プロパティ全体の合計（次元なし。上位 N 件に依存しない総数）
+    total: { dateRanges, metrics: [{ name: 'sessions' }, { name: 'totalUsers' }] },
+    // 入口の上位 10 件（一覧専用。LP が 0 のとき、入口の URL が想定と違うかを見分ける）
     overview: {
       dateRanges,
       dimensions: [{ name: 'landingPage' }],
@@ -60,7 +62,7 @@ export function buildGa4Requests({ days = 7, lpPath = LP_PATH } = {}) {
 const rowsOf = (report) => (report?.rows ?? []).map((r) => ({ d: (r.dimensionValues ?? []).map((v) => v.value), m: (r.metricValues ?? []).map((v) => num(v.value)) }))
 
 /** GA4 の 3 つの結果を 1 つの要約にする。 */
-export function summarizeGa4({ landing, funnel, events, overview }, { demoPath = DEMO_PATH } = {}) {
+export function summarizeGa4({ landing, funnel, events, overview, total }, { demoPath = DEMO_PATH } = {}) {
   const l = rowsOf(landing)
   const sum = (i) => l.reduce((a, r) => a + r.m[i], 0)
   const sessions = sum(0)
@@ -80,7 +82,8 @@ export function summarizeGa4({ landing, funnel, events, overview }, { demoPath =
 
   const ev = Object.fromEntries(rowsOf(events).map((r) => [r.d[0], { count: r.m[0], sessions: r.m[1], users: r.m[2] }]))
   const ov = rowsOf(overview)
-  const allSessions = ov.reduce((a, r) => a + r.m[0], 0)
+  const tot = rowsOf(total)[0]
+  const allSessions = tot ? tot.m[0] : ov.reduce((a, r) => a + r.m[0], 0) // 次元なしの合計。無ければ一覧の合計で代える
   const topLanding = ov.slice(0, 10).map((r) => ({ path: r.d[0], sessions: r.m[0], users: r.m[1] }))
 
   return {
