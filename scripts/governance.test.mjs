@@ -48,10 +48,11 @@ test('「ラストピースは開発中のサービスです」の1行の部品�
   }
 })
 
-test('「提案モック」「公式サービスではありません」を画面・メタ情報・README に出さない', async () => {
+// 「公式サービスではありません」は使ってよい（担当者 2026-09-26: 実サービスでないことが伝わればよい）。
+test('「提案モック」を画面・メタ情報・README に出さない', async () => {
   for (const path of [...sources, 'index.html', 'public/manifest.json', 'README.md']) {
     const text = await read(path)
-    for (const word of ['提案モック', '公式サービスではありません']) expect(text.includes(word), `${path} に「${word}」`).toBe(false)
+    expect(text.includes('提案モック'), `${path} に「提案モック」`).toBe(false)
   }
 })
 
