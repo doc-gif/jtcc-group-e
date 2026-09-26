@@ -80,7 +80,8 @@ export function roomView(state: RoomState, ui: RoomUi): RoomView {
   if (phase === 'reconnecting' || phase === 'connecting' || phase === 'idle' || !state.snapshot) return 'reconnecting'
   if (ui.detail === 'history') return 'history'
   if (phase === 'countdown') return 'countdown'
-  if (phase === 'opening') return 'opening'
+  // #88: 自分のカプセル・みんなを待つ画面は Figma T10 の後に分ける。それまでは同時開封の画面。
+  if (phase === 'opening' || phase === 'waiting') return 'opening'
   if (ui.resumed && !ui.resumeAck && missedResults(state, ui).length > 0) return 'recover'
   if (phase === 'results') return ui.detail === 'all' ? 'allResults' : ui.detail === 'mine' ? 'myResult' : 'opening'
   if (ui.nameStep) return ui.nameStep === 'taken' ? 'nameTaken' : 'nameChoose'

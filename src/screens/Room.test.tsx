@@ -8,7 +8,7 @@ import { PITCH_PHOTOS } from '../app/pitchPhotos'
 import { createRoomSession, readRecords, ROOM_RECORDS_KEY, writeRecord, type KeyValue, type RoomSession } from '../app/sharedRoom'
 import { MockRoomServer } from '../realtime/mock'
 import type { PhotoSource } from '../realtime/photos'
-import { SHARED_START_DELAY_MS } from '../realtime/protocol'
+import { SHARED_OPEN_TIMEOUT_MS, SHARED_START_DELAY_MS } from '../realtime/protocol'
 import { ROOM_POLL_MS } from '../realtime/roomController'
 
 class MemoryStorage implements KeyValue {
@@ -164,7 +164,7 @@ describe('ホスト：作る・予約・開始', () => {
     expect(document.body.textContent).not.toMatch(/説明用(マスコット|ポーチ|缶バッジ)/)
     await advance(3_000)
     expect(screen.getByRole('timer')).toHaveTextContent('00:05')
-    await advance(SHARED_START_DELAY_MS)
+    await advance(SHARED_START_DELAY_MS + SHARED_OPEN_TIMEOUT_MS) // #88: 開ける操作がない画面では 10 秒で全員の結果
     expect(heading()).toHaveTextContent('せーので、ひらこう！')
     await click('結果を見る')
     expect(heading()).toHaveTextContent('みんなの結果')
@@ -348,7 +348,7 @@ describe('復帰・ホスト不在・期限', () => {
     first.controller.detach()
     await addGuests(invite, ['さき'])
     await host.controller.start()
-    await advance(SHARED_START_DELAY_MS + 1_000)
+    await advance(SHARED_START_DELAY_MS + SHARED_OPEN_TIMEOUT_MS + 1_000)
 
     const again = sessionFor('guest', records)
     view = open(`#/room/${invite}`, again)
@@ -519,7 +519,7 @@ describe('F15: ピッチ用の実物グッズ写真（Supabase につないだ�
 
   async function openResult(session: RoomSession) {
     await session.controller.start()
-    await advance(SHARED_START_DELAY_MS + 1_000)
+    await advance(SHARED_START_DELAY_MS + SHARED_OPEN_TIMEOUT_MS + 1_000)
     await click('結果を見る')
     expect(heading()).toHaveTextContent('みんなの結果')
     return session.controller.getState().myPrize!

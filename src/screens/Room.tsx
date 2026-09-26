@@ -163,7 +163,7 @@ export function Room({ invite }: { invite: string }) {
 
   // 秒読みから見ていたラウンドを覚える。新しいラウンドが始まったら開いていた詳細を閉じる。
   const roundNo = state.round?.number ?? null
-  const counting = state.phase === 'countdown' || state.phase === 'opening'
+  const counting = state.phase === 'countdown' || state.phase === 'opening' || state.phase === 'waiting'
   if (counting && roundNo !== null && !watchedRounds.has(roundNo)) {
     setWatchedRounds(new Set(watchedRounds).add(roundNo))
     if (detail === 'history') setDetail(null)
@@ -491,7 +491,8 @@ export function Room({ invite }: { invite: string }) {
       }
       break
     case 'opening': {
-      const fetching = state.phase === 'opening'
+      // #88: 自分のカプセル・みんなを待つ画面（Figma T10）までは、全員の結果が出るまでこの画面で待つ。
+      const fetching = state.phase === 'opening' || state.phase === 'waiting'
       layout = {
         title: 'せーので、ひらこう！', sub: `${title} · 同時公開`, back: toLobby,
         pitchTop: pitchRound ?? pitchNone,

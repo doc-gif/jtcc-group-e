@@ -3,6 +3,11 @@
 export const SHARED_CAPACITY = 100
 export const SHARED_PRICE = 500
 export const SHARED_START_DELAY_MS = 8_000
+/**
+ * #88（担当者の決定 2026-09-26）: startsAt から各自が自分のカプセルを開ける。全員（抽選に入った active な人）が開けるか、
+ * startsAt からこの時間が過ぎたら、全員の結果を出す（開けていない人も開けたことにする）。SQL の lp_draw と同じ。
+ */
+export const SHARED_OPEN_TIMEOUT_MS = 10_000
 export const SHARED_ROUND_LOCK_MS = 15_000
 export const SHARED_ONLINE_WINDOW_MS = 45_000
 export const SHARED_PRIZES = {
@@ -76,9 +81,18 @@ export interface Round {
   number: number
   /** Server UTC time when the committed results become visible to all active members. */
   startsAt: string
-  /** Server UTC time after which ready/start can be requested for the next round. */
+  /**
+   * Server UTC time when every member sees all results: startsAt + SHARED_OPEN_TIMEOUT_MS, moved earlier to the moment
+   * every active entrant has opened (#88). Before it, each entrant sees only their own prize after opening (myResults).
+   */
+  revealAt: string
+  /** Server UTC time after which ready/start can be requested for the next round (revealAt + 15 s). */
   nextReadyAt: string
-  /** Null before startsAt, then the same committed results for every member. */
+  /** User ids in this draw (no prizes). Watchers are not in it and have no capsule to open. */
+  entrants: string[]
+  /** Entrants who have opened their capsule. */
+  opened: string[]
+  /** Null before revealAt, then the same committed results for every member. */
   results: { userId: string; nickname: string; prize: SharedPrize }[] | null
   /**
    * Pitch mode reserved one real top prize for one entrant in this round. Visible to everyone from the start
@@ -88,8 +102,10 @@ export interface Round {
 }
 export interface Snapshot {
   id: string; invite: string; host: string; expiresAt: string; serverTime: string; self: string
-  balance: number; roundNo: number; members: Member[]; myResults: { roundNo: number; prize: SharedPrize }[]
-  /** Hidden with results before startsAt, so stock deltas cannot reveal prizes early. */
+  balance: number; roundNo: number; members: Member[]
+  /** The caller's prizes from rounds revealed to all, plus the latest round once the caller opened it (#88). */
+  myResults: { roundNo: number; prize: SharedPrize }[]
+  /** Hidden with results before revealAt, so stock deltas cannot reveal prizes early. */
   stock: { prize: SharedPrize; remaining: number }[] | null
   round: Round | null
   /**
@@ -125,6 +141,11 @@ export interface RoomTransport {
   schedule(room: string, minutes: ScheduleMinutes | null): Promise<Snapshot>
   /** Host only. Turns pitch mode on or off for the following rounds. */
   setPitchMode(room: string, on: boolean): Promise<Snapshot>
+  /**
+   * An entrant opens their own capsule of the latest round, from startsAt (#88). Returns the snapshot with the caller's
+   * prize in myResults. Retrying is harmless. Watchers, an older round or before startsAt: invalid-round.
+   */
+  open(room: string, roundNo: number): Promise<Snapshot>
   leave(room: string): Promise<void>
   /**
    * A wake-up hint only. A fresh snapshot is always authoritative. The server sends one on every room change
