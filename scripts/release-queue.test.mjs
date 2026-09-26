@@ -26,9 +26,16 @@ describe('公開の計画: 版を決め、二重公開と巻き戻しを止め�
   })
 
   test('同じ SHA がもう公開済みなら公開しない（続けて来た依頼・置き換わった依頼を1回にまとめる）', () => {
-    expect(planRelease({ tags: TAGS, sha: sha('4'), isAncestor: always })).toMatchObject({ publish: false, version: 'v0.4.0', reason: expect.stringContaining('公開済み') })
-    expect(planRelease({ tags: TAGS, sha: sha('4'), requested: 'v0.4.0', isAncestor: always })).toMatchObject({ publish: false })
-    expect(planRelease({ tags: TAGS, sha: sha('4'), requested: 'v0.5.0', isAncestor: always })).toMatchObject({ publish: false, version: 'v0.4.0' })
+    const releases = [{ tag_name: 'v0.4.0', assets: [{ name: 'web-app.zip' }] }]
+    expect(planRelease({ tags: TAGS, releases, sha: sha('4'), isAncestor: always })).toMatchObject({ publish: false, version: 'v0.4.0', reason: expect.stringContaining('公開済み') })
+    expect(planRelease({ tags: TAGS, releases, sha: sha('4'), requested: 'v0.4.0', isAncestor: always })).toMatchObject({ publish: false })
+    expect(planRelease({ tags: TAGS, releases, sha: sha('4'), requested: 'v0.5.0', isAncestor: always })).toMatchObject({ publish: false, version: 'v0.4.0' })
+  })
+
+  test('タグだけで Release・ビルド ZIP がない（公開の途中の失敗）は、成功扱いにせず元の実行の再実行を案内する（#65 の Copilot の指摘）', () => {
+    for (const releases of [[], [{ tag_name: 'v0.4.0', assets: [] }], [{ tag_name: 'v0.3.1', assets: [{ name: 'web-app.zip' }] }]]) {
+      expect(() => planRelease({ tags: TAGS, releases, sha: sha('4'), isAncestor: always })).toThrow('元の実行の失敗したジョブを再実行')
+    }
   })
 
   test('最新の版を含まない SHA（古い実行の再実行など）は巻き戻さない', () => {
