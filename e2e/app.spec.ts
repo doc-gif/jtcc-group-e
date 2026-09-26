@@ -273,6 +273,84 @@ test('つまみをタップして回せる（マスター 267:8348）。押せ�
   await expect(page.getByRole('button', { name: /カプセルをタップ/ })).toBeVisible()
 })
 
+/** 回転ごとの演出（#116）: 在庫をその光り方の 1 品だけにして抽選の結果を決める（sanrio-capsule-1 目玉・-9 ふつう。ほかは 0。足りない分は保存の復元で初期値に戻るので全部書く）。coins は初期値と同じ */
+const onlyPrize = (id: string, remaining: number) => JSON.stringify({ version: 1, coins: 30000, nickname: 'あなた', stock: { 'sanrio-capsule': Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`sanrio-capsule-${i + 1}`, `sanrio-capsule-${i + 1}` === id ? remaining : 0])) }, wins: [], forceFeaturedNext: false, nextWinSeq: 1 })
+const runningAnimations = (page: Page) => page.evaluate(() => document.getAnimations().filter((animation) => animation.playState === 'running' && Number(animation.effect?.getTiming().duration) > 100).length)
+
+test('回転ごとの演出（#116、マスター 421:9365 / 421:9403 / 421:9327）: 目玉の回は 1 周の後から背景がクリーム、2 周の後に札、3 周目の後に金の光。動きを減らす設定では色の変化と静止の星だけ', async ({ page }) => {
+  const errors = watchErrors(page)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.addInitScript(([key, value]) => { localStorage.setItem(key, value) }, ['lastpiece_app_v1', onlyPrize('sanrio-capsule-1', 2)])
+  await page.goto('./#/gacha/sanrio-capsule/spin')
+  await confirmSpin(page)
+  const machine = page.locator('.machine')
+  const background = () => page.locator('.spin-screen').evaluate((element) => getComputedStyle(element).backgroundColor)
+  // 1 回転目の途中は当たりでも何も出ない（glow-normal の turn1）
+  await expect(machine).toHaveClass(/state-turn1 glow-normal/)
+  await expect(page.locator('.m-fx')).toHaveCount(0)
+  const plain = await background()
+  await tapTurns(page, 1)
+  await expect(machine).toHaveClass(/state-turn2 glow-featured/)
+  await expect(page.locator('.m-fx > .m-star')).toHaveCount(4)
+  await expect.poll(background).toBe('rgb(255, 246, 224)')
+  expect(plain).not.toBe('rgb(255, 246, 224)')
+  await tapTurns(page, 1)
+  await expect(machine).toHaveClass(/state-turn3 glow-featured/)
+  await expect(page.getByText('きらきら… いい予感！')).toBeVisible()
+  await expect(page.locator('.m-aura')).toHaveCount(1)
+  await expect(page.locator('.m-shake')).toHaveCount(1)
+  await expect(page.locator('.m-fx > .m-star')).toHaveCount(8)
+  await expect(page.locator('.m-fx > .m-star').first()).toBeVisible()
+  // 動きを減らす設定: 星のまたたき・揺れ・光の動きは止まり（100ms を超えて動く animation が 0）、色と静止の星だけ
+  expect(await runningAnimations(page)).toBe(0)
+  await tapTurns(page, 1)
+  await expect(machine).toHaveClass(/state-click3 glow-featured/)
+  await expect(page.locator('.m-light .m-rays')).toHaveCount(1)
+  await expect(page.locator('.m-light .m-gather .m-star')).toHaveCount(8)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('カプセルをひらく')
+  expect(errors).toEqual([])
+})
+
+test('回転ごとの演出（#116、マスター 267:8361 / 267:8374 / 421:9289）: ふつうの回は星と揺れだけで、背景・札・金色は出ない。通常は星がまたたく', async ({ page }) => {
+  const errors = watchErrors(page)
+  await page.addInitScript(([key, value]) => { localStorage.setItem(key, value) }, ['lastpiece_app_v1', onlyPrize('sanrio-capsule-9', 16)])
+  await page.goto('./#/gacha/sanrio-capsule/spin')
+  await confirmSpin(page)
+  const machine = page.locator('.machine')
+  const background = () => page.locator('.spin-screen').evaluate((element) => getComputedStyle(element).backgroundColor)
+  const plain = await background()
+  await tapTurns(page, 1)
+  await expect(machine).toHaveClass(/state-turn2 glow-normal/)
+  await expect(page.locator('.m-fx > .m-star')).toHaveCount(3)
+  await expect(page.locator('.m-grain, .m-sheen, .m-aura, .m-rays, .turn-tag')).toHaveCount(0)
+  // 通常の設定では星がゆっくりまたたく（動きを減らす設定との違い）
+  expect(await runningAnimations(page)).toBeGreaterThan(0)
+  await tapTurns(page, 1)
+  await expect(machine).toHaveClass(/state-turn3 glow-normal/)
+  await expect(page.locator('.m-fx > .m-star')).toHaveCount(5)
+  await expect(page.locator('.m-shake')).toHaveCount(1)
+  expect(await background()).toBe(plain)
+  await expect(page.getByText('きらきら… いい予感！')).toHaveCount(0)
+  // 3 周目の後の流れは短い（光るまで 1.6 秒、光ってから 0.35 秒で開封へ）ので、本文と筐体の className の変化を記録して後で確かめる
+  await page.evaluate(() => {
+    const seen: string[] = []
+    const record = () => { const entry = `${document.querySelector('.spin-lead')?.textContent}|${document.querySelector('.machine')?.getAttribute('class')}`; if (seen.at(-1) !== entry) seen.push(entry) }
+    record()
+    new MutationObserver(record).observe(document.querySelector('.spin-content')!, { subtree: true, childList: true, characterData: true, attributes: true })
+    ;(window as unknown as { __spinLog: string[] }).__spinLog = seen
+  })
+  await tapTurns(page, 1)
+  await expect(page.locator('.machine-wrap .capsule-art.is-mini')).toHaveClass(/glow-normal/)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('カプセルをひらく')
+  // 取り出し口の光と寄る星（click3）→ カプセルが出て（S1〜S4）→ 着地して光ったら（S5）光の輪と「カプセルが出てきました」→ 開封へ。金色の筋は無い
+  const log = await page.evaluate(() => (window as unknown as { __spinLog: string[] }).__spinLog)
+  expect(log.some((entry) => entry.startsWith('カプセルが出てくるよ…|') && /state-click3 glow-normal/.test(entry) && !/is-lit/.test(entry))).toBe(true)
+  expect(log.some((entry) => entry.startsWith('カプセルが出てきました') && /state-click3 glow-normal is-lit/.test(entry))).toBe(true)
+  expect(log.some((entry) => /glow-(featured|sparkle)/.test(entry))).toBe(false)
+  expect(await background(), 'ふつうの回は最後まで背景を変えない').toBe(plain)
+  expect(errors).toEqual([])
+})
+
 /** つまみの中心と、なぞる円の半径（押せる範囲 160×160 の内側） */
 async function knobCircle(page: Page) {
   const hit = page.locator('.m-knob-hit')

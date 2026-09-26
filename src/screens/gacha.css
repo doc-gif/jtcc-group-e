@@ -15,6 +15,72 @@
 .machine .m-click text { font-family: inherit; }
 .spin-content .machine-wrap { width: min(100%, 22rem); }
 
+/* ===== 回転ごとの演出（#116。部品 419:10377 の state × glow、src/components/spinEffect.ts）=====
+ * 筐体の className は state-turn1 / turn2 / turn3 / click3 と glow-normal / sparkle / featured。S5（着地して光る）は is-lit。
+ * 色は glow ごとの変数で入れる。normal は petal・rose・白だけで、金色・つや・背景の変化は出さない（当たりを匂わせない）。
+ * 星・光・カプセルの動きは飾り（aria-hidden）。動きを減らす設定では src/index.css が動きを止め、色の変化と静止の星だけ残る。 */
+.machine {
+  --fx-ink: var(--deep); --fx-star-0: #f7cbd9; --fx-star-1: #de7f9c; --fx-star-2: #de7f9c; --fx-star-line: #de7f9c; --fx-grain: #de7f9c;
+  --fx-light-0: #fff9fa; --fx-light-1: #f7cbd9; --fx-light-a: 1; --fx-light-b: 0.8; --fx-ring-0: #fff; --fx-ring-1: #f7cbd9;
+}
+.machine.glow-sparkle {
+  --fx-star-0: #fff; --fx-star-1: #f8bcd0; --fx-star-2: #a6d6f0; --fx-star-line: transparent; --fx-grain: #f8bcd0;
+  --fx-light-0: #f8bcd0; --fx-light-1: #efe7f9; --fx-ring-0: #f8bcd0; --fx-ring-1: #efe7f9;
+}
+.machine.glow-featured {
+  --fx-ink: #e2a94f; --fx-star-0: #e2a94f; --fx-star-1: #f0c27c; --fx-star-2: #fff6de; --fx-star-line: transparent; --fx-grain: #f0c27c;
+  --fx-light-0: #f9dfa8; --fx-light-1: #f9dfa8; --fx-light-a: 0.95; --fx-light-b: 0.4; --fx-ring-0: #f9dfa8; --fx-ring-1: #f9dfa8;
+}
+.machine .m-star.t0 { fill: var(--fx-star-0); stroke: var(--fx-star-line); stroke-width: 1; }
+.machine .m-star.t1 { fill: var(--fx-star-1); }
+.machine .m-star.t2 { fill: var(--fx-star-2); }
+.machine .m-grain { fill: var(--fx-grain); }
+.machine .m-shake { stroke: var(--fx-ink); stroke-opacity: 0.5; }
+.machine .m-impact { stroke: var(--deep); stroke-opacity: 0.6; opacity: 0; }
+.machine .m-rays { stroke: #f0c27c; }
+.machine .m-click .m-ticks { stroke: var(--fx-ink); }
+.machine .m-click .m-click-text { fill: var(--fx-ink); }
+.machine .fx-light-0 { stop-color: var(--fx-light-0); stop-opacity: var(--fx-light-a); }
+.machine .fx-light-1 { stop-color: var(--fx-light-1); stop-opacity: var(--fx-light-b); }
+.machine .fx-ring-0 { stop-color: var(--fx-ring-0); stop-opacity: 0.95; }
+.machine .fx-ring-1 { stop-color: var(--fx-ring-1); stop-opacity: 0.6; }
+/* 外側の端は透明に消える（CSS の stop-opacity は属性より優先されるので、端だけ別の class） */
+.machine .fx-light-end { stop-color: var(--fx-light-1); stop-opacity: 0; }
+.machine .fx-ring-end { stop-color: var(--fx-ring-1); stop-opacity: 0; }
+/* 動き: 星は出るときにふわっと現れて、ゆっくりまたたく（位置は SVG の transform 属性なので不透明度だけ動かす） */
+.machine .m-star, .machine .m-grain { animation: m-fade-in 0.4s ease-out both, m-twinkle 1.6s 0.4s ease-in-out infinite alternate; }
+.machine .m-fx > .m-star:nth-child(3n+1), .machine .m-fx > .m-grain:nth-child(2n) { animation-delay: 0s, 0.9s; }
+.machine .m-fx > .m-star:nth-child(3n+2) { animation-delay: 0s, 1.4s; }
+.machine .m-aura, .machine .m-sheen, .machine .m-lit { animation: m-fade-in 0.6s ease-out both; }
+.machine .m-lit { animation-duration: 0.2s; }
+/* turn3: 筐体がぷるっと揺れる（.m-body は絵・演出の層・つまみを含むので、つまみも一緒に動く。揺れ線は両脇でちらつく） */
+.machine .m-body { transform-box: view-box; transform-origin: 175px 330px; }
+.machine.state-turn3 .m-body { animation: m-wobble 0.5s ease-in-out; }
+.machine .m-shake { animation: m-shake-line 0.5s ease-in-out both; }
+/* click3: 取り出し口の光がふわっと現れて脈打ち、星が外から寄ってくる */
+.machine .m-light ellipse { transform-box: fill-box; transform-origin: center; animation: m-fade-in 0.3s ease-out both, m-pulse 0.9s 0.3s ease-in-out infinite alternate; }
+.machine .m-gather { transform-box: view-box; transform-origin: 287px 332px; animation: m-gather 0.6s ease-out both; }
+/* click3 の「カチッ」は、カプセルが出はじめる 0.2 秒後に消える（S1） */
+.machine.state-click3 .m-click { animation: m-fade-out 0.15s 0.2s ease-out forwards; }
+/* S3 着地の瞬間（0.93〜1.15 秒）だけ衝撃線。時間は capsule-out と同じ 1.61 秒を 100% にした割合 */
+.machine .m-impact { animation: m-impact 1610ms linear both; }
+@keyframes m-fade-in { from { opacity: 0; } }
+@keyframes m-fade-out { to { opacity: 0; } }
+@keyframes m-twinkle { from { opacity: 1; } to { opacity: 0.45; } }
+@keyframes m-pulse { from { transform: scale(0.94); opacity: 0.85; } to { transform: scale(1.06); opacity: 1; } }
+@keyframes m-gather { from { transform: scale(1.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes m-wobble { 20% { transform: rotate(-2deg) translateX(-2px); } 40% { transform: rotate(2deg) translateX(2px); } 60% { transform: rotate(-1.2deg); } 80% { transform: rotate(1deg); } }
+@keyframes m-shake-line { 0%, 100% { opacity: 1; } 25%, 75% { opacity: 0.3; } }
+@keyframes m-impact { 0%, 57% { opacity: 0; } 60%, 71% { opacity: 1; } 78%, 100% { opacity: 0; } }
+
+/* featured の turn2 から: 画面の地をラベンダーから sanrio/cream に（水玉はそのまま。normal・sparkle は変えない）。turn3 からの札は「回転 3 / 3」の右 */
+.spin-screen { transition: background-color 0.4s; }
+.screen.spin-screen.is-warm { --world-bg: var(--lp-v2-sanrio-cream); }
+.turn-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.75rem; }
+/* 札は文字なので不透明度では出さない（途中の色が地と混ざり、コントラストの検査に引っかかる）。小さくから 1 倍へ */
+.turn-tag { font-size: 0.875rem; font-weight: 700; line-height: 1.5; color: #7a4a28; background: #fffdfa; border: 1.5px solid #f0c27c; border-radius: 999px; padding: 0.15rem 0.75rem; transform-origin: left center; animation: m-pop 0.3s ease-out; }
+@keyframes m-pop { from { transform: scale(0.85); } }
+
 /* ガチャ詳細（267:8279）：ガチャの名前。F14 はリボンの帯（360:5835 Ribbon banner）の上に書く */
 .detail-title {
   align-self: flex-start; max-width: 100%; margin-left: -0.5rem; padding: 0.15rem 1.5rem; overflow-wrap: anywhere;
@@ -125,12 +191,37 @@
 .capsule-art.stage-apart .capsule-band { opacity: 0; }
 .capsule-art.shake-1 { animation: shake1 0.4s; }
 .capsule-art.shake-2 { animation: shake2 0.4s; }
-/* 3回転の直後、筐体の受け皿に出る小さいカプセル（マスター 380:3371 / 3391 / 3411 の位置と大きさ） */
+/* 3 回転の直後、取り出し口から出て受け皿に着地する小さいカプセル（着地 S5 はマスター 380:3371 / 3391 / 3411 の位置と大きさ） */
 .capsule-art.is-mini {
   --cap-line: 2px; --cap-band: 0.25rem; --cap-hi: 0.2rem; --cap-halo: 6px;
-  /* 受け皿（部品 419:10377 の (250,392) 76×14）の上。筐体は 350×424 なので、横は幅・縦は高さに対する割合 */
+  /* 受け皿（部品 419:10377 の (250,392) 76×14）の上、中心 (288,366)・56px。筐体は 350×424 なので、横は幅・縦は高さに対する割合 */
   position: absolute; left: 74.3%; top: 79.5%; width: 16%; margin: 0; cursor: default; pointer-events: none;
-  animation: drop 0.5s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+  /* カプセルが出る動き（#116、Figma のプロトタイプ）。待ちと時間は src/components/spinEffect.ts の CAPSULE_OUT と同じで、合計 1.61 秒を 100% にした割合。
+   * click3: 開口の中で不透明度 0（(287,328) 42px）→ 0.20 秒後 S1 奥で揺れる 0.25 秒 ease-in-out → 0.15 秒後 S2 飛び出す 0.28 秒 ease-out（(300,344) 56px +25°）
+   * → 0.05 秒後 S3 着地 0.22 秒 ease-in（(288,366) 0°）→ 0.05 秒後 S4 弾む 0.16 秒 ease-out（(288,344) −12°）→ 0.05 秒後 S5 光る 0.20 秒 ease-in（(288,366)）。
+   * ずらす量はカプセル自身の幅（56px）に対する割合 */
+  animation: capsule-out 1610ms linear both;
+}
+@keyframes capsule-out {
+  0% { transform: translate(-2%, -68%) scale(0.75) rotate(0deg); opacity: 0; animation-timing-function: linear; }
+  12.4% { transform: translate(-2%, -68%) scale(0.75) rotate(0deg); opacity: 0; animation-timing-function: ease-in-out; }
+  27.9% { transform: translate(-2%, -68%) scale(0.75) rotate(-10deg); opacity: 1; animation-timing-function: linear; }
+  37.3% { transform: translate(-2%, -68%) scale(0.75) rotate(-10deg); opacity: 1; animation-timing-function: ease-out; }
+  54.7% { transform: translate(21%, -39%) scale(1) rotate(25deg); animation-timing-function: linear; }
+  57.8% { transform: translate(21%, -39%) scale(1) rotate(25deg); animation-timing-function: ease-in; }
+  71.4% { transform: translate(0, 0) scale(1) rotate(0deg); animation-timing-function: linear; }
+  74.5% { transform: translate(0, 0) scale(1) rotate(0deg); animation-timing-function: ease-out; }
+  84.5% { transform: translate(0, -39%) scale(1) rotate(-12deg); animation-timing-function: linear; }
+  87.6% { transform: translate(0, -39%) scale(1) rotate(-12deg); animation-timing-function: ease-in; }
+  100% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes capsule-fade { from { opacity: 0; } }
+/* 動きを減らす設定: S1〜S4 を飛ばし、click3 → S5 を 1 段のフェード（0.2 秒待って 0.2 秒）。src/index.css の全体の停止（0.01ms）より優先する */
+@media (prefers-reduced-motion: reduce) {
+  .capsule-art.is-mini {
+    animation-name: capsule-fade !important; animation-duration: 0.2s !important; animation-delay: 0.2s !important;
+    animation-timing-function: ease-out !important; animation-iteration-count: 1 !important; animation-fill-mode: both !important;
+  }
 }
 
 /* 今回の結果（267:8438） */
