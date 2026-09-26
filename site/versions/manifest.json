@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.2.0",
+    "sha": "aab02108baa12cd2d874923a95de3f8cb3c871dc",
+    "digest": "d9026c19159139b81e6d136ea193d5bd3d8a550bae025248786ec936daf8efe3",
+    "createdAt": "2026-09-26T04:08:45.971Z",
+    "repository": "doc-gif/jtcc-group-e"
+  },
+  {
     "version": "v0.1.0",
     "sha": "ce431e822c360647d9ca6251a2b59c1a15e46e91",
     "digest": "2d773e2d08d96f4e395c68ccedeec4cbf54b2e7d4edc00555cadff195d63034f",
