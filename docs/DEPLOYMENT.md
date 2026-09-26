@@ -5,21 +5,39 @@
 ## 通常の公開手順
 
 1. 対象変更が PR で `main` に入り、Quality gate と UI/UX gate が成功していることを確認する。
-2. `node scripts/live-state.mjs` で本番の版と「本番公開の実行（待機中・実行中）」を確認する。実行中があれば新しく依頼せず、その実行の完了を追って確認する（同じ SHA の二重公開・版番号の重なりを防ぐ）。[Releases](https://github.com/doc-gif/jtcc-group-e/releases) を確認し、未使用の `vMAJOR.MINOR.PATCH` を決める。初回は `v0.1.0`。バージョンは以前より大きくする。
-3. `main` から次を実行する（PowerShell、既存 Git Credential Manager または GH_TOKEN 認証）。
+2. `node scripts/live-state.mjs` で本番の版と「本番公開の実行（待機中・実行中）」を確認する。**今の main を公開する実行**が待機中・実行中なら新しく依頼せず、その実行を追う。
+3. `main` から次を実行する（PowerShell、既存 Git Credential Manager または GH_TOKEN 認証）。版は省く（下の「公開のキュー」が決める）。
 
 ```powershell
-./scripts/request-release.ps1 -Version v0.1.0
+./scripts/request-release.ps1
 ```
 
 GitHub CLI がある環境では次でも実行できる。
 
 ```bash
-gh workflow run release-pages.yml --repo doc-gif/jtcc-group-e --ref main -f version=v0.1.0
+gh workflow run release-pages.yml --repo doc-gif/jtcc-group-e --ref main
 ```
 
-4. [Release GitHub Pages](https://github.com/doc-gif/jtcc-group-e/actions/workflows/release-pages.yml) が完了するまで確認する。ジョブ起動だけで公開完了と報告しない。
-5. 最新 URL と固定 URL をブラウザで開き、Release の commit SHA と公開先の `deployment.json` を確認して報告する。最後の報告には確認済みリンクと、その同じ URL の QR コード画像を併記する。`pnpm qr <HTTPS-URL> <出力先.png>` で生成できる。
+担当者が版を指定したとき（minor・major を上げるなど）だけ `-Version v0.5.0`（`-f version=v0.5.0`）を付ける。最新の版より大きく、未使用であること。
+
+4. [Release GitHub Pages](https://github.com/doc-gif/jtcc-group-e/actions/workflows/release-pages.yml) が完了するまで確認する。ジョブ起動だけで公開完了と報告しない。`validate` の概要が「Skip: この SHA は vX.Y.Z で公開済み」なら、公開は増えていない（その版を報告する）。
+5. 最後の `Confirm published release` が、Pages の反映を待ってから次の4つを照合する。
+   - 最新 URL の `deployment.json` の版と SHA
+   - 固定 URL が 200 を返すこと
+   - タグの commit
+   - 結果の概要に URL を書き、固定 URL の QR を成果物 `release-qr` に置く
+
+   このジョブの成功を確かめたうえで、最新 URL と固定 URL をブラウザで開いて報告する。最後の報告には確認済みリンクと、同じ URL の QR コード画像を併記する（成果物の画像、または `pnpm qr <HTTPS-URL> <出力先.png>`）。
+
+## 公開のキュー
+
+複数のエージェントが同時に公開を頼んでも、消えたり版が重なったりしないようにする（[HANDOFF の 6](HANDOFF.md) の 2）。
+
+- **依頼は「今の main を公開する」**。実行は依頼した時点の main の SHA を公開する。
+- **版は workflow が決める。** `validate`（`scripts/release-plan.mjs`）が、入力がなければ最新のタグの patch + 1 にする。公開は `concurrency: pages-release` で1本ずつ動くので、前の公開が作ったタグを見てから決まり、版は重ならない。
+- **同じ SHA は二重に公開しない。** 公開済みの SHA への依頼は、何もせず成功で終える。GitHub は待機中の実行を新しい実行で置き換えることがあるが、新しい依頼は同じかより新しい main を公開するので、置き換えられた依頼の中身は失われない。
+- **巻き戻さない。** 最新の版の commit を含まない SHA（古い実行の再実行など）は `validate` で止める。
+- 公開後の確認は `confirm` ジョブが自動で行う（上の 5）。
 
 ## 公開後の URL
 
@@ -41,7 +59,8 @@ gh workflow run release-pages.yml --repo doc-gif/jtcc-group-e --ref main -f vers
 - テスト失敗: 公開されない。PR で原因を直す。
 - アーカイブ保存後、Pages 公開や Release 作成に失敗: 同じ workflow run の失敗ジョブを再実行する。同じ SHA・ビルドなら再実行できる。別 SHA で同名の版を上書きしない。
 - 新しい版が公開済み: 古い run を再実行して最新版を巻き戻さない。修正／revert PR を `main` にマージし、新しいバージョン番号で公開する。
-- 同時実行: 公開は直列化するが、GitHub は待機中の実行を新しい実行で置き換えることがある。消えた実行は状態を確認して再要求する。
+- 同時実行: 公開は直列化する。待機中の実行が新しい実行に置き換えられても、新しい方が同じかより新しい main を公開する（「公開のキュー」）。置き換えられた実行の版の指定は使われないので、版を指定したときは結果の版を確かめる。
+- 公開後の確認（`confirm`）の失敗: Pages の反映が遅い・固定 URL がない・タグが違う。公開をやり直さず、概要の理由を確かめてから `confirm` だけを再実行する。
 - `pages-history` は生成物専用。手動編集・削除・force push をしない。サイズが 900 MiB を超える場合は公開を止め、履歴の保存先を計画的に移行する。既存 URL を無断で削除しない。
 
 ## GitHub 側の初期設定
