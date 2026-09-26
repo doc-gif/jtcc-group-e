@@ -111,8 +111,30 @@ test('#68: only room members may receive, and the receive policy is created once
   [users[1],`lp:${id.toUpperCase()}`,false],[users[1],`lp:${id}x`,false],[users[1],'lp:not-a-room',false],[users[1],null,false]]) {
   expect(await call(user,'select public.lp_can_receive($1) result',[topic])).toBe(allowed)
  }
+ // Through the policy itself, as Realtime authorizes a join: SELECT as the authenticated role with RLS on.
+ await db.exec(`alter table realtime.messages enable row level security;
+  grant usage on schema realtime to authenticated; grant select,insert on realtime.messages to authenticated;
+  grant usage on sequence realtime.messages_at_seq to authenticated`)
+ // An earlier test makes realtime.send fail on purpose, so write the room's message as the owner (bypasses RLS).
+ await db.query("insert into realtime.messages(extension,topic,event,payload,private) values('broadcast',$1,'round','{}',true)",[`lp:${id}`])
+ const visible=async(user,topic)=>{
+  await db.query("select set_config('request.jwt.claim.sub',$1,false),set_config('realtime.topic',$2,false)",[user,topic])
+  await db.exec('set role authenticated')
+  try { return (await db.query('select count(*)::int count from realtime.messages where topic=$1',[`lp:${id}`])).rows[0].count }
+  finally { await db.exec('reset role') }
+ }
+ expect(await visible(users[0],`lp:${id}`)).toBeGreaterThan(0)
+ expect(await visible(users[1],`lp:${id}`)).toBeGreaterThan(0)
+ expect(await visible(users[2],`lp:${id}`)).toBe(0)
+ // A member of this room cannot read it through another topic, and nobody can send.
+ expect(await visible(users[1],`lp:${randomUUID()}`)).toBe(0)
+ await db.query("select set_config('request.jwt.claim.sub',$1,false),set_config('realtime.topic',$2,false)",[users[1],`lp:${id}`])
+ await db.exec('set role authenticated')
+ try { await expect(db.query("insert into realtime.messages(extension,topic,event,payload,private) values('broadcast',$1,'round','{}',true)",[`lp:${id}`])).rejects.toThrow('row-level security') }
+ finally { await db.exec('reset role') }
  await call(users[1],'select public.lp_leave($1) result',[id])
  expect(await call(users[1],'select public.lp_can_receive($1) result',[`lp:${id}`])).toBe(false)
+ expect(await visible(users[1],`lp:${id}`)).toBe(0)
 })
 test('core room ledger works before Realtime initializes and blocks a departed member', async()=>{
  const isolated=new PGlite()
