@@ -259,6 +259,46 @@ describe('参加者：招待・名前・準備・見守り', () => {
     expect(readRecords(guest.records)[invite]).toBeUndefined()
   })
 
+  test('舞台はガチャ筐体。集まる人が増えると並ぶ人と吹き出しが増え、見守りに切り替えても変わらない（#87）', async () => {
+    const { invite } = await hostRoom()
+    open(`#/room/${invite}`, sessionFor('guest'))
+    const stage = () => screen.getByRole('figure')
+    const faces = () => [...stage().querySelectorAll('.face')].map((face) => face.textContent)
+    const cheers = () => [...stage().querySelectorAll('.room-cheer')].map((cheer) => cheer.textContent)
+    // 招待（ルームの外）は筐体だけで、人は出さない。筐体・人・吹き出しは飾りなので読み上げない
+    expect(stage()).toHaveTextContent('みんなでカプセルを開けよう')
+    expect(stage().querySelector('.room-machine')).toHaveAttribute('aria-hidden', 'true')
+    expect(within(stage()).queryByRole('img')).toBeNull()
+    expect(stage().querySelector('.room-crowd')).toBeNull()
+
+    await joinAs('ゆい')
+    expect(stage()).toHaveTextContent('ガチャの前にみんな集合！')
+    expect(stage()).toHaveClass('crowd-few')
+    expect(faces()).toEqual(['ミ', 'ゆ'])
+    expect(cheers()).toEqual(['わくわく'])
+    expect(stage().querySelector('.room-crowd')).toHaveAttribute('aria-hidden', 'true')
+
+    await addGuests(invite, ['さき', 'もも', 'りこ'])
+    await advance(ROOM_POLL_MS)
+    expect(screen.getByText('ミオさんのルーム · 5人が集まっています')).toBeVisible()
+    expect(stage()).toHaveClass('crowd-some')
+    expect(faces()).toHaveLength(5)
+    expect(cheers()).toEqual(['わくわく', 'まだかな？'])
+
+    await addGuests(invite, ['はな', 'あお', 'こと', 'なな', 'えま', 'かの', 'すず'])
+    await advance(ROOM_POLL_MS)
+    expect(stage()).toHaveClass('crowd-lively')
+    expect(faces()).toHaveLength(10)
+    expect(stage().querySelector('.face-more')).toHaveTextContent('+2')
+    expect(cheers()).toEqual(['わくわく', 'まだかな？', '楽しみ！'])
+
+    // 見守りの切り替えと説明文は今のまま
+    await click('見守るだけ')
+    expect(heading()).toHaveTextContent('見守り中です')
+    expect(screen.getByText('抽選には参加していません')).toBeVisible()
+    expect(stage()).toHaveClass('crowd-lively')
+  })
+
   test('名前を決めずに入ると自動の名前を見せ、ロビーから名前を変えられる（重なりは候補を出す）', async () => {
     const { invite } = await hostRoom('もも')
     const guest = sessionFor('guest')
