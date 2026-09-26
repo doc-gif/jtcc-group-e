@@ -514,6 +514,34 @@ describe('ガチャの流れ（T08）', () => {
     expect(document.querySelector('.big-banner, .lux, .is-kakutei')).toBeNull()
   })
 
+  // 在庫の合計 73 口: 0.01 → 目玉（ぬいぐるみマスコット）、0.05 → キラキラ（ミニぬいぐるみ）、0.99 → ふつう（缶バッジ）
+  test.each([
+    [0.99, 'normal', 'カプセル'],
+    [0.05, 'sparkle', 'キラキラのカプセル'],
+    [0.01, 'featured', '目玉のカプセル'],
+  ] as const)('カプセルは光り方で3種の見た目。受け皿に出た時点から開封まで同じ見た目（%s → %s、部品 376:11670）', (random, glow, name) => {
+    vi.mocked(Math.random).mockReturnValue(random)
+    start('#/gacha/sanrio-capsule/spin')
+    fireEvent.click(button(/使って1回引く/))
+    for (let i = 0; i < 2; i += 1) fireEvent.click(button('1タップで1回転'))
+    // 回し終わるまではカプセルを出さない（当たりを先に見せない）
+    expect(document.querySelector('.capsule-art')).toBeNull()
+    fireEvent.click(button('1タップで1回転'))
+    const mini = document.querySelector('.machine-wrap .capsule-art.is-mini')
+    expect(mini).toHaveClass(`glow-${glow}`)
+    expect(mini).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText(/カプセルが出てきました/)).toBeVisible()
+    expect(screen.getByText(`（${name}）`)).toHaveClass('visually-hidden')
+    tick(TIMING.drop)
+    const big = document.querySelector('.open-stage .capsule-art')
+    expect(big).toHaveClass(`glow-${glow}`, 'stage-closed')
+    // 粒はキラキラ・目玉だけ。どれも点滅しない静止の絵
+    expect(big!.querySelectorAll('.spark').length > 0).toBe(glow !== 'normal')
+    expect(button(new RegExp(`^${name}をタップ（あと3回`))).toBeVisible()
+    fireEvent.click(button(/あと3回/))
+    expect(document.querySelector('.open-stage .capsule-art')).toHaveClass(`glow-${glow}`, 'stage-crack')
+  })
+
   test('回帰：保存できない端末では、結果に「保存されます」と出さず保存できないことを伝える', () => {
     const broken = { getItem: () => null, setItem: () => { throw new Error('quota') } }
     window.location.hash = '#/gacha/sanrio-capsule/spin'
