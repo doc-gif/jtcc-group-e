@@ -1,0 +1,16 @@
+/*
+ * 見出しのフォント Zen Maru Gothic Bold（F14、デザインマスターの画面の見出し。文字スタイルなし・24px）。
+ * Google Fonts が配布する OFL 1.1 の ZenMaruGothic-Bold.ttf（google/fonts の ofl/zenmarugothic）から、
+ * アプリで使う文字（src の .ts/.tsx/.css に現れる文字、ASCII、かな、全角英数、記号）だけを HarfBuzz（subset-font）で
+ * 1 つの woff2 に切り出して同梱し、自分で配信する（外部サービスへ通信しない。ライセンスは ./zen-maru-gothic/OFL.txt）。
+ * 1 ファイルなので最初の画面で読み込んだあとは通信しない（分割配信だと画面が変わるたびに取りに行き、オフラインで失敗する）。
+ * 読み込みは font-display: swap。含まれない文字（利用者の名前など）は src/index.css の --font-heading の後続フォントで出す。
+ * 文字を増やしたら同じ手順で切り出し直す。
+ */
+@font-face {
+  font-family: 'Zen Maru Gothic';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./zen-maru-gothic/zen-maru-gothic-700-subset.woff2') format('woff2');
+}
