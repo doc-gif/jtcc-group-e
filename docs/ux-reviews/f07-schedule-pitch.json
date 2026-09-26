@@ -1,5 +1,5 @@
 {
-  "uiDigest": "ae760ed446581a0bb76d45be3cca71766a25df3a0f72446546b9c497073078b6",
+  "uiDigest": "a72d99b649423cd8aad81b8c18550df978a60cdb27fce34965b2963e00830e1a",
   "reviewer": "Claude (F07 schedule and pitch mode review)",
   "reviewedAt": "2026-09-26",
   "summary": "F07 は共有ルームの SQL・transport・模擬サーバー・状態層（src/realtime/）とテストだけの変更で、画面・CSS・遷移は変更していない。src/realtime はどの画面からも import しておらず、pnpm build の JS に lp_schedule・invalid-schedule は含まれない。予約の選択・秒読み・ピッチモードの表示は Figma（task/F08 284:2717）の確認後に F05 で実装し、そのとき実画面を評価する。",

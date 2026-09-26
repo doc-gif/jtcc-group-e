@@ -1,6 +1,6 @@
 import { catalog, findGacha, findPrize } from './catalog'
 import { exchangeCoins, pickPrize, remainingOf } from './odds'
-import type { AppState, Prize, Stock, WinRecord } from './types'
+import type { AppState, Gacha, Prize, Stock, WinRecord } from './types'
 
 /** はじめての人に入れておく体験用コイン（デモ。決済はしない）。 */
 export const STARTER_COINS = 3000
@@ -36,6 +36,20 @@ export function spinCheck(state: AppState, gachaId: string): SpinError | null {
   if (gacha.prizes.every((prize) => remainingOf(state.stock, gacha.id, prize.id) === 0)) return 'sold-out'
   if (state.coins < gacha.price) return 'insufficient-coins'
   return null
+}
+
+export interface SpinQuote { price: number; balance: number; after: number; shortBy: number }
+
+/** 支払う前に見せる金額。1回のコイン・いまの残高・引いた後の残高・足りない分。 */
+export function spinQuote(state: AppState, gacha: Pick<Gacha, 'price'>): SpinQuote {
+  const shortBy = Math.max(0, gacha.price - state.coins)
+  return { price: gacha.price, balance: state.coins, after: Math.max(0, state.coins - gacha.price), shortBy }
+}
+
+/** 目玉の候補。残っている目玉のうち参考価格がいちばん高いもの（なければ目玉の先頭）。 */
+export function featuredCandidate(gacha: Gacha, stock: Stock): Prize | null {
+  const featured = [...gacha.prizes].filter((prize) => prize.glow === 'featured').sort((a, b) => b.refPrice - a.refPrice)
+  return featured.find((prize) => remainingOf(stock, gacha.id, prize.id) > 0) ?? featured[0] ?? null
 }
 
 /**

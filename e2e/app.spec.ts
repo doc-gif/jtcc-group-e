@@ -1,5 +1,5 @@
 import { AxeBuilder } from '@axe-core/playwright'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page, type TestInfo } from '@playwright/test'
 
 test('プレビューは表示できて本番・別ビルドの保存データと混ざらない', async ({ page }, testInfo) => {
   const errors = watchErrors(page)
@@ -50,9 +50,14 @@ async function tapTurns(page: Page, count: number) {
   for (let i = 0; i < count; i += 1) await turn.click()
 }
 
+/** 回す前の確認で確定する（ここで初めてコインを使う） */
+async function confirmSpin(page: Page) {
+  await page.getByRole('button', { name: /コイン使って1回引く/ }).click()
+}
+
 /** カプセルは揺れる演出があるため、必要なタップ数（ラベルの「あとN回」）だけ押す */
 async function openCapsule(page: Page) {
-  const capsule = page.getByRole('button', { name: /カプセルをあける/ })
+  const capsule = page.getByRole('button', { name: /カプセルをタップ/ })
   await expect(capsule).toBeVisible()
   const label = (await capsule.getAttribute('aria-label')) ?? ''
   const need = Number(/あと(\d+)回/.exec(label)?.[1] ?? '1')
@@ -138,6 +143,22 @@ test('街：導入は3秒で街に着き、地図をドラッグして場所へ�
   expect(errors).toEqual([])
 })
 
+test('回帰：ガチャ詳細を開いたあとも、街の注目カードは街の見た目のまま', async ({ page }) => {
+  await page.goto('./#/gacha/sanrio-capsule')
+  await expect(page.getByText('目玉の候補')).toBeVisible()
+  await page.getByRole('navigation', { name: 'メイン' }).getByRole('link', { name: '街' }).click()
+  const card = page.locator('.feature-card')
+  await expect(card).toBeVisible()
+  const styles = await card.evaluate((element) => {
+    const read = (selector: string) => getComputedStyle(element.querySelector(selector)!)
+    return { kicker: read('.feature-kicker').fontSize, name: read('.feature-name').color, radius: getComputedStyle(element).borderTopLeftRadius }
+  })
+  // 街（App.css）の値：見出し 17px・商品名はワイン・角丸 20px（ガチャ詳細の値で上書きされない）
+  expect(styles.kicker).toBe('17px')
+  expect(styles.name).toBe('rgb(74, 42, 54)')
+  expect(styles.radius).toBe('20px')
+})
+
 test('街：動きを減らす設定では導入を1枚にし、自動では進めない', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.clock.install({ time: 0 })
@@ -168,7 +189,9 @@ test('ひとりで回す：詳細 → 3回転 → 開封 → 当てたもの →
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('ガチャ詳細')
   await expect(page.getByText('✦ 目玉')).toBeVisible()
   await expect(page.locator('body')).not.toContainText(/残り\s*\d+\s*\/\s*\d+/)
-  await page.getByRole('link', { name: /ひとりで回す/ }).click()
+  await page.getByRole('link', { name: /1回引く準備へ/ }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('回す前に')
+  await confirmSpin(page)
   await tapTurns(page, 3)
   await openCapsule(page)
   await expect(page.getByText('使ったコイン')).toBeVisible()
@@ -189,6 +212,7 @@ test('ひとりで回す：詳細 → 3回転 → 開封 → 当てたもの →
 
 test('ハンドルを指でなぞって回せる', async ({ page }) => {
   await page.goto('./#/gacha/sanrio-capsule/spin')
+  await confirmSpin(page)
   const machine = page.getByRole('img', { name: /ガチャガチャ/ })
   await machine.scrollIntoViewIfNeeded()
   const box = (await machine.boundingBox())!
@@ -202,8 +226,71 @@ test('ハンドルを指でなぞって回せる', async ({ page }) => {
     await page.mouse.move(cx + r * Math.cos(angle), cy + r * Math.sin(angle))
   }
   await page.mouse.up()
-  await expect(page.getByRole('button', { name: /カプセルをあける/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /カプセルをタップ/ })).toBeVisible()
 })
+
+/** 演出の途中の状態も、WCAG AA・44px・横はみ出しなしを確かめて画像を残す */
+async function checkState(page: Page, name: string, testInfo: TestInfo) {
+  // 登場の演出（結果カードの拡大など）が終わった最終の大きさで測る。くり返す飾りの演出は待たない
+  await page.evaluate(() => Promise.all(document.getAnimations()
+    .filter((animation) => Number.isFinite(Number(animation.effect?.getTiming().iterations ?? 1)))
+    .map((animation) => animation.finished.catch(() => undefined))))
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations, name).toEqual([])
+  // 演出で要素が入れ替わっても測れるよう、表示中の操作の大きさを1回でまとめて測る
+  const small = await page.evaluate(() => [...document.querySelectorAll('button, a[href]')]
+    .map((element) => ({ text: element.textContent?.trim() ?? '', rect: element.getBoundingClientRect(), shown: element.checkVisibility() }))
+    .filter(({ rect, shown }) => shown && rect.width > 0 && (rect.width < 44 || rect.height < 44))
+    .map(({ text }) => text))
+  expect(small, `${name}: 44px`).toEqual([])
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), name).toBe(true)
+  await testInfo.attach(`${name}-${testInfo.project.name}`, { body: await page.screenshot(), contentType: 'image/png' })
+}
+
+for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+  test(`ガチャの流れ（T08・動き ${reducedMotion}）：確率 → 確認 → 3回転 → 3段階の開封 → 結果`, async ({ page }, testInfo) => {
+    const errors = watchErrors(page)
+    // 5つの状態で axe と画像を取るため、通常の3倍の時間を許す
+    test.slow()
+    await page.emulateMedia({ reducedMotion })
+    await page.goto('./#/me')
+    await page.getByRole('button', { name: /次の1回を目玉確定にする/ }).click()
+    await page.goto('./#/gacha/sanrio-capsule')
+    await page.getByRole('link', { name: '中身9種と確率を見る' }).click()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('中身と確率')
+    await expect(page.getByRole('table').getByRole('row')).toHaveCount(10)
+    await page.getByRole('link', { name: '500コインで1回引く準備へ' }).click()
+    await expect(page.getByText(/所持 3,000/)).toContainText('確定後 2,500')
+    await confirmSpin(page)
+    await expect(page.getByText('回転 0 / 3')).toBeVisible()
+    await tapTurns(page, 1)
+    await expect(page.getByText('回転 1 / 3')).toBeVisible()
+    await checkState(page, 't08-turn-1', testInfo)
+    await tapTurns(page, 2)
+    const open = page.getByRole('dialog', { name: 'カプセルをひらく' })
+    for (const step of [1, 2, 3]) {
+      await expect(open.getByText(`開封 ${step} / 3`)).toBeVisible()
+      await checkState(page, `t08-open-${step}`, testInfo)
+      await open.getByRole('button', { name: /カプセルをタップ/ }).click()
+    }
+    const result = page.getByRole('dialog', { name: 'ぬいぐるみマスコット' })
+    await expect(result.getByText('今回の結果')).toBeVisible()
+    await expect(result.getByText('500コイン使用・残高 2,500・1点を獲得')).toBeVisible()
+    await checkState(page, 't08-result', testInfo)
+    // 回帰：文字200%で結果が画面より高くなっても、先頭（今回の結果）までスクロールで戻れる
+    await page.addStyleTag({ content: 'html { font-size: 200% !important; }' })
+    const top = await page.evaluate(() => {
+      const scene = document.querySelector('.open-scene')!
+      scene.scrollTop = 0
+      return document.querySelector('.result-kicker')!.getBoundingClientRect().top - scene.getBoundingClientRect().top
+    })
+    expect(top).toBeGreaterThanOrEqual(0)
+    await testInfo.attach(`t08-result-large-text-${testInfo.project.name}`, { body: await page.screenshot(), contentType: 'image/png' })
+    await page.addStyleTag({ content: 'html { font-size: 100% !important; }' })
+    await result.getByRole('link', { name: '街へ戻る' }).click()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('ラストピース')
+    expect(errors).toEqual([])
+  })
+}
 
 test('友達と回す（デモ）：ルーム → 待ち合わせ → 目玉確定 → みんなの結果', async ({ page }) => {
   const errors = watchErrors(page)
@@ -216,6 +303,7 @@ test('友達と回す（デモ）：ルーム → 待ち合わせ → 目玉確�
   const start = sheet.getByRole('button', { name: /みんなで回す/ })
   await expect(start).toBeEnabled({ timeout: 6000 })
   await start.click()
+  await confirmSpin(page)
   await expect(page.getByText(/ROOM・3人でいっしょに/)).toBeVisible()
   await tapTurns(page, 2)
   await expect(page.getByText('目玉 確定')).toBeVisible()

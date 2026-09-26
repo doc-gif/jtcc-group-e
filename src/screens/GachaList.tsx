@@ -6,6 +6,7 @@ import { coinText, oddsOf, remainingRatio } from '../domain/odds'
 import type { CategoryId, Gacha, SeriesId } from '../domain/types'
 import { MockNotice, SaveWarning, TabBar, TopBar } from '../components/Chrome'
 import { Banner, GoodsImage, RemainBar } from '../components/Goods'
+import './gacha.css'
 
 type Sort = 'recommended' | 'sellout' | 'few' | 'new'
 const sorts: Array<{ id: Sort; label: string }> = [
@@ -31,7 +32,7 @@ export function GachaList() {
     <div className="screen">
       <TopBar title="ガチャのお店" sub="GACHA SHOP" />
       <main className="content">
-        <p className="lead shop-lead">売り切れて買えなかった限定グッズを、JTCC が買い取って検品。確率を公開したガチャで、友達といっしょに回せます。</p>
+        <p className="lead shop-lead">売り切れて買えなかった限定グッズを、JTCC が買い取って検品。中身と確率を確かめてから、友達といっしょに回せます。</p>
         <div className="series-card" role="group" aria-label="作品をえらぶ">
           {seriesList.map((item) => (
             <button key={item.id} type="button" className="series" aria-pressed={series === item.id} onClick={() => { setSeries(item.id); setCategory('all') }}>
@@ -79,7 +80,7 @@ function GachaCard({ gacha }: { gacha: Gacha }) {
       <div className="tags">{gacha.tags.map((tag) => <span key={tag} className="tag">{tag}</span>)}</div>
       <Banner gacha={gacha} as="h2" titleId={`card-${gacha.id}`} />
       <div className="inside">
-        <p className="inside-head"><span>このガチャの中身</span><a href={paths.gacha(gacha.id)} aria-label={`${gacha.title}の中身 全${gacha.prizes.length}種と確率を見る`}>全{gacha.prizes.length}種と確率 ›</a></p>
+        <p className="inside-head"><span>このガチャの中身（全{gacha.prizes.length}種の一部）</span></p>
         <ul className="preview">
           {preview.map(({ prize }) => (
             <li key={prize.id}><GoodsImage art={prize.art} glow={prize.glow} size="sm" /><span>{prize.name}</span></li>
@@ -91,7 +92,7 @@ function GachaCard({ gacha }: { gacha: Gacha }) {
         <RemainBar gacha={gacha} stock={state.stock} />
       </div>
       <div className="card-actions">
-        <a className="btn btn-outline" href={paths.soloSpin(gacha.id)}>ひとりで回す</a>
+        <a className="btn btn-main" href={paths.gacha(gacha.id)} aria-label={`${gacha.title}の中身を見る（全${gacha.prizes.length}種と確率）`}>中身を見る</a>
         <a className="btn btn-lux" href={paths.createRoom(gacha.id)}>♡ 友達と回す</a>
       </div>
     </article>
