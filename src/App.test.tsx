@@ -63,7 +63,7 @@ describe('街（ホーム）と下のタブ', () => {
     expect(screen.getByRole('link', { name: /デモのコイン残高 3,000/ })).toHaveAttribute('href', '#/me')
     const map = screen.getByRole('region', { name: /街の地図/ })
     expect(within(map).getByRole('link', { name: 'ガチャのお店' })).toHaveAttribute('href', '#/gacha')
-    expect(within(map).getByRole('link', { name: 'コレクション' })).toHaveAttribute('href', '#/collection')
+    expect(within(map).getByRole('link', { name: 'コレクション' })).toHaveAttribute('href', '#/shelf')
     expect(within(map).getByRole('link', { name: 'フレンド' })).toHaveAttribute('href', '#/together')
     expect(within(map).getByText('当てたもの 0')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /注目のピース/ })).toHaveAttribute('href', '#/gacha/melody-anniv')
@@ -99,12 +99,13 @@ describe('街（ホーム）と下のタブ', () => {
     const nav = () => screen.getByRole('navigation', { name: 'メイン' })
     expect(within(nav()).getAllByRole('link').map((link) => link.textContent)).toEqual(['街', 'ガチャ', 'コレクション', 'フレンド'])
     expect(within(nav()).getByRole('link', { name: '街' })).toHaveAttribute('aria-current', 'page')
-    for (const [hash, name, title] of [['#/gacha', 'ガチャ', 'ガチャのお店'], ['#/collection', 'コレクション', '当てたもの'], ['#/together', 'フレンド', 'いっしょに回す']] as const) {
+    for (const [hash, name, title] of [['#/gacha', 'ガチャ', 'ガチャのお店'], ['#/shelf', 'コレクション', 'わたしの棚'], ['#/collection', 'コレクション', '当てたもの'], ['#/together', 'フレンド', 'フレンド']] as const) {
       go(hash)
       expect(heading()).toHaveTextContent(title)
       expect(within(nav()).getByRole('link', { name })).toHaveAttribute('aria-current', 'page')
       expect(within(nav()).getAllByRole('link').filter((link) => link.getAttribute('aria-current') === 'page')).toHaveLength(1)
     }
+    expect(within(nav()).getByRole('link', { name: 'コレクション' })).toHaveAttribute('href', '#/shelf')
     go('#/me')
     expect(within(nav()).queryAllByRole('link').filter((link) => link.getAttribute('aria-current') === 'page')).toHaveLength(0)
   })
@@ -375,10 +376,12 @@ describe('マイページ・はじめて・いっしょに', () => {
     expect(screen.queryByRole('link', { name: /はじめての方へ/ })).toBeNull()
   })
 
-  test('いっしょに：ガチャを選んでルームを作れる', () => {
+  test('フレンド：まだ友だちがいないと、ガチャへ案内する（ルームはガチャ詳細の「友達と回す」から作る）', () => {
     start('#/together')
-    expect(screen.getByText(/まだありません/)).toBeVisible()
-    expect(screen.getAllByRole('link', { name: /友達と回す/ })[0]).toHaveAttribute('href', '#/gacha/melody-anniv/room')
+    expect(screen.getByText('まだ友だちはいません')).toBeVisible()
+    expect(screen.getByRole('link', { name: 'ガチャを見る' })).toHaveAttribute('href', '#/gacha')
+    go('#/gacha/melody-anniv')
+    expect(screen.getByRole('link', { name: /友達と回す/ })).toHaveAttribute('href', '#/gacha/melody-anniv/room')
   })
 
   test('保存できない端末では、その旨を伝えて遊べる', () => {

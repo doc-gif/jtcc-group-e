@@ -15,7 +15,7 @@ export function initialStock(): Stock {
 }
 
 export function createInitialState(): AppState {
-  return { version: 1, coins: STARTER_COINS, nickname: 'あなた', stock: initialStock(), wins: [], forceFeaturedNext: false, nextWinSeq: 1, welcomed: false, voiceOn: false, soundOn: false }
+  return { version: 1, coins: STARTER_COINS, nickname: 'あなた', stock: initialStock(), wins: [], forceFeaturedNext: false, nextWinSeq: 1, welcomed: false, voiceOn: false, soundOn: false, favorites: [], reactions: [] }
 }
 
 export type SpinError = 'not-found' | 'sold-out' | 'insufficient-coins'

@@ -1,10 +1,11 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import { uxScenarios } from './ux-scenarios.ts'
+import { SEED_STORAGE_KEY, uxScenarios } from './ux-scenarios.ts'
 
 for (const scenario of uxScenarios) {
   test(`${scenario.name}: HIG を Web に適用した UI/UX 基準`, async ({ page }, testInfo) => {
     if (scenario.pauseTimers) await page.clock.install()
+    if (scenario.seed) await page.addInitScript(([key, value]) => { localStorage.setItem(key, value) }, [SEED_STORAGE_KEY, scenario.seed])
     await page.goto(scenario.path)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([])

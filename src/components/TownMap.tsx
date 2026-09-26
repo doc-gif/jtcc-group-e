@@ -152,7 +152,7 @@ export function TownMapLayer({ interactive, winCount }: { interactive: boolean; 
       {/* 当てた数はコレクションの名前の上に重ねて置き、文字を大きくしても重ならないようにする */}
       <span className="town-stack" style={at(667, 878)}>
         <span className="town-count">当てたもの {winCount}</span>
-        <Spot className="town-spot" href={interactive ? paths.collection : undefined}>コレクション</Spot>
+        <Spot className="town-spot" href={interactive ? paths.shelf : undefined}>コレクション</Spot>
       </span>
       <Spot x={895} y={854} className="town-spot" href={interactive ? paths.together : undefined}>フレンド</Spot>
       <span className="town-pipi" style={at(780, 776)}><PipiFigure className="town-pipi-figure" /></span>

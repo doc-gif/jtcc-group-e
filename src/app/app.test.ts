@@ -18,11 +18,15 @@ describe('画面のハッシュ', () => {
     expect(parseHash(paths.soloSpin('a-1'))).toEqual({ name: 'spin', id: 'a-1' })
     expect(parseHash(paths.room('a-1'))).toEqual({ name: 'room', code: 'a-1', spin: false })
     expect(parseHash(paths.roomSpin('a-1'))).toEqual({ name: 'room', code: 'a-1', spin: true })
-    for (const name of ['collection', 'together', 'me'] as const) expect(parseHash(`#/${name}/`)).toEqual({ name })
+    for (const name of ['collection', 'together', 'me', 'shelf'] as const) expect(parseHash(`#/${name}/`)).toEqual({ name })
+    expect(parseHash(paths.shelfShare)).toEqual({ name: 'shelfShare' })
+    expect(parseHash(paths.shelfItem('a-1'))).toEqual({ name: 'shelfItem', id: 'a-1' })
+    expect(parseHash(paths.friend('yui'))).toEqual({ name: 'friend', id: 'yui' })
+    expect(parseHash(paths.friendItem('yui', 'a-1'))).toEqual({ name: 'friendItem', id: 'yui', item: 'a-1' })
   })
 
   test('不正な形は見つからない扱い', () => {
-    for (const hash of ['#/gacha/A B', '#/gacha/x/y', '#/room/x/y', '#/spin/x', '#/other/x']) expect(parseHash(hash)).toEqual({ name: 'notfound' })
+    for (const hash of ['#/gacha/A B', '#/gacha/x/y', '#/room/x/y', '#/spin/x', '#/other/x', '#/shelf/A B', '#/shelf/x/y', '#/friend/yui/A B', '#/friend/yui/x/y']) expect(parseHash(hash)).toEqual({ name: 'notfound' })
   })
 })
 
