@@ -30,7 +30,7 @@
 ## Issue と PR の結びつき
 
 - PR 本文の**1行目**に **`Closes #N`**（その PR で Issue が終わる）か **`Refs #N`**（続きがある）。このリポジトリの Issue だけ。CI `PR links an Issue` が1行目に無いと落とす。
-- `Closes #N` があれば、Bot のマージで Issue は自動で閉じる。手で閉じない。
+- `Closes #N` があれば GitHub がマージで Issue を閉じるはずだが、**Bot のマージでは閉じないことがある**（#72 の例）。マージ後に開いたままなら、作業者が「#PR をマージ（内容1行）」と書いて閉じる。マージ前に手で閉じない。
 - 1 Issue に PR が複数あるときは、最後の PR だけ `Closes`、それ以外は `Refs`。
 
 ## 作業者（各チャット）の手順
@@ -40,7 +40,7 @@
 3. Issue に Milestone が無ければ付ける。`origin/main` から専用ブランチ・worktree。Draft PR を開き、本文の**1行目**に `Closes #N`。
 4. 共有資源は `lock:*` の Issue を立ててから。開いているロックがあれば待ち、他の部分を先に進める。
 5. 区切りごとに1行の途中経過。質問は `needs-owner` を付けて @doc-gif に。
-6. Ready にしたら `review`。Bot のマージまで見届け、マージされたら Issue に結果を1行、親 Issue（#53）の表を更新する。公開したい変更なら、**開いているリリース Issue**（`[release]` で始まる。なければ作る）に「#N をマージ（内容1行）」とコメントし `ready-to-release` を付ける。**本番公開はしない。**
+6. Ready にしたら `review`。Bot のマージまで見届け、マージされたら Issue に結果を1行（自動で閉じていなければ閉じる）、親 Issue（#53）の表を更新する。公開したい変更なら、**開いているリリース Issue**（`[release]` で始まる。なければ作る）に「#N をマージ（内容1行）」とコメントし `ready-to-release` を付ける。**本番公開はしない。**
 
 ## マネージャー（定期実行）の1回の手順
 
@@ -53,6 +53,7 @@
    - `review` なのに CI が赤・Copilot の指摘が未解決・main の取り込み待ち → Issue にコメントして作業者へ。
    - `blocked` の理由が解消している（依存の Issue が閉じた・ロックが空いた）→ `blocked` を外して `todo` に。
    - `lock:*` の Issue の PR がマージ済みなのに開いている → 閉じる。
+   - `Closes #N` の PR がマージ済みなのに Issue が開いている（Bot のマージでは自動で閉じないことがある）→ Issue に「#PR をマージ（内容1行）」と書いて閉じる。
 3. **割り当てる**: `todo` のうち依存が解けているものを、`priority:high` → 親 Issue の表の順に選び、Issue に `[manager] 次に着手できます。依存: なし／ロック: 空き` とコメント。**新しいチャットを起動するのは担当者**（マネージャーは Issue にマークして、#53 のコメントに「起動してほしい Issue」を列挙する）。
 4. **本番公開（担当者の明示の指示があるときだけ）**: `gh issue list --label ready-to-release --state all` でリリース Issue を見る。公開するのは、**担当者（@doc-gif）がそのリリース Issue に「公開して」「リリースして」と自分でコメントしている**ときだけ。マージやラベルだけでは公開しない（AGENTS.md「本番公開を指示されたとき」）。指示があれば、`live-state.mjs` で実行中の公開がないこと・main の CI が緑であることを確かめ、`docs/DEPLOYMENT.md` の手順で公開する（版は最新タグの patch +1）。成功したら Release の SHA と `deployment.json` を確かめ、URL と QR をリリース Issue に貼り、`ready-to-release` を外して Issue を閉じる。失敗したら原因を書き `needs-owner`。指示がなく `ready-to-release` が溜まっているときは、#53 のコメントで「公開待ち: #N（内容）。公開する場合はリリース Issue に『公開して』とコメントしてください」と担当者に知らせる。
 5. **担当者への呼びかけ**: `needs-owner` の Issue を #53 のコメントの末尾に「判断待ち」として列挙する。
