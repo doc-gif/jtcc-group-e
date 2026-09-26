@@ -1,6 +1,6 @@
 // 変わる事実を、その場で調べて出す（AGENTS.md「情報の鮮度」）。
 //   node scripts/live-state.mjs
-// main の SHA・本番の版・Release・公開の実行・開いている PR・PR のない最近のブランチ・main にない migration は、
+// main の SHA・本番の版・Release・公開の実行・開いている PR・共有資源のロック・PR のない最近のブランチ・main にない migration は、
 // 文書に書き写すとすぐ古くなる。文書には確認方法だけを書き、動く前にこれで実態を確かめる。
 // GitHub は公開リポジトリなので認証なしで読める（GH_TOKEN / GITHUB_TOKEN があれば使う。回数の上限が上がる）。
 // Supabase の DB 側（適用済みの migration）は認証が要るので、ここでは main 側の一覧だけを出す。DB 側は Supabase MCP の list_migrations で照合する。
@@ -59,6 +59,22 @@ export function migrationsOutsideMain(mainFiles, branchFiles) {
   return found.sort((a, b) => a.version.localeCompare(b.version) || a.branch.localeCompare(b.branch))
 }
 
+/** 共有資源のロック（AGENTS.md「共有資源のロックと担当の宣言」）。開いている PR（または Issue）にラベルで付ける。 */
+export const LOCKS = ['lock:supabase', 'lock:figma-master']
+
+/** ロックごとの持ち主（番号の小さい順）。2件以上なら、番号の小さい方が持ち、ほかはラベルを外して待つ。 */
+export function heldLocks(items) {
+  const held = Object.fromEntries(LOCKS.map((lock) => [lock, []]))
+  for (const item of items) {
+    for (const label of item.labels ?? []) {
+      const name = typeof label === 'string' ? label : label?.name
+      if (Object.hasOwn(held, name)) held[name].push(item)
+    }
+  }
+  for (const list of Object.values(held)) list.sort((a, b) => a.number - b.number)
+  return held
+}
+
 /** 取れなかった項目（ブランチ単位の未確認を含む）があるか。あれば失敗で終える（「未確認」を見落とさない）。 */
 export function hasUnchecked(state) {
   return Object.values(state).some((value) => value instanceof Error) || (state.strayMigrations?.unchecked?.length ?? 0) > 0
@@ -95,6 +111,10 @@ export function formatReport(state) {
   section('開いている PR', state.pulls, (pulls) => pulls.length
     ? pulls.map((pull) => `- #${pull.number}${pull.draft ? '（Draft）' : ''} \`${pull.head.ref}\` \`${short(pull.head.sha)}\` ${pull.title}（更新 ${utc(pull.updated_at)}）`)
     : ['- なし'])
+  if (state.locks !== undefined) section('共有資源のロック（持ち主の PR・Issue）', state.locks, (locks) => Object.entries(locks).flatMap(([lock, [owner, ...others]]) => [
+    owner ? `- \`${lock}\`: #${owner.number}${owner.pull_request ? '（PR）' : '（Issue）'} ${owner.title} → 持ち主の完了（マージ・クローズ）まで触らない` : `- \`${lock}\`: 空き`,
+    ...(others.length ? [`- 注意: \`${lock}\` が ${others.map((item) => `#${item.number}`).join('・')} にも付いている → 番号の小さい #${owner.number} が持つ。ほかはラベルを外して待つ`] : []),
+  ]))
   section('PR のない最近のブランチ（48時間以内）', state.orphanBranches, (refs) => refs.length
     ? refs.map((ref) => `- \`${ref.branch}\` \`${short(ref.sha)}\` ${ref.subject}（${utc(ref.date)}）`)
     : ['- なし'])
@@ -133,6 +153,7 @@ export async function collect({ git, fetchJson, now }) {
   const releaseRuns = await attempt(async () => activeRuns((await fetchJson(`https://api.github.com/repos/${REPO}/actions/workflows/release-pages.yml/runs?per_page=10`)).workflow_runs))
   const pulls = await attempt(() => fetchJson(`https://api.github.com/repos/${REPO}/pulls?state=open&per_page=100`))
   const closed = await attempt(() => fetchJson(`https://api.github.com/repos/${REPO}/pulls?state=closed&per_page=100&sort=updated&direction=desc`))
+  const locks = await attempt(async () => heldLocks(await fetchJson(`https://api.github.com/repos/${REPO}/issues?state=open&per_page=100`)))
   const orphanBranches = [refs, pulls, closed].find((value) => value instanceof Error) ?? recentBranchesWithoutPr(refs, pulls, closed, now)
   const mainMigrations = await fromGit(async () => (await git(['ls-tree', '--name-only', 'origin/main', 'supabase/migrations/'])).split('\n').filter(Boolean).map((file) => file.split('/').pop()).sort())
   const strayMigrations = await attempt(async () => {
@@ -150,7 +171,7 @@ export async function collect({ git, fetchJson, now }) {
     }
     return { items: migrationsOutsideMain(mainMigrations, branchFiles), unchecked }
   })
-  return { checkedAt: now, main, production, releaseRuns, pulls, orphanBranches, strayMigrations, mainMigrations }
+  return { checkedAt: now, main, production, releaseRuns, pulls, locks, orphanBranches, strayMigrations, mainMigrations }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
