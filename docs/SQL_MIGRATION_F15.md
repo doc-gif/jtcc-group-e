@@ -36,7 +36,7 @@ migration はクラウドの作業で先に実プロジェクトへ適用され�
 ## 画面・状態層
 
 - `src/app/pitchPhotos.ts`: 賞品と素材ライブラリ（L001・L015・L011）・バケットの中の名前・権利表記の対応。`usePitchPhoto` は自分の賞品が決まってから1枚だけ読み、賞品が変わる・ルームを離れる・画面を閉じると object URL を取り消す。
-- `src/components/Room.tsx`: 結果の舞台（`267:9379` の Prize hero の位置）で写真を出し、壊れた画像はイラストに戻す。写真を出しているときだけ舞台の下端に権利表記の1行（**Figma 修正待ち**: マスターへの反映は Issue #50 のロックの後。提案は Town v2 の `task/claude/f15-pitch-photos` `369:8216`）。
+- `src/components/Room.tsx`: 結果の舞台（`267:9379` の Prize hero の位置）で写真を出し、壊れた画像はイラストに戻す。写真を出しているときだけ舞台の下端に権利表記の1行（**Figma 修正待ち**: マスターへの反映は マスターのロック（#71）が空いた後。提案は Town v2 の `task/claude/f15-pitch-photos` `369:8216`）。
 - `src/app/sharedRoom.ts`: Supabase につないだセッションだけに写真の取得元を渡す。端末内デモでは渡されても使わない。
 
 ## 未確認
