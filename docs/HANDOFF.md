@@ -1,5 +1,7 @@
 # 引き継ぎ・タスク指示書（クラウド → ローカル Claude Code）
 
+> **タスクの状況・担当・進め方は GitHub Issue で管理する: 親 [#53](https://github.com/doc-gif/jtcc-group-e/issues/53)（割り当て表）と各サブ Issue（#54〜#60）。** 着手・途中経過・完了はサブ Issue のラベルとコメントに書き、このファイルには状況を書き写さない。このファイルは各タスクの詳しい仕様と経緯の参考として残す。並行チャット（エージェント）の始め方も #53 の「進め方」に従う。
+
 2026-09-26 に書いた予定。作業が進んだら、このファイルを更新する（終わった項目は消すか「完了」にする）。書いた後に状態が変わっていることがあるので、始める前に `node scripts/live-state.mjs`（main・本番の版・実行中の公開・開いている PR・PR のない最近のブランチ・main にない migration）と Supabase MCP の `list_migrations` で実態を確かめ、違えば実態を正としてこのファイルを直す（[AGENTS.md の「情報の鮮度」](../AGENTS.md)）。ホスト用キーの本体など秘密は書かない。
 
 ローカルの作業フォルダ: `C:\Users\IshitobiHyo\IdeaProjects\jtcc-group-e`（repo `doc-gif/jtcc-group-e`）
