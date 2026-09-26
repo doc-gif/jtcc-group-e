@@ -1,6 +1,6 @@
-# 共有オープニングの契約（T03、F07・F10 で更新）
+# 共有オープニングの契約（T03、F07・F10・F13 で更新）
 
-T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で、上限を 100 人にし、ホストの予約開始とピッチモードを加えた。F10（同日の担当者の決定）で、ホストを担当者だけにし（ホスト用リンク）、参加者によるホスト交代を廃止し、ニックネームをルーム内で重ならないようにした。
+T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で、上限を 100 人にし、ホストの予約開始とピッチモードを加えた。F10（同日の担当者の決定）で、ホストを担当者だけにし（ホスト用リンク）、参加者によるホスト交代を廃止し、ニックネームをルーム内で重ならないようにした。F13（同日の担当者の決定「ガチャはホスト以外に2人以上じゃないと引けないようにしたい」）で、ラウンドの開始にホスト以外の active メンバー 2 人以上を必要にした（下記「開始の人数」）。
 
 この契約は実装・デザインの入力であり、公開アプリの接続済み機能や実 DB の検証結果ではない。既存の 1 台デモはそのまま残す。`src/realtime/protocol.ts` の `RoomTransport` を、ローカル専用 `MockRoomServer.asUser()` と Supabase `supabaseTransport()` の共通境界とする。どちらも `Snapshot` と下記の失敗コードを返し、UI は通信経路を黙って切り替えない。
 
@@ -18,12 +18,12 @@ T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で�
 | --- | --- | --- |
 | `create(request, hostKey, name)` | 有効なホスト用キーを持つゲストだけ（F10）。部屋・ホスト・本人の 3,000 デモコイン・300 個の架空在庫（目玉 `plush` 30・`pouch` 90・`badge` 180。F07 で 100 個から同じ比率で 3 倍にした。100 人でも 1 回で売り切れない）を一度だけ作る。同じ本人と request の再試行は同じ部屋を返す（開いている自分の部屋の再試行はキーを確かめ直さない）。`name` が `null` ならサーバーが名前を付ける。 | `auth-required`、`invalid-request`、`invalid-name`、キーが違う・取り消し・期限切れなら `host-key-invalid`、1 分に 5 回失敗した後は `too-many-attempts`、他人の request と衝突または失効なら `room-unavailable`。 |
 | `resumeHost(hostKey, room)` | 有効なホスト用キーを持つゲスト（F10）。そのキーで作った開いている部屋（`room` が `null` ならいちばん新しいもの）のホストになる。新しい端末ならホストの席（名前・コイン・準備・保存済みの結果）をこの端末へ移す。この端末がすでに参加者として席を持っていれば、その席のまま、前のホストの席を空ける。ほかの人の席・コイン・結果は変えない。前の端末はその部屋を読めなくなる。 | `auth-required`、`host-key-invalid`、`too-many-attempts`、開いている部屋がなければ `no-room`、席が空いていなければ `room-full`。 |
-| `join(invite, name)` | 有効な招待を持つゲスト。100 席以内で入室。同じ ID の再接続は既存残高・結果を保持し、ニックネームと接続時刻を更新する。`name` はルームのほかの active メンバーと重ならないこと（下記「ニックネーム」）。`null` なら、前の名前が空いていればそれを、なければサーバーが重ならない名前（例「ゲスト さくら12」）を付け、入った後の snapshot で本人に見せる。 | `auth-required`、`invalid-name`、使われている名前は `name-taken`（空いている候補付き）、招待なし・期限切れは `room-unavailable`、新たに席を取れなければ `room-full`。 |
+| `join(invite, name)` | 有効な招待を持つゲスト。100 席以内で入室。同じ ID の再接続は既存残高・結果を保持し、ニックネームと接続時刻を更新する。`name` はルームのほかの active メンバーと重ならないこと（下記「ニックネーム」）。`null` なら、前の名前が空いていればそれを、なければサーバーが重ならない名前（例「ゲスト さくら12」）を付け、入った後の snapshot で本人に見せる。入室の後にも時刻を過ぎた予約を実行するので、人数待ちの予約は 2 人目の入室で始まる（F13）。 | `auth-required`、`invalid-name`、使われている名前は `name-taken`（空いている候補付き）、招待なし・期限切れは `room-unavailable`、新たに席を取れなければ `room-full`。 |
 | `rename(room, name)` | active メンバー本人（F10）。ロビーで名前を変える。重ならない規則は `join` と同じ。ラウンドの開始から `nextReadyAt` までは変えられない（保存済みの結果は開始時の名前のまま）。 | `room-unavailable`、開封中は `rename-locked`、`invalid-name`、`name-taken`（候補付き）。 |
-| `snapshot(room)` | 有効な active メンバーのみ。本人残高、メンバー、最新ラウンド、自分の公開済み全結果、サーバー時刻、予約（`scheduledAt`）、ピッチモード（`pitchMode`）、最後の予約の結末（`lastSchedule`）を返し、接続時刻を更新する。予約の時刻を過ぎていれば、この呼び出しが開始を 1 回だけ実行する（下記）。 | 非メンバー・退室済み・失効は `room-unavailable`。通信失敗は安全な一般エラー。 |
+| `snapshot(room)` | 有効な active メンバーのみ。本人残高、メンバー、最新ラウンド、自分の公開済み全結果、サーバー時刻、予約（`scheduledAt`）、ピッチモード（`pitchMode`）、最後の予約の結末（`lastSchedule`）を返し、接続時刻を更新する。予約の時刻を過ぎていれば、この呼び出しが開始を 1 回だけ実行する（下記。ホスト以外が 2 人未満なら待つ、F13）。 | 非メンバー・退室済み・失効は `room-unavailable`。通信失敗は安全な一般エラー。 |
 | `ready(room, bool)` | active メンバー本人だけ。`true` は 500 コイン以上のとき、`false` は取り消し。最新ラウンドの `nextReadyAt` 以後に設定する。 | `room-unavailable`、`round-active`、真偽値でなければ `invalid-ready`、不足なら `insufficient-coins`。 |
-| `start(room, request, expected)` | 現在のホストだけ。現在の roundNo と expected が一致し、オンラインで準備済みの人が 1 人以上なら全員分を単一トランザクションで抽選・減算・記録。同じ request の再試行は二重処理しない。予約があれば「今すぐ開始」として置き換える（`scheduledAt`・`lastSchedule` を消す）。 | `room-unavailable`、`host-required`、`invalid-request`、`invalid-round`、`stale-round`、`round-active`、`nobody-ready`、`sold-out`、`insufficient-coins`。失敗時はコイン・在庫・roundNo・ready を変えない。 |
-| `schedule(room, minutes)` | 現在のホストだけ。`minutes` は 1・3・5・10 で、サーバー時刻の `minutes` 分後を `scheduledAt` にする。予約中の再指定は変更、`null` は取り消し（`lastSchedule.status = 'cancelled'`）。予約はルームの期限の 1 分前まで。 | `room-unavailable`、`host-required`、許されない分数・期限の 1 分前を過ぎる時刻は `invalid-schedule`、開封中・次の準備までの間は `round-active`。 |
+| `start(room, request, expected)` | 現在のホストだけ。現在の roundNo と expected が一致し、ホスト以外の active メンバーが 2 人以上（F13）で、オンラインで準備済みの人が 1 人以上なら全員分を単一トランザクションで抽選・減算・記録。同じ request の再試行は二重処理しない。予約があれば「今すぐ開始」として置き換える（`scheduledAt`・`lastSchedule` を消す）。 | `room-unavailable`、`host-required`、`invalid-request`、`invalid-round`、`stale-round`、`round-active`、ホスト以外が 2 人未満なら `need-more-players`（F13）、`nobody-ready`、`sold-out`、`insufficient-coins`。失敗時はコイン・在庫・roundNo・ready を変えない。 |
+| `schedule(room, minutes)` | 現在のホストだけ。`minutes` は 1・3・5・10 で、サーバー時刻の `minutes` 分後を `scheduledAt` にする。予約中の再指定は変更、`null` は取り消し（`lastSchedule.status = 'cancelled'`）。予約はルームの期限の 1 分前まで。人数が足りなくても予約できる（時刻になっても始まらず、2 人目が入ると始まる。F13）。 | `room-unavailable`、`host-required`、許されない分数・期限の 1 分前を過ぎる時刻は `invalid-schedule`、開封中・次の準備までの間は `round-active`。 |
 | `setPitchMode(room, on)` | 現在のホストだけ。部屋のピッチモードを切り替え、次に始まるラウンドから効く。 | `room-unavailable`、`host-required`、真偽値でなければ `invalid-request`。 |
 | ~~`claim(room)`~~（**廃止**、F10） | 参加者によるホスト交代はなくなった。SQL の `lp_claim_host` は削除し、transport・状態層からも外した。ホストが不在でも予約した開始は時刻に始まる。ホストは `resumeHost` で戻る。 | 呼び出せない（関数がない）。旧コード `host-online` も廃止。 |
 | `leave(room)` | active メンバー本人。席を空け ready を解除する。残高・結果台帳は残す。ホストが退室しても交代はなく、ホストは `join`（同じ端末）か `resumeHost` で戻る。 | 非メンバー・失効は `room-unavailable`。 |
@@ -57,6 +57,14 @@ T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で�
 - 名前を選ばずに入ると「ゲスト さくら12」のような名前を付ける（12 の単語と数字）。画面は入った後の `self.nickname` を見せ、「自分で名前を決める」は `rename` を使う。
 - 名前の変更で権限は変わらない。ニックネームは表示だけで、本人の識別は匿名 ID。
 
+## 開始の人数（F13）
+
+- ラウンドを始めるには、ホスト以外の active メンバー（退室していない席）が **2 人以上** 必要。ホストを含めて 3 人以上。オンラインかどうか・準備OKかどうかでは数えない（準備OKの人が 1 人以上という `nobody-ready` の条件は別に残る）。ひとりで回すガチャ（ルームでない）は対象外。
+- 「今すぐ開始」（`start`）は、足りなければ `need-more-players`（「ガチャを始めるには、ホストのほかに2人以上が必要です。」）。確認の順は `host-required` → `stale-round` → `round-active` → `need-more-players` → `nobody-ready` → `sold-out` → `insufficient-coins`。失敗時はコイン・在庫・roundNo・ready・予約を変えない。ピッチモードでも同じ。
+- 予約は人数が足りなくてもできる（人が集まる前にホストが決めるため）。時刻を過ぎても足りなければ **始めずに待つ**: `scheduledAt` は残り、`lastSchedule` も付かない。ホストは待っている予約を変更・取り消しでき、「今すぐ開始」は `need-more-players`。2 人目が入った `join` の中で開始する（入った人も数に入る。入った直後は準備前なので抽選の対象ではない）。退室した人の再入室も同じ。
+- SQL は内部の `lp_guest_count(room)`（実行権限なし）で数え、`lp_draw` が `need-more-players` を出し、`lp_fire_schedule` は足りなければ何もせず戻る。どちらも部屋行を `FOR UPDATE` で持った中で数える。人数待ちの間、snapshot は時刻を過ぎた予約のために部屋行を `FOR UPDATE` で取る（待っている部屋は 2 人以下なので競合は小さい）。
+- 画面は上限を出さず、「集まっている人 N人」と、足りないときは「あと N 人で始められます」だけを出す（状態層の `playersNeeded`・`playersNeededMessage`）。予約の人数待ちは `scheduleWaiting`・`scheduleWaitingMessage`（「開始の時刻になりました。あと N 人集まると始まります。」）。
+
 ## 予約開始（F07）
 
 - ホストは「1・3・5・10 分後に開始」を選ぶ。全員の snapshot に `scheduledAt` が入り、UI は `serverOffset` で補正した秒読みを出す（`RoomState.secondsToScheduled`）。開始前ならホストは変更・取り消しでき、「今すぐ開始」（`start`）も使える。
@@ -76,8 +84,8 @@ T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で�
 
 ## 今回の検証境界と体験レビュー
 
-コアの SQL は T14 で正式 migration（`supabase/migrations/`）にし、専用の検証プロジェクトに適用した（[T14 の記録](SQL_MIGRATION_T14.md)）。予約開始・ピッチモード・100 席は F07 の migration で追加・適用した（[F07 の記録](SQL_MIGRATION_F07.md)）。ホスト用リンク・ホスト交代の廃止・ニックネームは F10 の migration で追加・適用した（[F10 の記録](SQL_MIGRATION_F10.md)）。Realtime の受信ポリシー `supabase/drafts/optional_broadcast.sql` は、Realtime の初期化後に適用する草案のまま。公開アプリ（本番・確認用プレビュー）はまだこの検証プロジェクトに接続していない。ブラウザからの HTTP 経路、多数の端末（最大 100 台）の実接続、実 iPhone の遅延・再接続は未検証で、後続タスクで確認する。`supabaseTransport` は型上の共通実装。画面（F05）は `configuredTransport()` があればそれを、なければ同じブラウザのタブの間だけで動く端末内デモ（`MockRoomServer` を localStorage に置く、`src/app/sharedRoom.ts`）を使い、デモであることを画面に出す。旧 `useSimulatedRoom` はなくした。
+コアの SQL は T14 で正式 migration（`supabase/migrations/`）にし、専用の検証プロジェクトに適用した（[T14 の記録](SQL_MIGRATION_T14.md)）。予約開始・ピッチモード・100 席は F07 の migration で追加・適用した（[F07 の記録](SQL_MIGRATION_F07.md)）。ホスト用リンク・ホスト交代の廃止・ニックネームは F10 の migration で追加・適用した（[F10 の記録](SQL_MIGRATION_F10.md)）。開始の人数は F13 の migration で追加・適用した（[F13 の記録](SQL_MIGRATION_F13.md)）。Realtime の受信ポリシー `supabase/drafts/optional_broadcast.sql` は、Realtime の初期化後に適用する草案のまま。公開アプリ（本番・確認用プレビュー）はまだこの検証プロジェクトに接続していない。ブラウザからの HTTP 経路、多数の端末（最大 100 台）の実接続、実 iPhone の遅延・再接続は未検証で、後続タスクで確認する。`supabaseTransport` は型上の共通実装。画面（F05）は `configuredTransport()` があればそれを、なければ同じブラウザのタブの間だけで動く端末内デモ（`MockRoomServer` を localStorage に置く、`src/app/sharedRoom.ts`）を使い、デモであることを画面に出す。旧 `useSimulatedRoom` はなくした。
 
-画面から使う状態層は `src/realtime/roomController.ts` の `createRoomController` と React 用の `useSharedRoom`（F05a）。この契約の時刻補正、20 秒以内のポーリング、`startsAt` での再取得、通信断からの再接続、request の再利用、失敗コードの日本語化をここで行う。F07 で予約（`schedule`、`scheduledAt` での再取得、`secondsToScheduled`、`scheduleOptions`、`scheduleNotice`）とピッチモード（`setPitchMode`、`pitchMode`、`roundGuaranteed`）を加えた。F10 でホスト用キー（`createAsHost`、`resumeHost`、`hostKey`、`forgetHostKey`。キーはこの端末の `localStorage`）と名前（`join(invite, null)`、`rename`、`nameSuggestion`、`canRename`）を加え、`claimHost`・`canClaim` を外して `hostOnline` にした。画面は F05 で接続した（`src/screens/Room.tsx`、状態から画面を選ぶのは `src/app/roomView.ts`）。
+画面から使う状態層は `src/realtime/roomController.ts` の `createRoomController` と React 用の `useSharedRoom`（F05a）。この契約の時刻補正、20 秒以内のポーリング、`startsAt` での再取得、通信断からの再接続、request の再利用、失敗コードの日本語化をここで行う。F07 で予約（`schedule`、`scheduledAt` での再取得、`secondsToScheduled`、`scheduleOptions`、`scheduleNotice`）とピッチモード（`setPitchMode`、`pitchMode`、`roundGuaranteed`）を加えた。F10 でホスト用キー（`createAsHost`、`resumeHost`、`hostKey`、`forgetHostKey`。キーはこの端末の `localStorage`）と名前（`join(invite, null)`、`rename`、`nameSuggestion`、`canRename`）を加え、`claimHost`・`canClaim` を外して `hostOnline` にした。F13 で人数（`guestCount`・`playersNeeded`・`scheduleWaiting`、`canStart` と `startBlockedBy: 'need-more-players'`）を加えた。画面は F05 で接続した（`src/screens/Room.tsx`、状態から画面を選ぶのは `src/app/roomView.ts`）。
 
 **AI 非視覚レビュー:** 全員同時の公開時刻、再接続後の本人の当たり、ホスト不在でも予約どおりに始まることを定義した（参加者によるホスト交代は F10 で廃止）。結果の先見え・二重減算・上限を超える入室を防ぐことで、友達と開ける期待を損なわない。対象ファンの行動観察は未実施。

@@ -8,7 +8,7 @@ import type { GoodsArt, Glow } from '../domain/types'
  */
 export type RoomView =
   | 'invite' // 267:8917 招待
-  | 'lobby' // 267:8993 待機ロビー（抽選か見守りかを選ぶ）
+  | 'lobby' // 267:8993 待機ロビー（抽選か見守りかを選ぶ。人数待ちは 312:6486）
   | 'ready' // 267:9069 準備完了
   | 'full' // 267:9144 満席
   | 'countdown' // 267:9220 カウントダウン
@@ -21,10 +21,10 @@ export type RoomView =
   | 'expired' // 267:9754 ルーム終了
   | 'watching' // 267:9830 見守り中
   | 'allResults' // 267:9906 みんなの結果
-  | 'hostStart' // 267:9987 ホストの開始
+  | 'hostStart' // 267:9987 ホストの開始（人数待ちは 312:6410）
   | 'hostSchedule' // 292:2780 ホストの予約設定
-  | 'hostScheduled' // 292:2871 予約済み（ホスト）
-  | 'guestScheduled' // 292:2957 予約済み（参加者）
+  | 'hostScheduled' // 292:2871 予約済み（ホスト。時刻を過ぎて人数待ちは 312:6562）
+  | 'guestScheduled' // 292:2957 予約済み（参加者。時刻を過ぎて人数待ちは 312:6648）
   | 'scheduleFailed' // 292:3034 予約開始できず（ホスト）
   | 'nameChoose' // 298:2709 招待・名前を選ぶ（入室後の名前の変更にも使う）
   | 'nameAuto' // 298:2790 招待・名前を決めずに入る

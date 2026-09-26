@@ -29,7 +29,7 @@ test('ホストが作って予約・ピッチ用・今すぐ開始、参加者�
   await expect(heading(page)).toHaveText('ルームを作る')
   await page.getByLabel('表示する名前').fill('ミオ')
   await page.getByRole('button', { name: 'ルームを作る' }).click()
-  await expect(heading(page)).toHaveText('開封の準備ができたよ')
+  await expect(heading(page)).toHaveText('あと2人で始められます')
   await expect(page.getByText('この端末のブラウザの中だけのルームです', { exact: false })).toBeVisible()
   await expect(page.getByRole('button', { name: '開封をはじめる' })).toBeDisabled()
   await page.getByRole('button', { name: '招待リンクを共有' }).click()
@@ -54,11 +54,23 @@ test('ホストが作って予約・ピッチ用・今すぐ開始、参加者�
   await guest.getByRole('button', { name: '抽選に参加する' }).click()
   await expect(heading(guest)).toHaveText('準備できたよ')
 
+  // ホストのほかに2人以上で始められる（F13）。3つ目のタブの人は見守り
+  await expect(heading(page)).toHaveText('あと1人で始められます', { timeout: 20_000 })
+  await expect(page.getByRole('button', { name: '開封をはじめる' })).toBeDisabled()
+  const third = await context.newPage()
+  await third.goto(invite!)
+  await third.getByRole('button', { name: 'ルームに入る' }).click()
+  await third.getByRole('button', { name: '名前を決めずに入る' }).click()
+  await third.getByRole('button', { name: 'この名前で入る' }).click()
+  await expect(heading(third)).toHaveText('みんなの開封ルーム')
   // ホストのタブにも届く（タブ間の知らせ、またはポーリング）
-  await expect(page.getByText('1人 準備完了')).toBeVisible({ timeout: 20_000 })
+  await expect(heading(page)).toHaveText('開封の準備ができたよ', { timeout: 20_000 })
+  await expect(page.getByText('1人 準備完了')).toBeVisible()
   await page.getByRole('button', { name: /開始の時間を予約する/ }).click()
   await expect(heading(page)).toHaveText('開始を予約しよう')
-  await page.getByRole('switch', { name: /ピッチ用/ }).check()
+  // 切り替えはサーバーの応答で反映される（制御されたスイッチ）
+  await page.getByRole('switch', { name: /ピッチ用/ }).click()
+  await expect(page.getByRole('switch', { name: /ピッチ用/ })).toBeChecked()
   await page.getByRole('button', { name: '5分後', exact: true }).click()
   await page.getByRole('button', { name: '5分後に開始を予約' }).click()
   await expect(heading(page)).toHaveText(/^\d\d:\d\d に開始$/)
@@ -145,7 +157,7 @@ test('ホスト不在：交代はできず、ロビーで待つか見守りに�
   await expect(heading(page)).toHaveText('準備できたよ')
 
   const host = await context.newPage()
-  await seeded(host, roomSeed({ self: 'host', host: 'host', members: [{ id: 'host', nickname: 'ミオ' }, { id: 'yui', nickname: 'ゆい', ready: true }] }))
+  await seeded(host, roomSeed({ self: 'host', host: 'host', members: [{ id: 'host', nickname: 'ミオ' }, { id: 'yui', nickname: 'ゆい', ready: true }, { id: 'saki', nickname: 'さき' }] }))
   await expect(heading(host)).toHaveText('ホストとして戻りました')
   await host.getByRole('button', { name: '開封をはじめる' }).click()
   await expect(heading(host)).toHaveText('もうすぐ開封！')

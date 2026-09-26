@@ -1,7 +1,20 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { expect, test, vi } from 'vitest'
-import { nameSuggestion, RoomContractError } from './protocol'
+import { errorMessage, nameSuggestion, RoomContractError } from './protocol'
+import { roomErrorCode } from './roomController'
 import { supabaseTransport } from './supabase'
+
+test('F13: 人数不足の開始は need-more-players のコードで状態層へ渡る', async () => {
+  const rpc = vi.fn(async () => ({ data: null, error: { message: 'need-more-players' } }))
+  const client = {
+    auth: { getSession: async () => ({ data: { session: {} }, error: null }) },
+    rpc,
+  } as unknown as SupabaseClient
+  const failure = await supabaseTransport(client).start('room', 'request', 0).catch((error: unknown) => error)
+  expect(roomErrorCode(failure)).toBe('need-more-players')
+  expect(errorMessage(failure)).toBe('ガチャを始めるには、ホストのほかに2人以上が必要です。')
+  expect(rpc.mock.calls).toEqual([['lp_start', { p_room: 'room', p_request: 'request', p_expected: 0 }]])
+})
 
 test('予約とピッチモードを SQL の RPC 名と引数で呼び、失敗はコード付きのエラーにする', async () => {
   const rpc = vi.fn(async (name: string) => name === 'lp_set_pitch_mode'

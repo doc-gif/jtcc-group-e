@@ -71,6 +71,11 @@ export const uxScenarios: Array<{
   { name: 'room-host-scheduled', path: roomPath, scalableText: '.room-body', room: hostSeed({ scheduledAt: ROOM_T0 + 175_000, pitchMode: true }), heading: /に開始$/ },
   { name: 'room-guest-scheduled', path: roomPath, scalableText: '.room-body', room: roomSeed({ scheduledAt: ROOM_T0 + 175_000, pitchMode: true }), heading: /に開始$/ },
   { name: 'room-schedule-failed', path: roomPath, scalableText: '.room-body', room: hostSeed({ lastSchedule: { status: 'nobody-ready', scheduledAt: new Date(ROOM_T0).toISOString(), roundNo: null } }), heading: '開始できませんでした' },
+  // 開始の人数（F13：ホストのほかに2人以上）
+  { name: 'room-host-waiting-players', path: roomPath, scalableText: '.room-body', room: hostSeed({ members: [{ id: 'host', nickname: 'ミオ' }, { id: 'yui', nickname: 'ゆい', ready: true }] }), steps: [{ click: '参加者を確認する' }], heading: 'あと1人で始められます' },
+  { name: 'room-guest-waiting-players', path: roomPath, scalableText: '.room-body', room: roomSeed({ members: [{ id: 'host', nickname: 'ミオ' }, { id: 'me', nickname: 'もも' }] }), heading: 'みんなの開封ルーム' },
+  { name: 'room-host-schedule-waiting', path: roomPath, scalableText: '.room-body', room: hostSeed({ members: [{ id: 'host', nickname: 'ミオ' }, { id: 'yui', nickname: 'ゆい', ready: true }], scheduledAt: ROOM_T0, pitchMode: true }), heading: /になりました$/ },
+  { name: 'room-guest-schedule-waiting', path: roomPath, scalableText: '.room-body', room: roomSeed({ members: [{ id: 'host', nickname: 'ミオ' }, { id: 'me', nickname: 'もも', ready: true }], scheduledAt: ROOM_T0, pitchMode: true }), heading: /になりました$/ },
   { name: 'room-host-link-invalid', path: './#/host/old-key', scalableText: '.room-body', heading: 'ホスト用リンクが無効です' },
   { name: 'spin-solo-confirm', path: './#/gacha/melody-anniv/spin', scalableText: '.confirm-lead' },
   { name: 'spin-sold-out', path: './#/gacha/sanrio-capsule/spin', scalableText: '.problem-lead', seed: gachaState({ stock: soldOutStock }) },

@@ -295,7 +295,9 @@ export function Room({ invite }: { invite: string }) {
       description={self.ready ? '開始の時点で500デモコインを使います。オフにすると見守りです。' : 'オンにすると、開始の時点で500デモコインを使います。'}
       onChange={ready} />
   )
-  const startReason = state.startBlockedBy === 'nobody-ready'
+  const needed = state.playersNeeded
+  const startReason = state.startBlockedBy === 'need-more-players' ? state.playersNeededMessage
+    : state.startBlockedBy === 'nobody-ready'
     ? '準備完了の人がいないため、まだ開始できません。あなたも参加するか、参加者の準備を待ってください。'
     : state.startBlockedBy === 'round-active' ? `次の開封まで あと${state.secondsLeft ?? 0}秒お待ちください。` : null
   const chosen = minutes && state.scheduleOptions.includes(minutes) ? minutes : state.scheduleOptions.includes(3) ? 3 : state.scheduleOptions[0] ?? null
@@ -559,9 +561,25 @@ export function Room({ invite }: { invite: string }) {
       }
       break
     case 'hostStart':
-      layout = {
+      // 人数が足りないとき（F13）は 312:6410「あと N 人で始められます」
+      layout = needed > 0 ? {
+        title: `あと${needed}人で始められます`, sub: 'あなたが進行役 · ルームへようこそ', back: toLobby,
+        stage: { caption: 'みんなを招いて開けよう' }, stats, note: 'ホストのほかに2人以上集まると開始できます',
+        card: (
+          <RoomCard kicker="HOST" title={`あと${needed}人で始められます`} labelledBy="room-card-title" note="予約はいまのうちに決めておけます">
+            <p className="room-body">ホストのほかに2人以上集まると「開封をはじめる」を押せます。招待リンクで友だちを呼べます。</p>
+            {pitchChip}
+            {hostJoin}
+            <button type="button" className="btn btn-outline btn-block" onClick={() => setScheduleSetup(true)} disabled={!state.canSchedule}>
+              開始の時間を予約する<small>1・3・5・10分後・ピッチ用の設定</small>
+            </button>
+          </RoomCard>
+        ),
+        primary: <Primary onClick={start} disabled={!state.canStart}>{cooldownLabel ?? '開封をはじめる'}</Primary>,
+        secondary: <Secondary onClick={() => setShare(true)}>招待リンクを共有</Secondary>,
+      } : {
         title: '開封の準備ができたよ', sub: 'あなたが進行役 · ルームへようこそ', back: toLobby,
-        stage: { caption: 'みんなを招いて開けよう' }, stats, note: 'オンラインの準備完了者が1人以上なら開始',
+        stage: { caption: 'みんなを招いて開けよう' }, stats, note: 'ホストのほかに2人以上・準備完了が1人以上なら開始',
         card: (
           <RoomCard kicker="HOST" title="そろそろ始めよう" labelledBy="room-card-title" note="結果は約8秒後に同時公開">
             <p className="room-body">開始時にオンラインで準備完了の人だけが抽選に参加します。見守りは無料です。</p>
@@ -596,7 +614,22 @@ export function Room({ invite }: { invite: string }) {
     case 'hostScheduled': {
       const at = timeOfDay(state.scheduledAt ?? '')
       const left = remainText(state.secondsToScheduled)
-      layout = {
+      layout = state.scheduleWaiting ? {
+        // 予約の時刻を過ぎたが人数待ち（F13、312:6562）。2人目が入るとサーバーが始める
+        title: `${at} になりました`, sub: `あと${needed}人で始まります · あなたが進行役`, back: toLobby,
+        stage: { caption: 'みんなを招いて開けよう', compact: true }, stats,
+        note: 'ホストのほかに2人以上そろうと、すぐ始まります',
+        card: (
+          <RoomCard kicker="人数待ち" title={`あと${needed}人で始まります`} labelledBy="room-card-title">
+            {scheduleChoices(null, (value) => void schedule(value))}
+            {pitchChip}
+            <p className="room-body">待つ間も選び直し・取り消しができます。</p>
+            {hostJoin}
+          </RoomCard>
+        ),
+        primary: <Primary onClick={start} disabled={!state.canStart}>今すぐ開始</Primary>,
+        secondary: <Secondary onClick={() => void schedule(null)} disabled={busy}>予約を取り消す</Secondary>,
+      } : {
         title: `${at} に開始`, sub: `あと ${left} · あなたが進行役`, back: toLobby,
         stage: { caption: 'みんなを招いて開けよう', compact: true }, stats,
         note: `準備完了 ${state.readyOnline}人 · 開始の時点でオンラインの人が参加`,
@@ -637,12 +670,14 @@ export function Room({ invite }: { invite: string }) {
     case 'guestScheduled': {
       const at = timeOfDay(state.scheduledAt ?? '')
       const left = remainText(state.secondsToScheduled)
+      const waiting = state.scheduleWaiting
       layout = {
-        title: `${at} に開始`, sub: `あと ${left} · ${title}`, back: toLobby,
+        // 予約の時刻を過ぎたが人数待ち（F13、312:6648）
+        title: waiting ? `${at} になりました` : `${at} に開始`, sub: waiting ? `あと${needed}人で始まります · ${title}` : `あと ${left} · ${title}`, back: toLobby,
         stage: { caption: 'みんなを招いて開けよう', compact: true }, stats,
-        note: 'ホストがいなくても時刻になると始まります',
+        note: waiting ? `あと${needed}人集まると、すぐ始まります` : 'ホストがいなくても時刻になると始まります',
         card: (
-          <RoomCard kicker="まもなく開始" title={`あと ${left} で開始`} labelledBy="room-card-title" note={self?.ready ? 'あなたは準備完了です' : undefined}>
+          <RoomCard kicker={waiting ? '人数待ち' : 'まもなく開始'} title={waiting ? `あと${needed}人で始まります` : `あと ${left} で開始`} labelledBy="room-card-title" note={self?.ready ? 'あなたは準備完了です' : undefined}>
             {pitchChip}
             <p className="room-body">開始の時点で「準備完了」の人が抽選に参加します。見守りは無料です。</p>
             {lowCoins}
@@ -702,9 +737,10 @@ export function Room({ invite }: { invite: string }) {
       layout = {
         title: 'みんなの開封ルーム', sub: `${title} · ${state.seats.taken}人が集まっています`, back: toLobby,
         stage: { caption: '街の開封広場で待とう' }, stats,
-        note: others > 0 ? `ほか${others}人も一緒に待っています` : '招待した友だちを待っています',
+        // 人数が足りないとき（F13、312:6486）は「あと N 人で始められます」
+        note: needed > 0 ? 'ホストのほかに2人以上で始められます' : others > 0 ? `ほか${others}人も一緒に待っています` : '招待した友だちを待っています',
         card: (
-          <RoomCard kicker="CHOOSE" title="今日はどう楽しむ？" labelledBy="room-card-title" note="開始前なら選び直せます">
+          <RoomCard kicker="CHOOSE" title="今日はどう楽しむ？" labelledBy="room-card-title" note={state.playersNeededMessage ?? '開始前なら選び直せます'}>
             <p className="room-body">抽選参加は500デモコイン。見守りは無料で、みんなと同時に開封を見られます。</p>
             {pitchChip}
             {lowCoins}

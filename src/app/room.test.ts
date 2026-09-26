@@ -37,6 +37,7 @@ function stateOf(extra: Partial<RoomState> & { hostId?: string; selfId?: string 
     },
     self: members.find((m) => m.id === self) ?? null, members, isHost: host === self,
     hostOnline: members.some((m) => m.id === host && m.online), hostKey: null, nameSuggestion: null, canRename: true,
+    guestCount: members.length - 1, playersNeeded: 0, playersNeededMessage: null, scheduleWaiting: false, scheduleWaitingMessage: null,
     seats: { taken: members.length, capacity: 100, full: false }, readyOnline: 0, readyOthers: 0, balance: 3000,
     canReady: true, canStart: false, startBlockedBy: 'nobody-ready', secondsLeft: null, round: null, myPrize: null,
     myResults: [], unseenResults: [], scheduledAt: null, secondsToScheduled: null, scheduleOptions: [], canSchedule: true,

@@ -56,6 +56,11 @@ async function hostRoom(name = 'ミオ') {
   return { host, invite: host.controller.getState().snapshot!.invite }
 }
 
+/** 別の人（画面は使わない）がルームに入る。開始にはホストのほかに2人以上が要る（F13）。 */
+async function addGuests(invite: string, names: string[]) {
+  for (const name of names) await server.asUser(`guest-${name}`).join(invite, name)
+}
+
 async function joinAs(name: string) {
   await click('ルームに入る')
   fireEvent.change(screen.getByLabelText('表示する名前'), { target: { value: name } })
@@ -88,14 +93,22 @@ describe('ホスト：作る・予約・開始', () => {
     expect(window.location.hash).toBe('#/room/invite-1')
     await act(async () => { window.dispatchEvent(new HashChangeEvent('hashchange')) })
     await flush()
-    expect(heading()).toHaveTextContent('開封の準備ができたよ')
+    // ホストのほかに2人以上そろうまで開始できない（F13、312:6410）
+    expect(heading()).toHaveTextContent('あと2人で始められます')
     expect(screen.getByText('集まっている人')).toBeVisible()
     expect(screen.getByText('1人')).toBeVisible()
     // 上限（内部の 100 人）は出さない
     expect(document.body.textContent).not.toMatch(/100|定員|最大/)
     expect(screen.getByText(/この端末のブラウザの中だけのルーム/)).toBeVisible()
     expect(readRecords(session.records)['invite-1']).toMatchObject({ roomId: 'request-1' })
-    // 準備完了の人がいないうちは開始できない
+    expect(button('開封をはじめる')).toBeDisabled()
+    await addGuests('invite-1', ['ゆい'])
+    await advance(ROOM_POLL_MS)
+    expect(heading()).toHaveTextContent('あと1人で始められます')
+    await addGuests('invite-1', ['さき'])
+    await advance(ROOM_POLL_MS)
+    // 人数がそろっても、準備完了の人がいないうちは開始できない
+    expect(heading()).toHaveTextContent('開封の準備ができたよ')
     expect(button('開封をはじめる')).toBeDisabled()
     expect(screen.getByText(/準備完了の人がいないため/)).toBeVisible()
     await click('招待リンクを共有')
@@ -118,6 +131,7 @@ describe('ホスト：作る・予約・開始', () => {
     const guest = sessionFor('guest')
     await guest.controller.join('invite-1', 'ゆい')
     await guest.controller.setReady(true)
+    await addGuests('invite-1', ['さき'])
     await advance(ROOM_POLL_MS)
     expect(screen.getByText('1人 準備完了')).toBeVisible()
     fireEvent.click(screen.getByRole('switch', { name: 'わたしも抽選に参加する' }))
@@ -163,11 +177,38 @@ describe('ホスト：作る・予約・開始', () => {
     expect(button(/次の抽選まで/)).toBeDisabled()
   })
 
+  test('予約の時刻に人数が足りなければ待ち、2人目が入ると始まる（F13）', async () => {
+    const session = sessionFor('host')
+    await session.controller.createAsHost(HOST_KEY, 'ミオ')
+    open('#/room/invite-1', session)
+    await flush()
+    const guest = sessionFor('guest')
+    guest.controller.attach()
+    await guest.controller.join('invite-1', 'ゆい')
+    await guest.controller.setReady(true)
+    await advance(ROOM_POLL_MS)
+    await click(/開始の時間を予約する/)
+    fireEvent.click(button('1分後'))
+    await click('1分後に開始を予約')
+    await advance(61_000)
+    expect(heading()).toHaveTextContent(/^\d\d:\d\d になりました$/)
+    expect(screen.getByRole('heading', { name: 'あと1人で始まります' })).toBeVisible()
+    expect(screen.getByText('ホストのほかに2人以上そろうと、すぐ始まります')).toBeVisible()
+    expect(button('今すぐ開始')).toBeDisabled()
+    expect(button('予約を取り消す')).toBeEnabled()
+    // 2人目の参加でサーバーが開始し、ホストの画面にも届く
+    await addGuests('invite-1', ['さき'])
+    await advance(1_000)
+    expect(heading()).toHaveTextContent('もうすぐ開封！')
+  })
+
   test('予約の時刻に準備完了の人がいないと「開始できませんでした」。予約し直せる', async () => {
     const session = sessionFor('host')
     await session.controller.createAsHost(HOST_KEY, 'ミオ')
     open('#/room/invite-1', session)
     await flush()
+    await addGuests('invite-1', ['ゆい', 'さき'])
+    await advance(ROOM_POLL_MS)
     await click(/開始の時間を予約する/)
     fireEvent.click(button('1分後'))
     await click('1分後に開始を予約')
@@ -199,6 +240,9 @@ describe('参加者：招待・名前・準備・見守り', () => {
     expect(heading()).toHaveTextContent('みんなの開封ルーム')
     expect(screen.getByText('もも2')).toBeVisible()
     expect(screen.getByText('ももさんのルーム · 2人が集まっています')).toBeVisible()
+    // 人数待ち（F13、312:6486）は参加者にも出す
+    expect(screen.getByText('ホストのほかに2人以上で始められます')).toBeVisible()
+    expect(screen.getByText('あと1人で始められます')).toBeVisible()
 
     await click('抽選に参加する')
     expect(heading()).toHaveTextContent('準備できたよ')
@@ -300,6 +344,7 @@ describe('復帰・ホスト不在・期限', () => {
     await click('抽選に参加する')
     view.unmount()
     first.controller.detach()
+    await addGuests(invite, ['さき'])
     await host.controller.start()
     await advance(SHARED_START_DELAY_MS + 1_000)
 
@@ -335,7 +380,7 @@ describe('復帰・ホスト不在・期限', () => {
     await flush()
     expect(heading()).toHaveTextContent('ホストとして戻りました')
     await click('参加者を確認する')
-    expect(heading()).toHaveTextContent('開封の準備ができたよ')
+    expect(heading()).toHaveTextContent('あと2人で始められます')
   })
 
   test('通信が切れると「接続を確認しています」。戻ると最新のロビーへ', async () => {
@@ -392,7 +437,7 @@ describe('復帰・ホスト不在・期限', () => {
     expect(heading()).toHaveTextContent('ホストとして戻りました')
     expect(screen.getByText('ホスト用リンクはあなただけが持っています')).toBeVisible()
     await click('参加者を確認する')
-    expect(heading()).toHaveTextContent('開封の準備ができたよ')
+    expect(heading()).toHaveTextContent('あと2人で始められます')
     await click('招待リンクを共有')
     expect(screen.getByRole('heading', { name: 'ホスト用リンク（あなただけ）' })).toBeVisible()
     view.unmount()
