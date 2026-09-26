@@ -1,9 +1,8 @@
 name: Metrics report
-# GA4 と Clarity から「LP をしっかり見た人・デモに進んだ割合」を集計し、[metrics] の Issue にコメントする（docs/METRICS.md）。
+# GA4 と Clarity から「LP をしっかり見た人・デモに進んだ割合」を集計し、[metrics] の Issue にコメントする（docs/METRICS.md）。手動実行だけ。
 # 秘密 GA4_SA_KEY・CLARITY_TOKEN、変数 GA4_PROPERTY_ID・METRICS_ISSUE が無いうちは何もしない。
 on:
-  schedule:
-    - cron: '17 23 * * *' # 毎日 08:17 JST
+  # 担当者の指示（2026-09-26）: 手動実行だけ。毎日の実行はしない
   workflow_dispatch:
     inputs:
       days:
