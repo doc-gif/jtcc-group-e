@@ -64,6 +64,14 @@ test('画面全体はピンチ・引っぱって再読み込み・長押しの�
     document.dispatchEvent(event)
     return event.defaultPrevented
   })).toBe(true)
+  // Android は -webkit-touch-callout が効かないので、ボタンの長押しメニュー（contextmenu）を止める。入力欄は出せる
+  const menuPrevented = (selector: string) => page.locator(selector).first().evaluate((el) => {
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    el.dispatchEvent(event)
+    return event.defaultPrevented
+  })
+  expect(await menuPrevented('button')).toBe(true)
+  expect(await menuPrevented('input')).toBe(false)
   // 文字の拡大（OS の文字サイズ = rem）は効いたまま
   const input = page.getByLabel(/ルームで友達に見える名前/)
   const normal = await input.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))

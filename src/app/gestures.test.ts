@@ -13,6 +13,26 @@ describe('installGestureGuards', () => {
     expect(event.defaultPrevented).toBe(true)
   })
 
+  it('ボタンと絵の長押しメニューは止め、リンク・入力欄・本文は出せるまま', () => {
+    uninstall = installGestureGuards()
+    document.body.innerHTML = '<button><svg><circle /></svg><span>回す</span></button><img alt="" /><a href="#/"><img alt="" /></a><input /><p>本文</p>'
+    const menu = (selector: string) => {
+      const event = new Event('contextmenu', { bubbles: true, cancelable: true })
+      document.querySelector(selector)!.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    expect(menu('button span')).toBe(true)
+    expect(menu('circle')).toBe(true)
+    expect(menu('body > img')).toBe(true)
+    expect(menu('a img')).toBe(false)
+    expect(menu('input')).toBe(false)
+    expect(menu('p')).toBe(false)
+    const text = new Event('contextmenu', { cancelable: true })
+    document.dispatchEvent(text)
+    expect(text.defaultPrevented).toBe(false)
+    document.body.innerHTML = ''
+  })
+
   it('解除したら止めない。ふつうのタッチやクリックは止めない', () => {
     uninstall = installGestureGuards()
     const click = new Event('click', { cancelable: true })

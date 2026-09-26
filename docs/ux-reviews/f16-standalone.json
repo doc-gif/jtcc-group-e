@@ -1,8 +1,8 @@
 {
-  "uiDigest": "da687499b0b00fcc56e9753e6e747e61494952491863066f8e33a2b87cdfbce5",
+  "uiDigest": "d12c0414f3e9bf4dcfe2ce33eea378a012e2d58c73ebc043c22a9eba1cbfc448",
   "reviewer": "Claude (F16: standalone and gesture guards)",
   "reviewedAt": "2026-09-26",
-  "summary": "F16（引き継ぎの5・方法1だけ）。ホーム画面から開くとリンクバーのない全画面（既存の manifest の standalone・相対の start_url/scope を E2E で固定し、mobile-web-app-capable・apple-mobile-web-app-status-bar-style=default を追加）。画面全体のピンチ・ダブルタップの拡大、引っぱって再読み込み・端のバウンド・横スワイプの戻る/進むを止め（html の touch-action: pan-x pan-y と overscroll-behavior: none、シート・開封・ボードの中は contain、iOS の gesturestart/gesturechange/gestureend を src/app/gestures.ts で preventDefault）、ボタン・リンク・絵の長押しメニュー・文字選択・タップの色を出さない。入力欄と本文は選べるまま。viewport の拡大禁止は使わない。画面の構成・色・文言は変えていない。「ホーム画面に追加」の案内は Figma のマスターが先なので未実装。",
+  "summary": "F16（引き継ぎの5・方法1だけ）。ホーム画面から開くとリンクバーのない全画面（既存の manifest の standalone・相対の start_url/scope を E2E で固定し、mobile-web-app-capable・apple-mobile-web-app-status-bar-style=default を追加）。画面全体のピンチ・ダブルタップの拡大、引っぱって再読み込み・端のバウンド・横スワイプの戻る/進むを止め（html の touch-action: pan-x pan-y と overscroll-behavior: none、シート・開封・ボードの中は contain、iOS の gesturestart/gesturechange/gestureend を src/app/gestures.ts で preventDefault）、ボタン・リンク・絵の長押しメニュー（Android はボタンと絵の contextmenu を止める。リンク・入力欄は出せる）・文字選択・タップの色を出さない。入力欄と本文は選べるまま。viewport の拡大禁止は使わない。画面の構成・色・文言は変えていない。「ホーム画面に追加」の案内は Figma のマスターが先なので未実装。",
   "criteria": [
     {
       "id": "HIG-01",
@@ -22,7 +22,7 @@
     {
       "id": "HIG-04",
       "result": "pass",
-      "evidence": "戻る・閉じるは画面のボタンで、ホーム画面のアプリ（リンクバーなし）でもこれまでどおり使える。端スワイプの戻るを止めても、画面の「戻る」ボタンで戻れる。入力欄は文字を選べ、コピー・貼り付けができる（input の user-select が none でないことを E2E で検査）。"
+      "evidence": "戻る・閉じるは画面のボタンで、ホーム画面のアプリ（リンクバーなし）でもこれまでどおり使える。端スワイプの戻るを止めても、画面の「戻る」ボタンで戻れる。入力欄は文字を選べ、コピー・貼り付けができる（input の user-select が none でなく、長押しメニューも出せることを E2E で検査。リンクは長押しで新しいタブで開ける）。"
     },
     {
       "id": "HIG-05",
