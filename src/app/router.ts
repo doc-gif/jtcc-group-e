@@ -78,7 +78,16 @@ export const paths = {
   me: '#/me',
 }
 
+const beforeNavigate = new Set<(to: string) => void>()
+
+/** 画面を移る直前（URL が変わる前）に呼ぶ関数を登録する。計測が、招待・ホストの画面へ移る前に録画を止めるため。 */
+export function onBeforeNavigate(listener: (to: string) => void): () => void {
+  beforeNavigate.add(listener)
+  return () => { beforeNavigate.delete(listener) }
+}
+
 export function navigate(to: string) {
+  for (const listener of beforeNavigate) listener(to)
   window.location.hash = to
 }
 

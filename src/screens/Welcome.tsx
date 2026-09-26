@@ -30,8 +30,8 @@ export function Welcome() {
         <Pipi text={pipiLines.welcome} />
         <form className="name-form" onSubmit={start} noValidate>
           <label htmlFor="welcome-name">ニックネーム（ルームで友達に見えます・{NICKNAME_MAX}文字まで）</label>
-          <input id="welcome-name" value={name} onChange={(event) => setName(event.target.value)} aria-invalid={error ? true : undefined} aria-describedby={error ? 'welcome-error' : undefined} autoComplete="nickname" />
-          {error && <p id="welcome-error" className="field-error">{error}</p>}
+          <input id="welcome-name" data-clarity-mask="true" value={name} onChange={(event) => setName(event.target.value)} aria-invalid={error ? true : undefined} aria-describedby={error ? 'welcome-error' : undefined} autoComplete="nickname" />
+          {error && <p id="welcome-error" data-clarity-mask="true" className="field-error">{error}</p>}
           <button type="submit" className="btn btn-main btn-block">はじめる</button>
         </form>
         <ul className="fine-list">
