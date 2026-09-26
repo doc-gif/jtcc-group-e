@@ -2,7 +2,7 @@
 
 このリポジトリは、スマートフォンで使う React + Vite の Web アプリです。仕様が未確定の領域は推測で実装せず、`docs/PRODUCT.md` に決定事項と未決事項を記録してください。
 
-最新の進捗と次候補は [docs/STATUS.md](docs/STATUS.md) を読む。タスク完了ごとに同ファイルを更新して PR へ push する。引き継ぎは担当者が明示希望した場合だけ [docs/HANDOFF.md](docs/HANDOFF.md) に従い、通常の依頼を優先する。
+最新の進捗と次候補は [docs/STATUS.md](docs/STATUS.md) を読む。タスク完了ごとに同ファイルを更新して PR へ push する。ただし main・本番・PR・ブランチ・DB の**今の状態**は文書ではなく `node scripts/live-state.mjs` で確かめる（下の「情報の鮮度」）。引き継ぎは担当者が明示希望した場合だけ [docs/HANDOFF.md](docs/HANDOFF.md) に従い、通常の依頼を優先する。
 
 ## 作業の進め方
 
@@ -12,6 +12,16 @@
 4. モバイル幅 320px から確認し、タップ領域、キーボード操作、ラベル、コントラスト、セーフエリアを考慮する。
 5. UI を変更したら `docs/UI_UX_STANDARDS.md` に従い実画面を確認し、現在の UI に対応するレビュー記録を追加する。ローカルは影響範囲を検証し、CI で `pnpm verify` 相当の全検証を必須にする。失敗した場合は修正し、原因と未解決点を報告する。
 6. 変更内容、検証結果、残る判断事項を報告する。
+
+## 情報の鮮度（古い記録で動かない）
+
+複数のエージェントと担当者が同時に動くので、文書に書いた「今の状態」はすぐ古くなる。古い記録を信じて、公開済みの版を公開し直す・消したキーを消しに行く・マージ済みの PR を待つ、を起こさない。
+
+- **変わる事実は文書に書き写さない。** main の SHA、本番の版、Release、PR・CI の状態、ブランチ、DB に適用した migration、Figma マスターの今の状態は、文書に「現在〜」と書かない。書くのは確認方法（`node scripts/live-state.mjs`、Supabase MCP の `list_migrations`、Figma の node）。STATUS.md・HANDOFF.md に残すのは、決定・理由・未決事項・担当者の返事待ち・やってはいけないこと・完了の記録（「#41 でマージ」のように過去の出来事として）。`scripts/live-state.test.mjs` が書き写しを検査する。
+- **動く前に実態を確かめる。** 作業の開始時、STATUS.md・HANDOFF.md・引き継ぎの指示に書かれたことをもとに動く前、本番公開・DB への適用・Figma マスターの変更の前に `node scripts/live-state.mjs` を実行する（DB は `list_migrations` も）。記録と実態が違えば実態を正とし、差を利用者に伝え、同じ PR で記録を直す（終わった項目は消す）。
+- **時点の事実を書くときは時刻を付ける。** 例外として時点の事実を残すとき（証拠・調査の結果）は「（2026-09-26 06:25 UTC 時点）」を付け、現在形で書かない。
+- **PR の外の操作は、その場で記録まで終える。** 本番公開、DB への migration の適用、Figma マスターの変更、ホスト用キーの登録・無効化をしたら、同じ作業の中で記録を直す。DB に適用した migration のファイルは、その日のうちに main へ入れる（DB をリポジトリより先に進めたまま離れない。`live-state.mjs` の「main にない migration」で見つかる）。
+- **引き継ぎの指示書は、書いた時点の予定として読む。** 書かれた「やること」がもう終わっていないか、実行中の人がいないかを `live-state.mjs` で確かめてから始める。
 
 ## コード規約
 
@@ -50,7 +60,7 @@
 
 ## 本番公開を指示されたとき
 
-`docs/DEPLOYMENT.md` の手順を実行する。公開指示がある場合は、新しい版番号を決めて `scripts/request-release.ps1` または GitHub Actions の `Release GitHub Pages` を実行し、完了と固定 URL の実動作まで確認する。PR のマージ自体は公開指示ではない。既存の版・タグ・Release を上書きしない。
+`docs/DEPLOYMENT.md` の手順を実行する。公開の前に `node scripts/live-state.mjs` で「本番公開の実行（待機中・実行中）」を確かめ、実行中があれば新しく依頼せずその実行を追う（同じ SHA の二重公開・版番号の重なりを防ぐ）。公開指示がある場合は、新しい版番号を決めて `scripts/request-release.ps1` または GitHub Actions の `Release GitHub Pages` を実行し、完了と固定 URL の実動作まで確認する。PR のマージ自体は公開指示ではない。既存の版・タグ・Release を上書きしない。
 
 ## 確認用プレビュー
 
