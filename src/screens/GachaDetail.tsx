@@ -1,13 +1,10 @@
 import { useApp } from '../app/appContext'
-import { navigate, paths } from '../app/router'
+import { paths } from '../app/router'
 import { findGacha } from '../domain/catalog'
-import { featuredCandidate, ROOM_CAPACITY, spinCheck, spinQuote } from '../domain/game'
+import { featuredCandidate, spinCheck, spinQuote } from '../domain/game'
 import { coinText, oddsOf, percentLabels } from '../domain/odds'
-import type { Gacha } from '../domain/types'
 import { MockNotice, PageHeader, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
-import { InviteActions, WaitingRoom } from '../components/Room'
-import { Sheet } from '../components/Sheet'
 import { NotFound } from './NotFound'
 import './gacha.css'
 
@@ -16,7 +13,7 @@ import './gacha.css'
  * 確率はマスターの「初期参考」ではなく、いまの残りから計算した値（確率を正直に出すため）。
  * 「友達と回す」はマスターにないが、ルームの入口がここだけなので残す（Figma 修正待ち）。
  */
-export function GachaDetail({ id, room }: { id: string; room: boolean }) {
+export function GachaDetail({ id }: { id: string }) {
   const { state } = useApp()
   const gacha = findGacha(id)
   if (!gacha) return <NotFound />
@@ -56,28 +53,13 @@ export function GachaDetail({ id, room }: { id: string; room: boolean }) {
         <div className="detail-actions">
           <a className="btn btn-outline btn-block" href={paths.odds(gacha.id)}>中身{gacha.prizes.length}種と確率を見る</a>
           <a className="btn btn-main btn-block" href={paths.soloSpin(gacha.id)}>1回引く準備へ</a>
-          <a className={`btn btn-lux btn-block${problem ? ' is-disabled' : ''}`} href={problem ? undefined : paths.createRoom(gacha.id)} aria-disabled={problem ? true : undefined} role={problem ? 'link' : undefined}>
+          <a className={`btn btn-lux btn-block${problem ? ' is-disabled' : ''}`} href={problem ? undefined : paths.createRoom} aria-disabled={problem ? true : undefined} role={problem ? 'link' : undefined}>
             ♡ 友達と回す<small>リンクで招待</small>
           </a>
         </div>
         <MockNotice />
       </main>
       <TabBar active="gacha" />
-      {room && !problem && <RoomSheet gacha={gacha} />}
     </div>
-  )
-}
-
-/** 「友達と回す」で下から出るシート。その場でルームができ、招待と待ち合わせをする。 */
-function RoomSheet({ gacha }: { gacha: Gacha }) {
-  const { state } = useApp()
-  return (
-    <Sheet title="友達と いっしょに回そう" onClose={() => navigate(paths.gacha(gacha.id))}>
-      <p className="sheet-lead">ルームができました。このリンクを受け取った人だけが入れます（最大{ROOM_CAPACITY}人・24時間有効）。</p>
-      <div className="room-card"><b>{gacha.title}</b><small>{state.nickname}のルーム</small></div>
-      <InviteActions gacha={gacha} />
-      <WaitingRoom gacha={gacha} />
-      <MockNotice />
-    </Sheet>
   )
 }

@@ -1,0 +1,175 @@
+/* ===== 共有ルーム（T10・F05） ===== */
+/*
+ * 色は src/index.css の「さくらミルク」のトークンだけを使う。マスターの淡いミント（舞台・一言の札）は --mint、
+ * 大きい数字と主ボタンの塗りは --primary（F06 で追加）。未定義の間は --soft・--deep で表す。
+ */
+
+.room-screen { --room-mint: var(--mint, var(--soft)); --room-accent: var(--primary, var(--deep)); }
+.room-content { gap: 0.75rem; }
+
+/* 上部は共通の PageHeader（補足の一行だけここで） */
+.page-header-sub.room-sub { overflow-wrap: anywhere; color: var(--sub); font-weight: 500; }
+
+.room-demo {
+  align-self: flex-start; font-size: 0.8125rem; font-weight: 700; color: var(--deep);
+  background: var(--soft); border-radius: 999px; padding: 0.2rem 0.8rem; line-height: 1.6;
+}
+
+/* 舞台（街の開封広場） */
+.room-stage {
+  margin: 0; overflow: hidden; border-radius: 22px; border: 1px solid var(--line);
+  background: var(--room-mint);
+}
+.room-stage-caption {
+  background: var(--soft); border-bottom: 6px solid var(--line);
+  text-align: center; font-weight: 800; font-size: 1.0625rem; color: var(--deep); padding: 0.35rem 1rem;
+}
+.room-stage-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; min-height: 11rem; padding: 0.5rem 0.75rem 3rem; }
+.room-stage.is-compact .room-stage-body { min-height: 8rem; padding-bottom: 2.5rem; }
+.room-stage-art { grid-area: 1 / 1; width: 100%; max-width: 22rem; height: auto; }
+.room-stage.is-compact .room-stage-art { max-width: 15rem; }
+.stage-shadow { fill: var(--line); }
+.house-wall { fill: var(--surface); stroke: var(--line); stroke-width: 2; }
+.house-roof { fill: var(--head); }
+.house-door { fill: var(--deep); opacity: 0.85; }
+.gift-halo { fill: var(--surface); opacity: 0.9; }
+.gift-box, .gift-lid-top { fill: var(--main); }
+.gift-bow { fill: var(--head); stroke: var(--surface); stroke-width: 3; }
+.gift-ribbon { fill: var(--surface); }
+.stage-open .gift-lid { transform: translate(0, -14px) rotate(-8deg); transform-origin: 170px 66px; animation: room-lid 0.6s ease-out; }
+.stage-closed .gift-box, .stage-closed .gift-lid-top { fill: var(--head); }
+@keyframes room-lid { from { transform: none; } }
+
+.room-countdown {
+  grid-area: 1 / 1; display: grid; place-items: center; width: min(9.5rem, 100%); aspect-ratio: 1; border-radius: 50%;
+  background: var(--surface); border: 0.6rem solid var(--room-accent);
+  font-size: min(2.5rem, 13vw); font-weight: 800; color: var(--room-accent); font-variant-numeric: tabular-nums; letter-spacing: 0.02em;
+}
+.room-pop {
+  grid-area: 1 / 1; align-self: start; margin-top: 0.25rem;
+  font-family: var(--mincho); font-weight: 800; font-size: 2rem; color: var(--deep);
+  text-shadow: 0 0 8px var(--surface), 0 0 2px var(--surface); animation: room-pop 0.5s ease-out;
+}
+.room-sparkles { grid-area: 1 / 1; align-self: start; margin-top: 2.6rem; color: var(--deep); font-size: 1.5rem; letter-spacing: 0.3em; }
+.stage-sparkle .room-sparkles { margin-top: 0.1rem; }
+@keyframes room-pop { from { transform: scale(0.6); opacity: 0; } }
+.room-prize-card {
+  grid-area: 1 / 1; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+  background: var(--surface); border-radius: 18px; padding: 0.6rem 0.8rem; box-shadow: var(--shadow);
+  font-size: 0.9375rem; font-weight: 800; color: var(--deep);
+}
+.room-faces {
+  position: absolute; left: 0; right: 0; bottom: 0.5rem; list-style: none; margin: 0; padding: 0;
+  display: flex; justify-content: center; gap: min(1rem, 3vw);
+}
+.face {
+  display: grid; place-items: center; width: min(2.4rem, 12vw); height: min(2.4rem, 12vw); overflow: hidden; border-radius: 50%;
+  border: 2px solid var(--surface); font-weight: 800; font-size: 0.9375rem; color: var(--text); background: var(--head);
+}
+.face.f2 { background: var(--surface); border-color: var(--line); }
+.face.f3 { background: var(--soft); }
+.face.f4 { background: #EAD5DC; }
+
+/* 集まっている人・抽選の準備（上限は出さない） */
+.room-stats {
+  margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
+  background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 0.6rem 0;
+}
+.room-stats div { padding: 0.1rem 1rem; min-width: 0; }
+.room-stats div + div { border-left: 1px solid var(--line); }
+.room-stats dt { font-size: 0.9375rem; color: var(--text); }
+.room-stats dd { margin: 0; font-weight: 800; color: var(--deep); font-size: 1.125rem; line-height: 1.4; overflow-wrap: anywhere; }
+.room-stats div:first-child dd { font-size: 1.75rem; color: var(--room-accent); }
+.room-stats dd.is-plain, .room-stats div:first-child dd.is-plain { font-size: 1.125rem; color: var(--deep); }
+.room-line { font-size: 0.9375rem; color: var(--text); padding: 0 0.5rem; }
+
+/* 小札・題・説明・一言の札 */
+.room-card {
+  display: flex; flex-direction: column; align-items: stretch; gap: 0.6rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 1rem;
+}
+.room-kicker {
+  align-self: flex-start; background: var(--soft); color: var(--deep); font-weight: 800; font-size: 0.875rem;
+  border-radius: 999px; padding: 0.15rem 1.2rem; letter-spacing: 0.04em; max-width: 100%; overflow-wrap: anywhere;
+}
+.room-card-title { font-size: 1.375rem; line-height: 1.4; color: var(--text); overflow-wrap: anywhere; }
+.room-body { font-size: 1.0625rem; color: var(--sub); line-height: 1.75; }
+.room-note, .room-pitch {
+  background: var(--room-mint); color: var(--deep); font-weight: 700; font-size: 0.9375rem;
+  border-radius: 12px; padding: 0.35rem 0.8rem; line-height: 1.6;
+}
+.room-note { text-align: center; }
+.room-reason { color: var(--deep); font-weight: 700; font-size: 0.9375rem; }
+.room-error { padding: 0 0.25rem; }
+
+/* 予約の時間（1・3・5・10分後） */
+.room-minutes { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(4.25rem, 100%), 1fr)); gap: 0.5rem; }
+.room-minute {
+  min-height: 3rem; border-radius: 999px; border: 2px solid var(--room-accent); background: var(--surface);
+  color: var(--deep); font-weight: 800; font-size: var(--button-size, 1.1875rem); cursor: pointer; padding: 0 0.25rem;
+}
+.room-minute[aria-pressed='true'] { background: var(--room-accent); color: #fff; }
+.room-minute:disabled { border-color: transparent; background: #EFE3E7; color: #6E5A61; cursor: not-allowed; }
+
+/* ピッチ用・参加のスイッチ */
+.room-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
+.room-switch-text { flex: 1 1 10rem; min-width: 0; }
+.room-switch label { font-weight: 800; font-size: 1.0625rem; color: var(--text); }
+.room-switch p { font-size: 0.9375rem; color: var(--sub); line-height: 1.6; }
+.room-switch input {
+  appearance: none; flex: none; margin: 0; width: 3.5rem; height: 2.75rem; border-radius: 999px; cursor: pointer;
+  border: 2px solid var(--sub);
+  background: radial-gradient(circle at 1.3rem 50%, var(--surface) 0 0.8rem, transparent 0.85rem), #EFE3E7;
+}
+.room-switch input:checked {
+  border-color: var(--room-accent);
+  background: radial-gradient(circle at calc(100% - 1.3rem) 50%, var(--surface) 0 0.8rem, transparent 0.85rem), var(--room-accent);
+}
+.room-switch input:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* 名前 */
+.room-name-form label { font-size: 1.0625rem; font-weight: 800; }
+.room-name-form input { border-color: var(--room-accent); border-width: 2px; }
+.room-hint { font-size: 0.9375rem; color: var(--sub); }
+.room-me {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.25rem 0.75rem;
+  font-size: 0.9375rem; padding: 0 0.25rem;
+}
+.room-me b { overflow-wrap: anywhere; }
+.room-rename {
+  border: 1.5px solid var(--main); background: var(--surface); color: var(--deep); font-weight: 700;
+  border-radius: 999px; padding: 0 1rem; cursor: pointer;
+}
+.room-rename:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* みんなの結果 */
+.room-results { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
+.room-result {
+  display: flex; align-items: center; gap: 0.6rem; font-size: 1rem; line-height: 1.5;
+  border-radius: 12px; padding: 0.35rem 0.6rem; overflow-wrap: anywhere;
+}
+.room-result.is-self { background: var(--room-mint); font-weight: 800; }
+.room-result-mark {
+  flex: none; display: grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 50%;
+  background: var(--soft); color: var(--deep); font-size: 1rem;
+}
+.room-result-mark.mark-pouch { background: #EAD5DC; }
+.room-result.is-self .room-result-mark { background: none; }
+
+/* 下の操作 */
+.room-dock { gap: 0.2rem; }
+.room-dock-note { text-align: center; color: var(--deep); font-weight: 700; font-size: 0.9375rem; padding: 0.6rem 0; }
+
+/* 横向きなど縦が短い画面では、舞台の絵を小さくして操作と説明を先に見せる */
+@media (max-height: 500px) {
+  .room-stage-body { min-height: 6rem; padding-bottom: 2.5rem; }
+  .room-stage-art { max-width: 12rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-open .gift-lid, .room-pop { animation: none; }
+}
+
+/* ホスト用リンク（ホストだけ・共有シートの中） */
+.room-hostlink { display: grid; gap: 0.4rem; border-top: 1px dashed var(--line); padding-top: 0.75rem; }
+.room-hostlink h3 { font-size: 1rem; color: var(--deep); margin: 0; }

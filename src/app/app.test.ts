@@ -13,12 +13,17 @@ describe('画面のハッシュ', () => {
     expect(parseHash(paths.gachaList)).toEqual({ name: 'gachaList' })
     expect(parseHash('#/gacha/')).toEqual({ name: 'gachaList' })
     expect(parseHash(paths.welcome)).toEqual({ name: 'welcome' })
-    expect(parseHash(paths.gacha('a-1'))).toEqual({ name: 'gacha', id: 'a-1', room: false })
-    expect(parseHash(paths.createRoom('a-1'))).toEqual({ name: 'gacha', id: 'a-1', room: true })
+    expect(parseHash(paths.gacha('a-1'))).toEqual({ name: 'gacha', id: 'a-1' })
+    expect(parseHash(paths.createRoom)).toEqual({ name: 'roomNew' })
+    // 以前の「友達と回す」のリンクは、共有ルームを作る画面へ
+    expect(parseHash('#/gacha/a-1/room')).toEqual({ name: 'roomNew' })
     expect(parseHash(paths.odds('a-1'))).toEqual({ name: 'odds', id: 'a-1' })
     expect(parseHash(paths.soloSpin('a-1'))).toEqual({ name: 'spin', id: 'a-1' })
-    expect(parseHash(paths.room('a-1'))).toEqual({ name: 'room', code: 'a-1', spin: false })
-    expect(parseHash(paths.roomSpin('a-1'))).toEqual({ name: 'room', code: 'a-1', spin: true })
+    expect(parseHash(paths.room('0f8e-a1'))).toEqual({ name: 'room', invite: '0f8e-a1' })
+    expect(parseHash(paths.host('Key_1-a'))).toEqual({ name: 'host', key: 'Key_1-a' })
+    expect(parseHash(paths.host())).toEqual({ name: 'host', key: null })
+    // 形の違うキーは「ホスト用リンクが無効」で案内する（見つからない扱いにしない）
+    expect(parseHash('#/host/A B')).toEqual({ name: 'host', key: 'A B' })
     for (const name of ['collection', 'together', 'me', 'shelf'] as const) expect(parseHash(`#/${name}/`)).toEqual({ name })
     expect(parseHash(paths.shelfShare)).toEqual({ name: 'shelfShare' })
     expect(parseHash(paths.shelfItem('a-1'))).toEqual({ name: 'shelfItem', id: 'a-1' })
@@ -27,7 +32,7 @@ describe('画面のハッシュ', () => {
   })
 
   test('不正な形は見つからない扱い', () => {
-    for (const hash of ['#/gacha/A B', '#/gacha/x/y', '#/room/x/y', '#/spin/x', '#/other/x', '#/shelf/A B', '#/shelf/x/y', '#/friend/yui/A B', '#/friend/yui/x/y']) expect(parseHash(hash)).toEqual({ name: 'notfound' })
+    for (const hash of ['#/gacha/A B', '#/gacha/x/y', '#/room/x/y', '#/room/x/spin', '#/host/x/y', '#/spin/x', '#/other/x', '#/shelf/A B', '#/shelf/x/y', '#/friend/yui/A B', '#/friend/yui/x/y']) expect(parseHash(hash)).toEqual({ name: 'notfound' })
   })
 })
 

@@ -342,43 +342,6 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
   })
 }
 
-test('友達と回す（デモ）：ルーム → 待ち合わせ → 目玉確定 → みんなの結果', async ({ page }) => {
-  const errors = watchErrors(page)
-  // 待ち合わせ・3回転・開封・友達の結果（900ms×2）を順に待つ長い流れ。WebKit の CI では約19秒かかり、
-  // shard の最初（ブラウザ起動直後）に当たると30秒を超えたため、通常の3倍の時間を許す
-  test.slow()
-  await page.goto('./#/me')
-  await page.getByRole('button', { name: /次の1回を目玉確定にする/ }).click()
-  await page.goto('./#/gacha/melody-anniv')
-  await page.getByRole('link', { name: /友達と回す/ }).click()
-  const sheet = page.getByRole('dialog', { name: '友達と いっしょに回そう' })
-  await expect(sheet.getByText('ゆい（デモ）')).toBeVisible()
-  const start = sheet.getByRole('button', { name: /みんなで回す/ })
-  await expect(start).toBeEnabled({ timeout: 6000 })
-  await start.click()
-  await confirmSpin(page)
-  await expect(page.getByText(/ROOM・3人でいっしょに/)).toBeVisible()
-  await tapTurns(page, 2)
-  await expect(page.getByText('目玉 確定')).toBeVisible()
-  await tapTurns(page, 1)
-  await openCapsule(page)
-  await expect(page.getByText('おめでとうございます！').first()).toBeVisible()
-  await page.getByRole('button', { name: 'みんなの結果を見る' }).click()
-  const board = page.getByRole('dialog', { name: /みんなの結果/ })
-  await expect(board.getByText(/みんなで（3人）/)).toBeVisible({ timeout: 6000 })
-  expect(errors).toEqual([])
-})
-
-test('招待リンクを開いた人は名前を入れて参加できる', async ({ page }) => {
-  await page.goto('./#/room/chiikawa-birthday')
-  await page.getByRole('button', { name: 'ルームに入る' }).click()
-  await expect(page.getByText('ニックネームを入れてください')).toBeVisible()
-  await page.getByLabel(/ニックネーム/).fill('みお')
-  await page.getByRole('button', { name: 'ルームに入る' }).click()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('みんなを待っています')
-  await expect(page.getByText('みお（あなた）')).toBeVisible()
-})
-
 test('棚とフレンド：飾る → お気に入りと取り消し → 見え方の確認 → 友だち（デモ）の棚に「いいな〜」は1回だけ', async ({ page }) => {
   const errors = watchErrors(page)
   await page.goto('./#/shelf')

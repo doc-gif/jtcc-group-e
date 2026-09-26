@@ -3,6 +3,7 @@ import './App.css'
 import { AppProvider } from './app/AppProvider'
 import type { AssetGate } from './app/assets'
 import { useRoute, type Route } from './app/router'
+import { RoomSessionContext, type RoomSession } from './app/sharedRoom'
 import { townAssets } from './app/townAssets'
 import { Collection } from './screens/Collection'
 import { FriendItem, FriendShelf } from './screens/Friend'
@@ -11,7 +12,7 @@ import { GachaList } from './screens/GachaList'
 import { GachaOdds } from './screens/GachaOdds'
 import { Me } from './screens/Me'
 import { NotFound } from './screens/NotFound'
-import { Room } from './screens/Room'
+import { HostLink, Room, RoomCreate } from './screens/Room'
 import { Shelf, ShelfItemScreen, ShelfShare } from './screens/Shelf'
 import { Spin } from './screens/Spin'
 import { Together } from './screens/Together'
@@ -22,11 +23,13 @@ function Screen({ route, assets }: { route: Route; assets: AssetGate }) {
   switch (route.name) {
     case 'town': return <Town assets={assets} />
     case 'gachaList': return <GachaList />
-    case 'gacha': return <GachaDetail id={route.id} room={route.room} />
+    case 'gacha': return <GachaDetail id={route.id} />
     case 'welcome': return <Welcome />
     case 'odds': return <GachaOdds id={route.id} />
-    case 'spin': return <Spin id={route.id} mode="solo" />
-    case 'room': return route.spin ? <Spin id={route.code} mode="room" /> : <Room code={route.code} />
+    case 'spin': return <Spin id={route.id} />
+    case 'roomNew': return <RoomCreate />
+    case 'room': return <Room invite={route.invite} />
+    case 'host': return <HostLink hostKey={route.key} />
     case 'collection': return <Collection />
     case 'shelf': return <Shelf />
     case 'shelfShare': return <ShelfShare />
@@ -54,12 +57,15 @@ function Router({ assets }: { assets: AssetGate }) {
 /**
  * assets: 街を出す前に準備する絵・文字。アプリを開いたらすぐ読み込みを始め、
  * どの画面から開いても、街へ行くころには準備が済んでいるようにする。
+ * roomSession: 共有ルームの接続（テスト用。省略時はアプリ全体で1つ）。
  */
-function App({ storage, assets = townAssets }: { storage?: Pick<Storage, 'getItem' | 'setItem'>; assets?: AssetGate }) {
+function App({ storage, assets = townAssets, roomSession }: { storage?: Pick<Storage, 'getItem' | 'setItem'>; assets?: AssetGate; roomSession?: RoomSession }) {
   useEffect(() => { assets.load() }, [assets])
   return (
     <AppProvider storage={storage}>
-      <Router assets={assets} />
+      <RoomSessionContext.Provider value={roomSession ?? null}>
+        <Router assets={assets} />
+      </RoomSessionContext.Provider>
     </AppProvider>
   )
 }

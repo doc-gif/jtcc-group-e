@@ -19,6 +19,59 @@ export const AUTO_NAME_WORDS = ['さくら', 'もも', 'いちご', 'りんご',
 /** Failed host-key checks allowed per user per minute (lp_host_key_check). */
 export const HOST_KEY_ATTEMPTS_PER_MINUTE = 5
 
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
+const isTime = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+const isCount = (value: unknown): value is number => Number.isInteger(value) && (value as number) >= 0
+const isPrize = (value: unknown): value is SharedPrize => typeof value === 'string' && Object.hasOwn(SHARED_INITIAL_STOCK, value)
+
+function savedMember(value: unknown): MockMember | null {
+  if (!isObject(value)) return null
+  const { id, nickname, balance, ready, active, seenAt } = value
+  return typeof id === 'string' && typeof nickname === 'string' && isTime(balance) && typeof ready === 'boolean' && typeof active === 'boolean' && isTime(seenAt)
+    ? { id, nickname, balance, ready, active, seenAt } : null
+}
+
+function savedRound(value: unknown): MockRound | null {
+  if (!isObject(value)) return null
+  const { number, request, startsAt, nextReadyAt, results, guaranteed } = value
+  if (!isCount(number) || typeof request !== 'string' || !isTime(startsAt) || !isTime(nextReadyAt) || !Array.isArray(results)) return null
+  const parsed = results.map(result => isObject(result) && typeof result.userId === 'string' && typeof result.nickname === 'string' && isPrize(result.prize)
+    ? { userId: result.userId, nickname: result.nickname, prize: result.prize } : null)
+  if (parsed.some(result => result === null)) return null
+  return { number, request, startsAt, nextReadyAt, results: parsed as MockResult[], guaranteed: guaranteed === true }
+}
+
+/** 端末内デモの保存データから部屋を1つ読む。契約の形に合わなければ null（その部屋は使わない）。 */
+function savedRoom(value: unknown): MockRoom | null {
+  if (!isObject(value)) return null
+  const { id, invite, host, hostKey, expiresAt, roundNo, members, stock, round, rounds, scheduledAt, pitchMode, lastSchedule } = value
+  if (typeof id !== 'string' || typeof invite !== 'string' || typeof host !== 'string' || !isTime(expiresAt) || !isCount(roundNo)) return null
+  if (!Array.isArray(members) || !Array.isArray(rounds) || !isObject(stock)) return null
+  const memberList = members.map(savedMember)
+  const roundList = rounds.map(savedRound)
+  if (memberList.some(member => member === null) || roundList.some(entry => entry === null)) return null
+  const stockCounts = Object.keys(SHARED_INITIAL_STOCK).map(prize => stock[prize])
+  if (!stockCounts.every(isCount)) return null
+  const current = round === null || round === undefined ? null : savedRound(round)
+  if (round !== null && round !== undefined && current === null) return null
+  if (scheduledAt !== null && scheduledAt !== undefined && !isTime(scheduledAt)) return null
+  let outcome: ScheduleOutcome | null = null
+  if (lastSchedule !== null && lastSchedule !== undefined) {
+    if (!isObject(lastSchedule) || typeof lastSchedule.status !== 'string' || typeof lastSchedule.scheduledAt !== 'string'
+      || !(lastSchedule.roundNo === null || isCount(lastSchedule.roundNo))) return null
+    outcome = { status: lastSchedule.status as ScheduleOutcome['status'], scheduledAt: lastSchedule.scheduledAt, roundNo: lastSchedule.roundNo as number | null }
+  }
+  const stockRecord = Object.fromEntries(Object.keys(SHARED_INITIAL_STOCK).map(prize => [prize, stock[prize] as number])) as Record<SharedPrize, number>
+  return {
+    id, invite, host, hostKey: typeof hostKey === 'string' ? hostKey : '', expiresAt, roundNo,
+    members: new Map((memberList as MockMember[]).map(member => [member.id, member])),
+    stock: stockRecord, round: current,
+    // 最新ラウンドは rounds の最後と同じ物として扱う（結果の書き換えが両方に届くように）
+    rounds: (roundList as MockRound[]).map(entry => current && entry.number === current.number ? current : entry),
+    scheduledAt: isTime(scheduledAt) ? scheduledAt : null, pitchMode: pitchMode === true, lastSchedule: outcome,
+  }
+}
+
 /** One-device simulation only. Each asUser() adapter obeys the same RoomTransport contract as Supabase. */
 export class MockRoomServer {
   private rooms = new Map<string, MockRoom>()
@@ -36,6 +89,27 @@ export class MockRoomServer {
   ) { this.now = now; this.id = id; this.random = random }
 
   private wake(roomId: string) { this.listeners.get(roomId)?.forEach(listener => listener()) }
+
+  /**
+   * 端末内デモの保存用。部屋とホスト用キーを JSON にできる形で返す（Map・Set は配列にする）。
+   * ブラウザのタブ間で同じ模擬サーバーを共有するためだけに使い、別の端末とはつながらない。
+   */
+  exportState(): unknown {
+    return { rooms: [...this.rooms.values()].map(room => ({ ...room, members: [...room.members.values()] })), hostKeys: [...this.hostKeys] }
+  }
+
+  /** exportState の値で置き換える（部屋だけの配列も読む）。契約の形に合わない部屋は丸ごと捨てる（壊れた保存データ）。 */
+  importState(data: unknown) {
+    this.rooms = new Map()
+    this.hostKeys = new Set()
+    const saved = data && typeof data === 'object' && !Array.isArray(data) ? data as { rooms?: unknown; hostKeys?: unknown } : { rooms: data }
+    if (Array.isArray(saved.hostKeys)) for (const key of saved.hostKeys) if (typeof key === 'string' && HOST_KEY_PATTERN.test(key)) this.hostKeys.add(key)
+    if (!Array.isArray(saved.rooms)) return
+    for (const value of saved.rooms) {
+      const room = savedRoom(value)
+      if (room) this.rooms.set(room.id, room)
+    }
+  }
 
   /** Registers a host key (tests and local demos). */
   addHostKey(key: string) {

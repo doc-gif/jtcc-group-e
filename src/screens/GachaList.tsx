@@ -93,7 +93,7 @@ function GachaCard({ gacha }: { gacha: Gacha }) {
       </div>
       <div className="card-actions">
         <a className="btn btn-main" href={paths.gacha(gacha.id)} aria-label={`${gacha.title}の中身を見る（全${gacha.prizes.length}種と確率）`}>中身を見る</a>
-        <a className="btn btn-lux" href={paths.createRoom(gacha.id)}>♡ 友達と回す</a>
+        <a className="btn btn-lux" href={paths.createRoom}>♡ 友達と回す</a>
       </div>
     </article>
   )

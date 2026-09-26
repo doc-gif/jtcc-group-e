@@ -46,12 +46,18 @@ export function BackBar({ title, back, backLabel = 'もどる', children }: { ti
  * デザインマスター（T08・T09）の上部。提案モックの1行、枠付きの「戻る」、見出しの順に並べる。
  * 回転・開封の途中など、マスターに戻る操作がない画面では back を渡さない。
  */
-export function PageHeader({ title, back, children }: { title: string; back?: string; children?: ReactNode }) {
+export function PageHeader({ title, back, onBack, children }: {
+  title: string; back?: string
+  /** 画面の中の一段前へ戻る（URL が変わらないとき。共有ルームの詳細など）。 */
+  onBack?: () => void
+  children?: ReactNode
+}) {
   return (
     <header className="page-header">
       <p className="page-header-notice">提案モック・公式サービスではありません</p>
       <div className="page-header-row">
         {back && <a className="btn btn-outline page-header-back" href={back}>戻る</a>}
+        {!back && onBack && <button type="button" className="btn btn-outline page-header-back" onClick={onBack}>戻る</button>}
         <h1 id="page-title" tabIndex={-1}>{title}</h1>
       </div>
       {children}
