@@ -12,6 +12,11 @@ jobs:
       - uses: actions/github-script@v8
         with:
           script: |
+            // 本文の1行目だけを見る（説明文やコードブロックの中の「Closes #N」は数えない）。
+            // 参照はこのリポジトリの Issue に限る（`owner/repo#N` の形は context.repo と一致するときだけ）。
             const body = context.payload.pull_request.body ?? ''
-            const ok = /\b(Closes|Fixes|Resolves|Refs)\s+(doc-gif\/[\w.-]+)?#\d+/i.test(body)
-            if (!ok) core.setFailed('PR 本文に「Closes #N」（または Refs #N）がありません。担当の Issue を書いてください（#53 の進め方）。')
+            const firstLine = body.split(/\r?\n/).find((l) => l.trim() !== '') ?? ''
+            const { owner, repo } = context.repo
+            const escaped = `${owner}/${repo}`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            const re = new RegExp(`^\\s*(Closes|Fixes|Resolves|Refs)\\s+(?:${escaped})?#\\d+\\b`, 'i')
+            if (!re.test(firstLine)) core.setFailed(`PR 本文の1行目に「Closes #N」（または Refs #N）がありません（このリポジトリ ${owner}/${repo} の Issue）。1行目: ${JSON.stringify(firstLine)}`)
