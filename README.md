@@ -53,7 +53,7 @@ pnpm verify
 
 ## 構成
 
-デザインは[指定 Figma](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-2)で管理します。ラストピースの画面の正は、ピンク基調「さくらミルク」の [デザインマスター](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-8198)です（T07–T10 の51画面、[node と状態の一覧](docs/ADOPTED_DESIGN.md)）。現行 Web は端末内のデモで、マスターの40席共有画面や棚はまだ実装していません。`design-system/` のトークンは、マスターが参照するピンク系の Figma 変数に合わせています（アプリへの適用はまだ。現行 Web との色の差は [docs/DESIGN.md](docs/DESIGN.md)）。
+デザインは[指定 Figma](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=72-2)で管理します。ラストピースの画面の正は、ピンク基調「さくらミルク」の [デザインマスター](https://www.figma.com/design/yeDF1BwhrxpXI57Daainle?node-id=267-8198)です（T07–T10 の62画面、[node と状態の一覧](docs/ADOPTED_DESIGN.md)）。現行 Web は端末内のデモで、マスターの40席共有画面や棚はまだ実装していません。`design-system/` のトークンは、マスターが参照するピンク系の Figma 変数に合わせています（アプリへの適用はまだ。現行 Web との色の差は [docs/DESIGN.md](docs/DESIGN.md)）。
 
 - `src/domain/`: 画面から切り離した純粋な関数とデータ（抽選・確率・一律20%の交換・保存・演出の台本・架空カタログ）。Vitest で検証
 - `src/app/`: ルーター（ハッシュ）、状態の置き場所、ルームのデモ再現、声・音・振動
