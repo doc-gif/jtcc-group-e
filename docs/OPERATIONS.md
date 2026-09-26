@@ -24,7 +24,7 @@
 
 ## Milestone と Project（進捗の見える化）
 
-- **Milestone は 4 つ**（https://github.com/doc-gif/jtcc-group-e/milestones）: `ピッチ前（必須）` / `計測（デモ）` / `運用・自動化` / `ピッチ後・磨き込み`。**Issue を作るときに必ず 1 つ付ける**。ロックの Issue は親の Issue と同じ Milestone。期日は担当者が入れる（ピッチの日付）。
+- **Milestone は 4 つ**（https://github.com/doc-gif/jtcc-group-e/milestones）。すべてピッチのためのもので、「ピッチ後」の区分は無い: `ピッチ 1: 必須（デモが成立する）` / `ピッチ 2: 体験の磨き`（無くてもデモは成立するが印象が上がる）/ `計測（デモの数字）` / `運用・自動化`。**Issue を作るときに必ず 1 つ付ける**。ロックの Issue は親の Issue と同じ Milestone。期日は担当者が入れる（ピッチの日付）。
 - **Project**「ラストピース タスクボード」（URL はリポジトリの変数 `PROJECT_URL`）に、開いている Issue が自動で並ぶ。Status は `Todo` / `In progress` / `In review` / `Blocked` / `Done`。
 - **Status は手で動かさない**。ラベルから `.github/workflows/project-status.yml` が映す: `in-progress`→In progress、`review`→In review、`blocked`・`needs-owner`→Blocked、閉じた→Done、それ以外→Todo。Project 側の作り方と PAT の設定は #80。
 - 進捗を見るときは Milestone の一覧（残り件数と割合）と Project のボード。文書には書き写さない。
@@ -55,7 +55,7 @@
 マネージャーは実装しない。1時間ごとに次を行い、結果を **#53 に1コメント**（`[manager] HH:MM UTC` で始める。変化がなければコメントしない）。
 
 1. **実態を見る**: `node scripts/live-state.mjs`、`gh issue list --state open`、`gh issue list --label ready-to-release --state all`、`gh pr list --state open`、ラベル。
-   - **Milestone の漏れ**: `gh issue list --state open --json number,title,milestone --jq '.[] | select(.milestone == null) | .number'` で無いものを見つけ、内容から 4 つのどれかを付ける（迷えば `ピッチ前（必須）` にして #53 のコメントに書く）。
+   - **Milestone の漏れ**: `gh issue list --state open --json number,title,milestone --jq '.[] | select(.milestone == null) | .number'` で無いものを見つけ、内容から 4 つのどれかを付ける（迷えば `ピッチ 2: 体験の磨き` にして #53 のコメントに書く）。
 2. **止まっているものを見つける**
    - `in-progress` なのに 2 時間以上コメントも push もない → Issue に `[manager] 進捗を教えてください。止まっていれば in-progress を外します` とコメント。さらに 2 時間動かなければ `in-progress` を外して `todo` に戻す（作業者のブランチは消さない）。
    - `review` なのに CI が赤・Copilot の指摘が未解決・main の取り込み待ち → Issue にコメントして作業者へ。
