@@ -1,10 +1,18 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "date": "2026-09-26",
   "fileKey": "yeDF1BwhrxpXI57Daainle",
   "designStatus": "adopted-master",
-  "implementationStatus": "token-snapshot-not-imported",
-  "paletteDecision": "Pink \"Sakura Milk\" (さくらミルク) is the adopted palette (owner, 2026-09-26). Green accent version 252:2 is rejected; primary actions are not green.",
+  "implementationStatus": "applied-to-app-css",
+  "implementationNote": "アプリは tokens.css を import せず、同じ値を src/index.css に持つ（F06、2026-09-26）。対応は appMapping。",
+  "paletteDecision": "Pink \"Sakura Milk\" (さくらミルク) is the adopted palette (owner, 2026-09-26). Green accent version 252:2 is rejected; primary actions are not green. Primary stays #be6482 with 19px bold button labels (WCAG large text); smaller pink text uses wine #a94a68; mint #e3f1e7 is kept for the selected tab and coin badge (owner, 2026-09-26).",
+  "pinkTextRule": {
+    "decidedOn": "2026-09-26",
+    "by": "owner",
+    "figmaChange": "docs/ADOPTED_DESIGN.md のマスターの変更履歴",
+    "rule": "color/action/primary #be6482 の文字は Lastpiece v2/Button（19px Bold）以上だけ。それより小さいピンクの文字は color/accent/wine #a94a68。下のタブの選択中の文字はワイン、地は color/nav/selected #e3f1e7。",
+    "verified": "2026-09-26 にマスターの文字898件を読み取り、#be6482 の文字はすべて19px以上の太字（小さい文字0件）"
+  },
   "master": {
     "pageId": "267:8198",
     "name": "Lastpiece / Master · T11",
@@ -88,7 +96,7 @@
       "count": 30
     }
   ],
-  "cssNaming": "CSS 名は Figma 変数の WEB code syntax と同じ。--bg/--surface/--soft/--main/--deep は src/index.css と同名・同値。それ以外は --lp-v2-*。v0.1 の --jtcc-* は使わない。文字スタイル由来の --lp-v2-type-* と --lp-v2-focus-ring は CSS 側で付けた名前。",
+  "cssNaming": "CSS 名は Figma 変数の WEB code syntax と同じ。--bg/--surface/--soft/--main/--deep は src/index.css と同名・同値。それ以外は --lp-v2-*。v0.1 の --jtcc-* は使わない。文字スタイル由来の --lp-v2-type-*（button を含む） と --lp-v2-focus-ring は CSS 側で付けた名前。",
   "bindingsNote": "bindingsInMaster はマスターページ 267:8198 の全ノード（部品インスタンス内を含む）で変数を結合したプロパティの件数。2026-09-26 に読み取り専用で集計。",
   "variables": [
     {
@@ -222,7 +230,7 @@
       },
       "scopes": [],
       "value": "#e3f1e7",
-      "note": "Web で残すかは未決（docs/PRODUCT.md）"
+      "note": "Web でも残す（2026-09-26 決定、src/index.css の --mint）"
     },
     {
       "id": "VariableID:177:30",
@@ -502,7 +510,7 @@
       "aliasOf": "primitive/mint",
       "resolved": "#e3f1e7",
       "bindingsInMaster": 19,
-      "note": "淡いミント。Web で残すかは未決"
+      "note": "淡いミント。選択中のタブ・コイン札（Web は --mint）"
     },
     {
       "id": "VariableID:181:24",
@@ -708,7 +716,18 @@
       "font": "Noto Sans JP Bold",
       "size": 16,
       "line": 24,
-      "usesInMaster": 94
+      "usesInMaster": 4
+    },
+    {
+      "id": "S:eefefb776bac1f1782c784c182ec40eed20254fa,",
+      "name": "Lastpiece v2/Button",
+      "font": "Noto Sans JP Bold",
+      "size": 19,
+      "line": 28,
+      "usesInMaster": 90,
+      "added": "2026-09-26",
+      "css": "--lp-v2-type-button-size / --lp-v2-type-button-line（Web は --button-size / --button-line）",
+      "note": "Button 部品 179:34 の6状態のラベル。19px 太字は WCAG の大きい文字（18.66px 以上の太字）"
     },
     {
       "id": "S:3d5bde3b51a8f484c5cd6688974b99c6adae4394,",
@@ -719,7 +738,7 @@
       "usesInMaster": 180
     }
   ],
-  "textStylesNote": "マスターの文字898件のうち501件は文字スタイル未適用（Noto Sans JP の Bold/Regular、Shippori Mincho Bold 1件）。",
+  "textStylesNote": "マスターの文字898件のうち501件は文字スタイル未適用（Noto Sans JP の Bold/Regular、Shippori Mincho Bold 1件）。2026-09-26 に Button 部品のラベル 90 件を Label から Button へ移した。",
   "effects": {
     "usedInMaster": [],
     "buttonFocus": {
@@ -741,48 +760,68 @@
     },
     "note": "マスターは効果スタイルを使っていない。Figma にある Lastpiece v2/Sheet Shadow と JTCC/Shadow/Lastpiece は未参照。"
   },
-  "differencesFromApp": [
+  "appMapping": [
     {
       "token": "color/text/primary",
       "figma": "#172324",
-      "app": "--text #5C4A50",
-      "note": "Figma マスターは濃い墨色。現行 Web はピンク寄りの茶色"
+      "app": "--text"
     },
     {
       "token": "color/text/secondary",
       "figma": "#52615a",
-      "app": "--sub #7D646C"
+      "app": "--sub"
+    },
+    {
+      "token": "color/text/disabled",
+      "figma": "#52615a",
+      "app": "--sub（無効のボタンの文字）"
     },
     {
       "token": "color/action/primary",
       "figma": "#be6482",
-      "app": "--deep #A94A68（.btn-main の塗り）",
-      "note": "Figma の白文字比は3.93:1で不足。Web は5.43:1"
+      "app": "--primary（.btn-main の塗り、.btn-outline・.btn-line・.town-spot の文字と枠）"
     },
     {
-      "token": "color/border/focus",
-      "figma": "#be6482",
-      "app": "--deep #A94A68（:focus-visible）"
-    },
-    {
-      "token": "color/border/default",
-      "figma": "#d8c9cf",
-      "app": "--line #F5DDE4"
-    },
-    {
-      "token": "color/action/disabled",
-      "figma": "#d4dcd7",
-      "app": "なし",
-      "note": "灰緑の無効色"
+      "token": "color/accent/wine",
+      "figma": "#a94a68",
+      "app": "--deep（小さいピンクの文字、選択中のタブの文字、コイン札の文字、:focus-visible）"
     },
     {
       "token": "color/nav/selected",
       "figma": "#e3f1e7",
-      "app": "なし",
-      "note": "淡いミント。docs/PRODUCT.md の未決事項"
+      "app": "--mint（選択中のタブ、コイン札）"
+    },
+    {
+      "token": "color/action/disabled",
+      "figma": "#d4dcd7",
+      "app": "--disabled（無効のボタンの塗り）"
+    },
+    {
+      "token": "color/border/default",
+      "figma": "#d8c9cf",
+      "app": "--disabled-line（無効の枠ボタンの枠だけ）"
+    },
+    {
+      "token": "Lastpiece v2/Button",
+      "figma": "19/28 Bold",
+      "app": "--button-size 1.1875rem / --button-line 1.75rem（.btn・.town-spot）"
     }
   ],
-  "differencesNote": "同じ名前の --bg/--surface/--soft/--main/--deep は値が一致。上の差は Figma を記録どおり残し、Web 実装時にどちらへ揃えるかを決める。src/index.css の --head/--wine/--line 等は Figma の「JTCC / Lastpiece」(83:18) にだけある。",
+  "differencesFromApp": [
+    {
+      "token": "color/border/focus",
+      "figma": "#be6482",
+      "app": "--deep #a94a68（:focus-visible 3px）",
+      "note": "Button の Focus の外側リング（accent/wine）と同じ色。非文字で 3:1 以上"
+    },
+    {
+      "token": "color/border/default",
+      "figma": "#d8c9cf",
+      "app": "--line #F5DDE4（区切り線）",
+      "note": "区切りだけ。操作の境界に使わない"
+    }
+  ],
+  "differencesNote": "--bg/--surface/--soft/--main/--deep は tokens.css と同名・同値。src/index.css の --head・--line・--rg 等は Figma の「JTCC / Lastpiece」(83:18) にだけある。旧名 --wine は見出し用で、値は --text と同じ（Figma の accent/wine は --deep）。",
   "contrastAudit": [
     {
       "name": "text/primary / bg/canvas",
@@ -828,19 +867,19 @@
       "name": "text/inverse / action/primary",
       "fg": "#ffffff",
       "bg": "#be6482",
-      "minimum": 4.5,
-      "ratio": 3.93,
-      "pass": false,
-      "note": "Button Primary の16px Bold ラベル。大きい文字に当たらない"
+      "minimum": 3,
+      "ratio": 3.94,
+      "pass": true,
+      "note": "Button Primary の19px Bold ラベル（大きい文字）。3.936… を Figma の記載に合わせ 3.94 と表記"
     },
     {
       "name": "action/primary / action/secondary",
       "fg": "#be6482",
       "bg": "#ffffff",
-      "minimum": 4.5,
-      "ratio": 3.93,
-      "pass": false,
-      "note": "Button Outline のラベル"
+      "minimum": 3,
+      "ratio": 3.94,
+      "pass": true,
+      "note": "Button Outline の19px Bold ラベル（大きい文字）"
     },
     {
       "name": "action/primary / bg/canvas",
@@ -849,16 +888,17 @@
       "minimum": 4.5,
       "ratio": 3.78,
       "pass": false,
-      "note": "背景上の強調文字"
+      "note": "19px 未満の文字には使わない（ワインにする）",
+      "usage": "not-used-for-small-text"
     },
     {
       "name": "action/primary / nav/selected",
       "fg": "#be6482",
       "bg": "#e3f1e7",
-      "minimum": 4.5,
+      "minimum": 3,
       "ratio": 3.37,
-      "pass": false,
-      "note": "選択中タブの14pxラベル"
+      "pass": true,
+      "note": "選択中のタブのアイコン（非文字）。文字はワイン（accent/wine / nav/selected）"
     },
     {
       "name": "text/disabled / action/disabled",
@@ -882,7 +922,7 @@
       "fg": "#be6482",
       "bg": "#ffffff",
       "minimum": 3,
-      "ratio": 3.93,
+      "ratio": 3.94,
       "pass": true,
       "note": "フォーカス線（非文字）"
     },
@@ -902,32 +942,102 @@
       "minimum": null,
       "ratio": 1.59,
       "note": "区切り・無効枠だけ。操作境界に使わない"
+    },
+    {
+      "name": "accent/wine / bg/canvas",
+      "fg": "#a94a68",
+      "bg": "#fff9fa",
+      "minimum": 4.5,
+      "ratio": 5.22,
+      "pass": true
+    },
+    {
+      "name": "accent/wine / bg/soft",
+      "fg": "#a94a68",
+      "bg": "#fdeef2",
+      "minimum": 4.5,
+      "ratio": 4.83,
+      "pass": true
+    },
+    {
+      "name": "accent/wine / nav/selected",
+      "fg": "#a94a68",
+      "bg": "#e3f1e7",
+      "minimum": 4.5,
+      "ratio": 4.65,
+      "pass": true,
+      "note": "選択中のタブの文字（12〜14px）とコイン札"
+    },
+    {
+      "name": "text/secondary / nav/selected",
+      "fg": "#52615a",
+      "bg": "#e3f1e7",
+      "minimum": 4.5,
+      "ratio": 5.59,
+      "pass": true
+    },
+    {
+      "name": "action/primary / bg/soft",
+      "fg": "#be6482",
+      "bg": "#fdeef2",
+      "minimum": 4.5,
+      "ratio": 3.5,
+      "pass": false,
+      "usage": "not-used-for-small-text",
+      "note": "小さい文字には使わない"
+    },
+    {
+      "name": "text/primary / web --head",
+      "fg": "#172324",
+      "bg": "#f2a7bc",
+      "minimum": 4.5,
+      "ratio": 8.46,
+      "pass": true,
+      "note": "Web の上部の帯の見出し"
+    },
+    {
+      "name": "accent/wine / web --head",
+      "fg": "#a94a68",
+      "bg": "#f2a7bc",
+      "minimum": 4.5,
+      "ratio": 2.85,
+      "pass": false,
+      "usage": "not-used",
+      "note": "使わない組合せ"
     }
   ],
-  "contrastMethod": "WCAG 2.x 相対輝度。比は小数第3位を切り捨て。本文・操作ラベルは4.5:1、非文字の境界は3:1以上。",
+  "contrastMethod": "WCAG 2.x 相対輝度。比は小数第3位を切り捨て（#be6482 と白の 3.936… だけ Figma の記載に合わせ 3.94）。本文・操作ラベルは4.5:1、19px 以上の太字（大きい文字）は3:1、非文字の境界は3:1以上。",
   "appReference": [
     {
       "name": "src --text / --bg",
-      "fg": "#5c4a50",
+      "fg": "#172324",
       "bg": "#fff9fa",
       "minimum": 4.5,
-      "ratio": 7.91,
+      "ratio": 15.49,
       "pass": true
     },
     {
       "name": "src --sub / --bg",
-      "fg": "#7d646c",
+      "fg": "#52615a",
       "bg": "#fff9fa",
       "minimum": 4.5,
-      "ratio": 5.15,
+      "ratio": 6.27,
       "pass": true
     },
     {
-      "name": "src 白 / --deep（.btn-main）",
+      "name": "src 白 / --primary（.btn-main、19px Bold）",
       "fg": "#ffffff",
-      "bg": "#a94a68",
+      "bg": "#be6482",
+      "minimum": 3,
+      "ratio": 3.94,
+      "pass": true
+    },
+    {
+      "name": "src --deep / --mint（選択中のタブ）",
+      "fg": "#a94a68",
+      "bg": "#e3f1e7",
       "minimum": 4.5,
-      "ratio": 5.43,
+      "ratio": 4.65,
       "pass": true
     }
   ],

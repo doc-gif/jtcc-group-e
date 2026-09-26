@@ -1,15 +1,29 @@
-/* 配色「さくらミルク」。ピンクの仲間だけで作る。文字色はコントラスト 4.5:1 以上になる濃さに調整。 */
+/*
+ * 配色「さくらミルク」。値はデザインマスター（Figma 267:8198）の変数「Lastpiece v2 / Tokens」(177:16) に合わせる。
+ * 対応と比は design-system/tokens.css・docs/DESIGN.md。
+ * ピンクの文字は2色を使い分ける（担当者の判断、2026-09-26）:
+ *   --primary (#be6482) … 主ボタンの塗りと、枠ボタン・街の場所名の文字。白との比は 3.94:1 なので、
+ *                         文字は --button-size（19px 太字 = WCAG の大きい文字）以上だけに使う。
+ *   --deep (#a94a68)    … それより小さいピンクの文字（見出しの補足、リンク、選択中のタブなど）。白との比 5.43:1。
+ */
 :root {
-  --bg: #FFF9FA;
-  --surface: #FFFFFF;
-  --soft: #FDEEF2;
+  --bg: #FFF9FA;        /* color/bg/canvas */
+  --surface: #FFFFFF;   /* color/bg/surface */
+  --soft: #FDEEF2;      /* color/bg/soft */
   --line: #F5DDE4;
   --head: #F2A7BC;
-  --main: #DE7F9C;
-  --deep: #A94A68;
-  --text: #5C4A50;
-  --sub: #7D646C;
-  --wine: #4A2A36;
+  --main: #DE7F9C;      /* color/accent/rose（飾りと線） */
+  --primary: #BE6482;   /* color/action/primary */
+  --deep: #A94A68;      /* color/accent/wine */
+  --mint: #E3F1E7;      /* color/nav/selected（選択中のタブ・コイン札） */
+  --disabled: #D4DCD7;  /* color/action/disabled */
+  --disabled-line: #D8C9CF; /* color/border/default（無効の枠） */
+  --text: #172324;      /* color/text/primary */
+  --sub: #52615A;       /* color/text/secondary・text/disabled */
+  --wine: var(--text);  /* 旧名。濃い見出しの文字で、値は本文と同じ。Figma の accent/wine は --deep */
+  /* 文字スタイル「Lastpiece v2/Button」19/28。rem なので文字の拡大に追従する */
+  --button-size: 1.1875rem;
+  --button-line: 1.75rem;
   --rg: linear-gradient(120deg, #FBE3D9, #EDB3A3, #FFF1EC, #D98C86);
   --rg-soft: linear-gradient(120deg, #FBE3D9, #F4CBBE, #FFF1EC);
   --pearl: linear-gradient(120deg, #FFFFFF, #F9D4E0, #FFF6F9);
