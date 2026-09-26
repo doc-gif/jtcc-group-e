@@ -34,8 +34,10 @@ test('E2E の指定があれば、設定があっても端末内デモ（実 Sup
   expect(session.makeDemoHostKey).not.toBeNull()
 })
 
-test('設定がない・秘密の鍵の形・http の URL は使わず、端末内デモにする', async () => {
-  for (const [url, key] of [['', ''], [URL_OK, 'sb_secret_should_never_be_here'], [URL_OK, 'eyJhbGciOiJIUzI1NiJ9.legacy'], ['http://example-ref.supabase.co', KEY_OK]]) {
+test('設定がない・秘密の鍵の形・http の URL・壊れた値は使わず、端末内デモにする（例外で落ちない）', async () => {
+  for (const [url, key] of [['', ''], [URL_OK, 'sb_secret_should_never_be_here'], [URL_OK, 'eyJhbGciOiJIUzI1NiJ9.legacy'], ['http://example-ref.supabase.co', KEY_OK],
+    // 回帰（PR #41 のレビュー）: 接頭辞だけ正しい値で new URL が例外を出し、画面が落ちていた
+    ['https://', KEY_OK], [URL_OK, 'sb_publishable_'], ['https://:', KEY_OK]]) {
     vi.stubEnv('VITE_SUPABASE_URL', url)
     vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', key)
     const session = await freshSession()

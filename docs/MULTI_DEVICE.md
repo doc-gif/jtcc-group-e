@@ -8,7 +8,7 @@
 | --- | --- |
 | 設定 | リポジトリの [`.env.production`](../.env.production) に `VITE_SUPABASE_URL`（`https://vfwlulahhjtuqnrjjohd.supabase.co`）と `VITE_SUPABASE_PUBLISHABLE_KEY`（`sb_publishable_…`）だけを置いた。どちらもブラウザに公開する前提の値（Supabase MCP の `get_project_url`・`get_publishable_keys` で取得）。`vite build`（`pnpm check`・`pnpm build`）が読むので、CI・確認用プレビュー・本番（CI の成果物をそのまま公開）のビルドがすべてつながる。ワークフローは変えていない |
 | 秘密の鍵 | secret キー・旧形式の管理者キーは使わない・置かない。`scripts/governance.test.mjs` が `.env.production` のキーの種類と形、`src/` と `.env.production` に秘密の鍵の形がないことを確かめる |
-| 使う場所 | `src/realtime/supabase.ts` の `configuredClient()`・`configuredTransport()`（URL が `https://`、キーが `sb_publishable_` のときだけ）。`src/app/sharedRoom.ts` の `defaultRoomSession()` がルームの画面に渡す |
+| 使う場所 | `src/realtime/supabase.ts` の `configuredClient()`・`configuredTransport()`（`supabaseConfig` が URL は `https://<ホスト>` だけ、キーは `sb_publishable_` の形と確かめたときだけ。壊れた値は例外を出さず端末内デモ）。`src/app/sharedRoom.ts` の `defaultRoomSession()` がルームの画面に渡す |
 | 設定がないとき | 開発サーバー（`pnpm dev`）・単体テスト（vitest）は `.env.production` を読まないので、従来どおり同じブラウザのタブの間だけで動く端末内デモ（画面に「デモ」と明記） |
 | E2E | ビルドは実 Supabase を指すが、`playwright.config.ts` が全ページの `localStorage` に `lastpiece_room_force_demo=1` を入れ、端末内デモにする。`e2e/room.spec.ts` が「テストしている成果物に実 Supabase の URL が入っている」ことと「`*.supabase.co` への要求が 0 件」を確かめる。テストは減らしていない |
 | 本人の識別 | 各端末は Supabase Auth の匿名ログイン（最初の RPC の前に1回だけ。`src/realtime/supabase.ts`）。セッションはその端末のブラウザの `localStorage` に、公開先の URL のパスごとに置く（本番と確認用プレビューは別の人になる） |
@@ -43,10 +43,36 @@
 - 本番・確認用プレビューの URL ごとに別の匿名 ID になる。ホストと参加者は同じ URL（招待リンク）を使う。
 - 本番に出すのは取りまとめ役の指示のとき（[DEPLOYMENT.md](DEPLOYMENT.md)）。
 
+## ブラウザからの実通信で確認したこと（ローカル、2026-09-26）
+
+`*.supabase.co` へ接続できるローカル（Windows）の Claude Code から、Playwright の Chromium で **ブラウザのコンテキストを 4 つに分けて**（Cookie・`localStorage`・匿名ログインが別なので、別々の端末と同じ）確かめた。対象は 2 つで、結果は同じ。
+
+1. `main`（`f71d9ae`）の開発サーバーを、コミットしない `.env.local` で同じ Supabase につないだもの。
+2. この PR の確認用プレビュー（run `36220390928`、SHA `e9a283c`）の `app/`。CI の成果物そのもので、本番の公開にも同じ成果物を使う。
+
+ホスト用キーは担当者のキーを使わず、ローカル検証用のキー（ラベル `local test 2026-09-26`、`lp_host_keys` には salt とハッシュだけ）を別に登録した。検証で作ったルームは終えるたびに `expires_at = now()` で閉じ、キーは本番の確認が終わったら `revoked_at` で無効にする。
+
+| 端末と操作 | 結果 |
+| --- | --- |
+| A がホスト用リンク `#/host/<キー>` を開く | 匿名ログイン → `lp_resume_host` が `no-room` → 「ルームを作る」。アドレスバーからキーが消える。「デモ：…」の注記は出ない |
+| A が「ミオ」で作る | 「あと2人で始められます」。招待リンクは `…/app/#/room/<uuid>` |
+| B「ゆい」・C「さき」が招待リンクから入る | 「みんなの開封ルーム」。C の入室が B の画面に出るまで約 30 秒（ポーリング） |
+| B・C が「抽選に参加する」 | A が「開封の準備ができたよ」「2人 準備完了」になるまで約 12 秒 |
+| A が「開封をはじめる」 | A は「開封まで00:08」の秒読み。B・C は 2〜3 秒で「もうすぐ開封！」に切り替わった（今回は開始直後の取り直しに乗った。最大 15 秒遅れることは変わらない） |
+| 公開時刻 | B・C は同じ秒に「せーので、ひらこう！」→「結果を見る」で自分の結果（説明用ポーチ・説明用缶バッジ）→「みんなの結果を見る」で「みんなのピース」に「2人 開封済み」 |
+| D（4 台目）がホスト用リンクを開く | 「ホストとして戻りました」。席・結果はそのまま（F10 の決定どおり） |
+| その後の A（元のホスト端末） | 席が D に移ったので `lp_snapshot` が `room-unavailable`（HTTP 400）になり、「ルームは終了しました／招待が無効か、期限が切れています」と出る（下の「気づいた点」） |
+
+ページの JS エラーは 0。HTTP の 4xx は上の A の `lp_snapshot`・`lp_resume_host` だけ。画面は 390×844（Pixel 7・iPhone 13 相当）で確認した。
+
+### 気づいた点（この PR では直していない）
+
+- ホストが別の端末で再開したあとの元の端末は、「ルームは終了しました」「招待が無効か、期限が切れています」「新しいルームを作る」と出る。実態は「ホストが別の端末に移った」なので文言が違い、元の端末から新しいルームを作れてしまう。マスターにこの状態の画面はないため、担当者の判断（Figma を先に直す）を待つ。
+- ロビーの人数・準備の反映は 15 秒のポーリングなので、操作によっては 30 秒ほど待つ。Realtime の初期化（担当者の判断待ち）で短くなる。
+
 ## 未確認
 
-- ブラウザからの HTTP 経路（匿名ログイン → `/rest/v1/rpc/lp_*`、`error.hint` の受け取り、ポーリング）を実際の通信で動かしていない。RPC の名前・引数・エラーの扱いは transport の単体テスト（`src/realtime/supabase.test.ts`）で、DB 側の動作は上の SQL で確認した。
-- 実機の 2 台以上・多数端末（最大 100 台）・実 iPhone の遅延と再接続。
+- 実機のスマホ（iOS Safari・Android Chrome）の 2 台以上、多数端末（最大 100 台）、実回線の遅延と再接続。ブラウザからの HTTP 経路（匿名ログイン → `/rest/v1/rpc/lp_*`、ポーリング）は上のローカル確認で通した。`error.hint`（名前の重複の候補）の受け取りは transport の単体テスト（`src/realtime/supabase.test.ts`）だけ。
 - Realtime の起床通知（未初期化のため使っていない）。
 - 匿名ログインの上限の現在値（Dashboard で担当者が確認）。
 
