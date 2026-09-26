@@ -1,4 +1,4 @@
-# F15: ピッチ用の実物グッズ写真の migration と実 Supabase での確認
+# F15: 限定公開アプリの実物グッズ写真の migration と実 Supabase での確認
 
 2026-09-26。担当者の許諾（ピッチ・関係者だけ、実物グッズの写真だけ）で、ルームの結果画面に実物グッズの写真を出すための非公開の置き場所を、専用プロジェクト `lastpiece-pitch`（ref `vfwlulahhjtuqnrjjohd`）に作った。アップロードの手順は [PITCH_PHOTOS.md](PITCH_PHOTOS.md)。作業の宣言は Issue #51（`lock:supabase`）。
 
@@ -37,9 +37,9 @@ migration はクラウドの作業で先に実プロジェクトへ適用され�
 
 - `src/app/pitchPhotos.ts`: 賞品と素材ライブラリ（L001・L015・L011）・バケットの中の名前・権利表記の対応。`usePitchPhoto` は自分の賞品が決まってから1枚だけ読み、賞品が変わる・ルームを離れる・画面を閉じると object URL を取り消す。
 - `src/components/Room.tsx`: 結果の舞台（`267:9379` の Prize hero の位置）で写真を出し、壊れた画像はイラストに戻す。写真を出しているときだけ舞台の下端に権利表記の1行（**Figma 修正待ち**: マスターへの反映は マスターのロック（#71）が空いた後。提案は Town v2 の `task/claude/f15-pitch-photos` `369:8216`）。
-- `src/app/sharedRoom.ts`: Supabase につないだセッションだけに写真の取得元を渡す。端末内デモでは渡されても使わない。
+- `src/app/sharedRoom.ts`: Supabase につないだセッションだけに写真の取得元を渡す。端末内の模擬ルームでは渡されても使わない。
 
 ## 未確認
 
 - 本物の写真のアップロードと、スマホでの表示（担当者が [PITCH_PHOTOS.md](PITCH_PHOTOS.md) の 3 で確かめる）。ブラウザからの `download` の実通信は、写真が 0 件のため「読めないときはイラストのまま」の経路だけが本番で起きる状態。
-- HANDOFF の 7（誰でも入れるデモ用のルーム）を作るときは、`lp_can_view_photos` をピッチの部屋（`kind = 'pitch'`）だけに絞る新しい migration が要る。今の条件のままだと、写真がバケットにある間はデモの部屋の参加者も読める。
+- HANDOFF の 7（誰でも入れる一般公開アプリのルーム）を作るときは、`lp_can_view_photos` を限定公開アプリの部屋（`kind = 'pitch'`）だけに絞る新しい migration が要る。今の条件のままだと、写真がバケットにある間は一般公開アプリの部屋の参加者も読める。
