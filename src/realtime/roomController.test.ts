@@ -34,6 +34,8 @@ function network(inner: RoomTransport, latency = 0) {
       }
       return call(() => inner.start(room, request, expected))
     },
+    schedule: (room, minutes) => call(() => inner.schedule(room, minutes)),
+    setPitchMode: (room, on) => call(() => inner.setPitchMode(room, on)),
     claim: room => call(() => inner.claim(room)),
     leave: room => call(() => inner.leave(room)),
     subscribe: (room, refresh) => {
@@ -61,24 +63,24 @@ test('契約のエラーコードだけを取り出し、生のエラーは表�
   expect(roomErrorCode(new Error('relation "lp_rooms" does not exist'))).toBeNull()
 })
 
-test('40 席で満員を示し、41 人目は日本語の案内を受け取る。既存 ID の復帰は通す', async () => {
+test('100 席で満員を示し、101 人目は上限の数字を含まない日本語の案内を受け取る。既存 ID の復帰は通す', async () => {
   const { server, controller } = setup()
   const host = controller('user-0')
   expect(host.getState().phase).toBe('idle')
   expect(await host.create('ホスト')).toEqual({ ok: true, error: null })
   const { invite } = host.getState().snapshot!
-  expect(host.getState()).toMatchObject({ phase: 'lobby', isHost: true, seats: { taken: 1, capacity: 40, full: false } })
-  for (let i = 1; i < 40; i++) await server.asUser(`user-${i}`).join(invite, `友だち${i}`)
+  expect(host.getState()).toMatchObject({ phase: 'lobby', isHost: true, seats: { taken: 1, capacity: 100, full: false } })
+  for (let i = 1; i < 100; i++) await server.asUser(`user-${i}`).join(invite, `友だち${i}`)
   await vi.advanceTimersByTimeAsync(0)
   // 購読の通知だけで再取得する（ポーリングを待たない）。
-  expect(host.getState().seats).toEqual({ taken: 40, capacity: 40, full: true })
+  expect(host.getState().seats).toEqual({ taken: 100, capacity: 100, full: true })
 
-  const late = controller('user-40')
-  const refused = await late.join(invite, '41人目')
-  expect(refused).toEqual({ ok: false, error: { code: 'room-full', message: 'このルームは40人で満員です。' } })
+  const late = controller('user-100')
+  const refused = await late.join(invite, '101人目')
+  expect(refused).toEqual({ ok: false, error: { code: 'room-full', message: 'このルームは満員です。' } })
   expect(late.getState().phase).toBe('idle')
 
-  const back = controller('user-39')
+  const back = controller('user-99')
   expect((await back.join(invite, '復帰')).ok).toBe(true)
   expect(back.getState()).toMatchObject({ phase: 'lobby', isHost: false, canStart: false, startBlockedBy: 'host-required' })
 
@@ -233,7 +235,7 @@ test('購読に失敗してもポーリングで更新し、期限切れで止�
   await vi.advanceTimersByTimeAsync(0)
   expect(host.getState().members).toHaveLength(1)
   await vi.advanceTimersByTimeAsync(ROOM_POLL_MS)
-  expect(host.getState()).toMatchObject({ phase: 'lobby', seats: { taken: 2, capacity: 40, full: false } })
+  expect(host.getState()).toMatchObject({ phase: 'lobby', seats: { taken: 2, capacity: 100, full: false } })
 
   await vi.advanceTimersByTimeAsync(2 * 60 * 60_000)
   expect(host.getState().phase).toBe('unavailable')
@@ -248,4 +250,109 @@ test('退室すると最初の状態に戻り、タイマーを残さない', as
   expect(await host.leave()).toEqual({ ok: true, error: null })
   expect(host.getState()).toMatchObject({ phase: 'idle', roomId: null, snapshot: null })
   expect(vi.getTimerCount()).toBe(0)
+})
+
+test('予約した開始時刻まで補正した秒読みを出し、ホストが不在でも時刻になれば始まる', async () => {
+  const skew = 30_000
+  const { server, controller } = setup(skew)
+  const host = controller('host')
+  await host.create('ホスト')
+  const friend = controller('friend')
+  await friend.join(host.getState().snapshot!.invite, '友だち')
+  await friend.setReady(true)
+  await host.setReady(true)
+  expect(host.getState()).toMatchObject({ canSchedule: true, scheduleOptions: [1, 3, 5, 10], scheduledAt: null, secondsToScheduled: null })
+  expect(friend.getState()).toMatchObject({ canSchedule: false, scheduleOptions: [] })
+  expect((await friend.schedule(1)).error).toEqual({ code: 'host-required', message: '開始できるのはホストだけです。' })
+
+  expect((await host.schedule(3)).ok).toBe(true)
+  expect((await host.schedule(1)).ok).toBe(true)
+  await vi.advanceTimersByTimeAsync(0)
+  const scheduledAt = host.getState().scheduledAt!
+  expect(Date.parse(scheduledAt)).toBe(Date.now() + skew + 60_000)
+  // 端末の時計が 30 秒遅れていても、サーバー時刻で数える。
+  expect(friend.getState()).toMatchObject({ scheduledAt, secondsToScheduled: 60, serverOffset: skew, phase: 'ready' })
+
+  // ホストはここで通信が途切れる（タブを閉じた）。
+  host.detach()
+  // ポーリングの周期を予約の時刻からずらし、予約の時刻での再取得だけで始まることを確かめる。
+  await vi.advanceTimersByTimeAsync(7_000)
+  await friend.refresh()
+  expect(friend.getState().secondsToScheduled).toBe(53)
+  await vi.advanceTimersByTimeAsync(23_000)
+  expect(friend.getState().secondsToScheduled).toBe(30)
+  await vi.advanceTimersByTimeAsync(29_000)
+  expect(friend.getState()).toMatchObject({ secondsToScheduled: 1, phase: 'ready' })
+  await vi.advanceTimersByTimeAsync(1_000)
+  expect(friend.getState()).toMatchObject({ secondsToScheduled: 0, phase: 'ready' })
+  expect(friend.getState().snapshot?.roundNo).toBe(0)
+
+  // 予約の直後の再取得で、サーバーが開始する（オンラインで準備済みの人だけが対象）。
+  await vi.advanceTimersByTimeAsync(250)
+  expect(friend.getState()).toMatchObject({
+    phase: 'countdown', secondsLeft: 8, balance: 2500, scheduledAt: null, secondsToScheduled: null,
+    lastSchedule: { status: 'started', scheduledAt, roundNo: 1 }, scheduleNotice: null, roundGuaranteed: false,
+  })
+  expect(friend.getState().members.find(member => member.id === 'host')?.online).toBe(false)
+  expect(Date.parse(friend.getState().round!.startsAt) - Date.parse(scheduledAt)).toBeGreaterThanOrEqual(8_000)
+  await vi.advanceTimersByTimeAsync(8_500)
+  expect(friend.getState()).toMatchObject({ phase: 'results', myPrize: 'plush' })
+  expect(friend.getState().round?.results).toHaveLength(1)
+  expect((await server.asUser('host').snapshot(host.getState().snapshot!.id)).balance).toBe(3000)
+})
+
+test('予約の変更・取り消し・期限の上限、時刻に誰も準備していなかった理由を出す', async () => {
+  const { controller } = setup()
+  const host = controller('host')
+  await host.create('ホスト')
+  await host.schedule(5)
+  expect(host.getState().secondsToScheduled).toBe(300)
+  await host.schedule(null)
+  expect(host.getState()).toMatchObject({ scheduledAt: null, secondsToScheduled: null, lastSchedule: { status: 'cancelled' }, scheduleNotice: null })
+
+  await host.schedule(1)
+  await vi.advanceTimersByTimeAsync(60_250)
+  expect(host.getState()).toMatchObject({
+    phase: 'lobby', scheduledAt: null,
+    scheduleNotice: { code: 'nobody-ready', message: '予定の時刻に準備OKの人がいなかったため、開始しませんでした。' },
+  })
+  // 次の予約で案内は消える。
+  await host.schedule(1)
+  expect(host.getState().scheduleNotice).toBeNull()
+  await host.schedule(null)
+
+  // ルームの期限（作成から 2 時間）の 1 分前を超える時間は選べない。
+  await vi.advanceTimersByTimeAsync(2 * 60 * 60_000 - 60_000 - 61_000 - 5 * 60_000)
+  expect(host.getState().scheduleOptions).toEqual([1, 3, 5])
+  await vi.advanceTimersByTimeAsync(150_000)
+  expect(host.getState().scheduleOptions).toEqual([1])
+  const refused = await host.schedule(10)
+  expect(refused.error).toEqual({ code: 'invalid-schedule', message: '開始の時間を選び直してください（1・3・5・10分後、ルームの期限の1分前まで）。' })
+  expect(host.getState().scheduledAt).toBeNull()
+})
+
+test('ピッチモードと目玉の確定を全員の状態に出す', async () => {
+  const { controller } = setup()
+  const host = controller('host')
+  await host.create('ホスト')
+  const friend = controller('friend')
+  await friend.join(host.getState().snapshot!.invite, '友だち')
+  expect(friend.getState()).toMatchObject({ pitchMode: false, canSetPitchMode: false })
+  expect((await friend.setPitchMode(true)).error?.code).toBe('host-required')
+  expect(host.getState().canSetPitchMode).toBe(true)
+  expect((await host.setPitchMode(true)).ok).toBe(true)
+  await vi.advanceTimersByTimeAsync(0)
+  expect(friend.getState().pitchMode).toBe(true)
+
+  await friend.setReady(true)
+  await host.start()
+  await vi.advanceTimersByTimeAsync(0)
+  expect(friend.getState()).toMatchObject({ phase: 'countdown', roundGuaranteed: true, myPrize: null })
+  expect(friend.getState().round?.results).toBeNull()
+  await vi.advanceTimersByTimeAsync(8_500)
+  expect(friend.getState()).toMatchObject({ phase: 'results', roundGuaranteed: true, myPrize: 'plush' })
+
+  await host.setPitchMode(false)
+  await vi.advanceTimersByTimeAsync(0)
+  expect(friend.getState()).toMatchObject({ pitchMode: false, roundGuaranteed: true })
 })

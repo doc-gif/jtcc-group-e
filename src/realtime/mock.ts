@@ -1,15 +1,16 @@
 import {
-  RoomContractError, SHARED_CAPACITY, SHARED_ONLINE_WINDOW_MS, SHARED_PRICE,
-  SHARED_ROUND_LOCK_MS, SHARED_START_DELAY_MS,
-  type RoomTransport, type SharedPrize, type Snapshot,
+  RoomContractError, SHARED_CAPACITY, SHARED_INITIAL_STOCK, SHARED_ONLINE_WINDOW_MS, SHARED_PRICE,
+  SHARED_ROUND_LOCK_MS, SHARED_SCHEDULE_EXPIRY_MARGIN_MS, SHARED_SCHEDULE_MINUTES, SHARED_START_DELAY_MS, SHARED_TOP_PRIZE,
+  type RoomErrorCode, type RoomTransport, type ScheduleOutcome, type SharedPrize, type Snapshot,
 } from './protocol'
 
 type MockMember = { id: string; nickname: string; balance: number; ready: boolean; active: boolean; seenAt: number }
 type MockResult = { userId: string; nickname: string; prize: SharedPrize }
-type MockRound = { number: number; request: string; startsAt: number; nextReadyAt: number; results: MockResult[] }
+type MockRound = { number: number; request: string; startsAt: number; nextReadyAt: number; results: MockResult[]; guaranteed: boolean }
 type MockRoom = {
   id: string; invite: string; host: string; expiresAt: number; roundNo: number
   members: Map<string, MockMember>; stock: Record<SharedPrize, number>; round: MockRound | null; rounds: MockRound[]
+  scheduledAt: number | null; pitchMode: boolean; lastSchedule: ScheduleOutcome | null
 }
 
 /** One-device simulation only. Each asUser() adapter obeys the same RoomTransport contract as Supabase. */
@@ -25,6 +26,65 @@ export class MockRoomServer {
     random: () => number = () => Math.random(),
   ) { this.now = now; this.id = id; this.random = random }
 
+  private wake(roomId: string) { this.listeners.get(roomId)?.forEach(listener => listener()) }
+
+  /** All-or-nothing draw, like lp_draw: nothing changes unless every entrant gets a prize. */
+  private draw(room: MockRoom, request: string) {
+    const now = this.now()
+    if (room.round && room.round.nextReadyAt > now) throw new RoomContractError('round-active')
+    const entrants = [...room.members.values()].filter(member => member.active && member.ready && member.seenAt > now - SHARED_ONLINE_WINDOW_MS)
+    if (!entrants.length) throw new RoomContractError('nobody-ready')
+    const available = Object.values(room.stock).reduce((sum, n) => sum + n, 0)
+    if (available < entrants.length) throw new RoomContractError('sold-out')
+    if (entrants.some(member => member.balance < SHARED_PRICE)) throw new RoomContractError('insufficient-coins')
+    const stock = { ...room.stock }
+    // Pitch mode reserves one real top prize for one entrant chosen uniformly, before anyone else draws.
+    const lucky = room.pitchMode && stock[SHARED_TOP_PRIZE] > 0 ? entrants[Math.floor(this.random() * entrants.length)] : null
+    if (lucky) stock[SHARED_TOP_PRIZE]--
+    const results: MockResult[] = []
+    for (const member of entrants) {
+      let selected: SharedPrize | null = member === lucky ? SHARED_TOP_PRIZE : null
+      if (!selected) {
+        const total = Object.values(stock).reduce((sum, n) => sum + n, 0)
+        let pick = Math.floor(this.random() * total)
+        for (const prize of Object.keys(stock) as SharedPrize[]) {
+          if (pick < stock[prize]) { selected = prize; break }
+          pick -= stock[prize]
+        }
+        if (!selected) throw new RoomContractError('sold-out')
+        stock[selected]--
+      }
+      results.push({ userId: member.id, nickname: member.nickname, prize: selected })
+    }
+    const startsAt = now + SHARED_START_DELAY_MS
+    room.stock = stock
+    room.roundNo++
+    room.round = { number: room.roundNo, request, startsAt, nextReadyAt: startsAt + SHARED_ROUND_LOCK_MS, results, guaranteed: lucky !== null }
+    room.rounds.push(room.round)
+    room.scheduledAt = null
+    for (const member of room.members.values()) member.ready = false
+    for (const member of entrants) member.balance -= SHARED_PRICE
+  }
+
+  /** Like lp_fire_schedule: the first snapshot at or after scheduledAt starts the round once. */
+  private fireSchedule(room: MockRoom) {
+    const at = room.scheduledAt
+    if (at === null || at > this.now()) return
+    room.scheduledAt = null
+    const request = `schedule:${at}`
+    if (room.rounds.some(round => round.request === request)) return
+    const scheduledAt = new Date(at).toISOString()
+    try {
+      this.draw(room, request)
+      room.lastSchedule = { status: 'started', scheduledAt, roundNo: room.roundNo }
+    } catch (caught) {
+      const code: RoomErrorCode | null = caught instanceof RoomContractError ? caught.code : null
+      const status = code === 'nobody-ready' || code === 'sold-out' || code === 'insufficient-coins' ? code : 'failed'
+      room.lastSchedule = { status, scheduledAt, roundNo: null }
+    }
+    this.wake(room.id)
+  }
+
   asUser(userId: string): RoomTransport {
     if (!userId) throw new RoomContractError('auth-required')
     const current = (roomId: string) => {
@@ -32,15 +92,23 @@ export class MockRoomServer {
       if (!room || room.expiresAt <= this.now() || !room.members.get(userId)?.active) throw new RoomContractError('room-unavailable')
       return room
     }
+    const hosted = (roomId: string) => {
+      const room = current(roomId)
+      if (room.host !== userId) throw new RoomContractError('host-required')
+      return room
+    }
     const snapshot = (roomId: string): Snapshot => {
       const room = current(roomId)
       const now = this.now()
       const self = room.members.get(userId)!
       self.seenAt = now
+      this.fireSchedule(room)
       const pending = room.round !== null && now < room.round.startsAt
       return {
         id: room.id, invite: room.invite, host: room.host, expiresAt: new Date(room.expiresAt).toISOString(),
         serverTime: new Date(now).toISOString(), self: userId, balance: self.balance, roundNo: room.roundNo,
+        scheduledAt: room.scheduledAt === null ? null : new Date(room.scheduledAt).toISOString(),
+        pitchMode: room.pitchMode, lastSchedule: room.lastSchedule && { ...room.lastSchedule },
         myResults: room.rounds.filter(round => round.startsAt <= now).flatMap(round => round.results.filter(result => result.userId === userId).map(result => ({ roundNo: round.number, prize: result.prize }))),
         members: [...room.members.values()].filter(member => member.active).map(member => ({
           id: member.id, nickname: member.nickname, ready: member.ready,
@@ -49,12 +117,12 @@ export class MockRoomServer {
         stock: pending ? null : (Object.entries(room.stock) as [SharedPrize, number][]).map(([prize, remaining]) => ({ prize, remaining })),
         round: room.round && {
           number: room.round.number, startsAt: new Date(room.round.startsAt).toISOString(),
-          nextReadyAt: new Date(room.round.nextReadyAt).toISOString(),
+          nextReadyAt: new Date(room.round.nextReadyAt).toISOString(), guaranteed: room.round.guaranteed,
           results: pending ? null : room.round.results.map(result => ({ ...result })),
         },
       }
     }
-    const wake = (roomId: string) => this.listeners.get(roomId)?.forEach(listener => listener())
+    const wake = (roomId: string) => this.wake(roomId)
     const validName = (name: string) => {
       const clean = name?.trim()
       if (!clean || [...clean].length > 12) throw new RoomContractError('invalid-name')
@@ -75,7 +143,7 @@ export class MockRoomServer {
         const room: MockRoom = {
           id: request, invite: this.id(), host: userId, expiresAt: this.now() + 2 * 60 * 60_000,
           roundNo: 0, members: new Map([[userId, { id: userId, nickname, balance: 3000, ready: false, active: true, seenAt: this.now() }]]),
-          stock: { plush: 10, pouch: 30, badge: 60 }, round: null, rounds: [],
+          stock: { ...SHARED_INITIAL_STOCK }, round: null, rounds: [], scheduledAt: null, pitchMode: false, lastSchedule: null,
         }
         this.rooms.set(request, room)
         return snapshot(request)
@@ -106,38 +174,38 @@ export class MockRoomServer {
       start: async (roomId, request, expected) => {
         if (!request) throw new RoomContractError('invalid-request')
         if (!Number.isInteger(expected) || expected < 0) throw new RoomContractError('invalid-round')
-        const room = current(roomId)
-        if (room.host !== userId) throw new RoomContractError('host-required')
+        const room = hosted(roomId)
         if (room.rounds.some(round => round.request === request)) return snapshot(roomId)
         if (room.roundNo !== expected) throw new RoomContractError('stale-round')
-        assertIdle(room)
-        const entrants = [...room.members.values()].filter(member => member.active && member.ready && member.seenAt > this.now() - SHARED_ONLINE_WINDOW_MS)
-        if (!entrants.length) throw new RoomContractError('nobody-ready')
-        const available = Object.values(room.stock).reduce((sum, n) => sum + n, 0)
-        if (available < entrants.length) throw new RoomContractError('sold-out')
-        if (entrants.some(member => member.balance < SHARED_PRICE)) throw new RoomContractError('insufficient-coins')
-        const stock = { ...room.stock }
-        const results: MockResult[] = []
-        for (const member of entrants) {
-          const total = Object.values(stock).reduce((sum, n) => sum + n, 0)
-          let pick = Math.floor(this.random() * total)
-          let selected: SharedPrize | null = null
-          for (const prize of Object.keys(stock) as SharedPrize[]) {
-            if (pick < stock[prize]) { selected = prize; break }
-            pick -= stock[prize]
-          }
-          if (!selected) throw new RoomContractError('sold-out')
-          stock[selected]--
-          results.push({ userId: member.id, nickname: member.nickname, prize: selected })
-        }
-        const startsAt = this.now() + SHARED_START_DELAY_MS
-        room.stock = stock
-        room.roundNo++
-        room.round = { number: room.roundNo, request, startsAt, nextReadyAt: startsAt + SHARED_ROUND_LOCK_MS, results }
-        room.rounds.push(room.round)
-        for (const member of room.members.values()) member.ready = false
-        for (const member of entrants) member.balance -= SHARED_PRICE
+        this.draw(room, request)
+        // Starting now replaces any schedule.
+        room.lastSchedule = null
         wake(roomId)
+        return snapshot(roomId)
+      },
+      schedule: async (roomId, minutes) => {
+        const room = hosted(roomId)
+        if (minutes === null) {
+          if (room.scheduledAt !== null) {
+            room.lastSchedule = { status: 'cancelled', scheduledAt: new Date(room.scheduledAt).toISOString(), roundNo: null }
+            room.scheduledAt = null
+            wake(roomId)
+          }
+          return snapshot(roomId)
+        }
+        if (!(SHARED_SCHEDULE_MINUTES as readonly number[]).includes(minutes)) throw new RoomContractError('invalid-schedule')
+        assertIdle(room)
+        const at = this.now() + minutes * 60_000
+        if (at > room.expiresAt - SHARED_SCHEDULE_EXPIRY_MARGIN_MS) throw new RoomContractError('invalid-schedule')
+        room.scheduledAt = at
+        room.lastSchedule = null
+        wake(roomId)
+        return snapshot(roomId)
+      },
+      setPitchMode: async (roomId, on) => {
+        const room = hosted(roomId)
+        if (typeof on !== 'boolean') throw new RoomContractError('invalid-request')
+        if (room.pitchMode !== on) { room.pitchMode = on; wake(roomId) }
         return snapshot(roomId)
       },
       claim: async roomId => {

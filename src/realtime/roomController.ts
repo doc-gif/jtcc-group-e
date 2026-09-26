@@ -1,6 +1,8 @@
 import {
-  errorMessage, RoomContractError, SHARED_CAPACITY, SHARED_PRICE, secondsUntil, serverOffset,
-  type Member, type RoomErrorCode, type RoomTransport, type Round, type SharedPrize, type Snapshot,
+  errorMessage, RoomContractError, SHARED_CAPACITY, SHARED_PRICE, SHARED_SCHEDULE_EXPIRY_MARGIN_MS, SHARED_SCHEDULE_MINUTES,
+  scheduleMessage, secondsUntil, serverOffset,
+  type Member, type RoomErrorCode, type RoomTransport, type Round, type ScheduleMinutes, type ScheduleOutcome,
+  type SharedPrize, type Snapshot,
 } from './protocol'
 
 /** 接続中のポーリング間隔。契約の上限 20 秒より短くし、SQL の 10 秒間隔の heartbeat と両立させる。 */
@@ -14,6 +16,7 @@ const ERROR_CODES = Object.keys({
   'auth-required': true, 'invalid-request': true, 'invalid-name': true, 'invalid-ready': true, 'invalid-round': true,
   'room-full': true, 'room-unavailable': true, 'host-required': true, 'host-online': true,
   'round-active': true, 'nobody-ready': true, 'sold-out': true, 'insufficient-coins': true, 'stale-round': true,
+  'invalid-schedule': true,
 } satisfies Record<RoomErrorCode, true>) as RoomErrorCode[]
 
 /** 契約の失敗コードを取り出す。通信や SQL の想定外エラーは null（画面には一般的な文言だけを出す）。 */
@@ -61,7 +64,7 @@ export interface RoomControllerOptions {
 export type RoomPhase =
   | 'idle' | 'connecting' | 'lobby' | 'ready' | 'countdown' | 'opening' | 'results' | 'cooldown'
   | 'unavailable' | 'reconnecting'
-export type RoomAction = 'create' | 'join' | 'ready' | 'start' | 'claim' | 'leave'
+export type RoomAction = 'create' | 'join' | 'ready' | 'start' | 'schedule' | 'pitch' | 'claim' | 'leave'
 export interface RoomNotice { code: RoomErrorCode | null; message: string }
 /** error が null の失敗は、別の操作の処理中で送信しなかったことを表す。 */
 export type RoomResult = { ok: true; error: null } | { ok: false; error: RoomNotice | null }
@@ -75,6 +78,7 @@ export interface RoomState {
   self: Member | null
   members: Member[]
   isHost: boolean
+  /** 画面には taken だけを「N人が集まっています」として出す。capacity は内部の上限で表示しない。 */
   seats: { taken: number; capacity: number; full: boolean }
   /** 契約の開始条件に数える人数（ホストを含む、オンラインで準備済み）。 */
   readyOnline: number
@@ -94,6 +98,22 @@ export interface RoomState {
   myResults: MyResult[]
   /** まだ確認していない公開済みの自分の結果（再接続後の回収用）。 */
   unseenResults: MyResult[]
+  /** ホストが予約した開始時刻（サーバー UTC）。予約がなければ null。 */
+  scheduledAt: string | null
+  /** scheduledAt までの秒数（serverOffset で補正）。予約がなければ null。 */
+  secondsToScheduled: number | null
+  /** 今選べる「◯分後に開始」。ルームの期限の 1 分前を超えるものは除く。ホスト以外は空。 */
+  scheduleOptions: ScheduleMinutes[]
+  /** ホストが予約・変更・取り消しできるか。 */
+  canSchedule: boolean
+  /** ピッチモード（各ラウンドで 1 人に目玉を確定）がオンか。全員に見せる。 */
+  pitchMode: boolean
+  canSetPitchMode: boolean
+  /** 最新ラウンドで目玉の確定枠を使ったか。目玉が売り切れのときは false（通常の抽選）。 */
+  roundGuaranteed: boolean
+  lastSchedule: ScheduleOutcome | null
+  /** 予定の時刻に開始できなかった理由（次の予約か今すぐ開始で消える）。 */
+  scheduleNotice: RoomNotice | null
   serverOffset: number
   busy: RoomAction | null
   error: RoomNotice | null
@@ -114,6 +134,10 @@ export interface RoomController {
   open(roomId: string): Promise<void>
   setReady(ready: boolean): Promise<RoomResult>
   start(): Promise<RoomResult>
+  /** ホストだけ。1・3・5・10 分後に開始を予約する。null で取り消す。ホストが不在でも時刻になれば始まる。 */
+  schedule(minutes: ScheduleMinutes | null): Promise<RoomResult>
+  /** ホストだけ。ピッチモードを切り替える。次に始まるラウンドから効く。 */
+  setPitchMode(on: boolean): Promise<RoomResult>
   claimHost(): Promise<RoomResult>
   leave(): Promise<RoomResult>
   refresh(): Promise<void>
@@ -187,6 +211,11 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
 
     const startBlockedBy = !isHost ? 'host-required' : locked ? 'round-active' : readyOnline < 1 ? 'nobody-ready' : null
     const balance = snap?.balance ?? null
+    const scheduledAt = snap?.scheduledAt ?? null
+    const lastSchedule = snap?.lastSchedule ?? null
+    const expiresAt = snap ? Date.parse(snap.expiresAt) : 0
+    const noticeText = lastSchedule && !scheduledAt ? scheduleMessage(lastSchedule.status) : null
+    const noticeCode = lastSchedule?.status
     return {
       phase, roomId, snapshot: snap, self, members, isHost,
       seats: { taken: members.length, capacity: SHARED_CAPACITY, full: members.length >= SHARED_CAPACITY },
@@ -197,7 +226,20 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       canClaim: live && busy === null && self !== null && !isHost && !host?.online,
       secondsLeft, round,
       myPrize: round?.results?.find(result => result.userId === snap?.self)?.prize ?? null,
-      myResults, unseenResults, serverOffset: offset, busy, error,
+      myResults, unseenResults,
+      scheduledAt,
+      secondsToScheduled: scheduledAt ? secondsUntil(scheduledAt, now, offset) : null,
+      scheduleOptions: isHost ? SHARED_SCHEDULE_MINUTES.filter(minutes => serverNow + minutes * 60_000 <= expiresAt - SHARED_SCHEDULE_EXPIRY_MARGIN_MS) : [],
+      canSchedule: live && busy === null && isHost && !locked,
+      pitchMode: snap?.pitchMode ?? false,
+      canSetPitchMode: live && busy === null && isHost,
+      roundGuaranteed: round?.guaranteed ?? false,
+      lastSchedule,
+      scheduleNotice: noticeText === null ? null : {
+        code: noticeCode === 'nobody-ready' || noticeCode === 'sold-out' || noticeCode === 'insufficient-coins' ? noticeCode : null,
+        message: noticeText,
+      },
+      serverOffset: offset, busy, error,
     }
   }
 
@@ -226,9 +268,18 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       return
     }
     after(lastSyncAt + ROOM_POLL_MS - now, () => void sync())
+    const serverNow = now + offset
+    const scheduledAt = snapshot?.scheduledAt
+    if (scheduledAt) {
+      // 予約の時刻の直後に取り直す。この snapshot がサーバーで開始を実行する（ホストが不在でも）。
+      const at = Date.parse(scheduledAt)
+      const due = at + ROOM_REVEAL_MARGIN_MS - serverNow
+      after(due > 0 ? due : 1000, () => void sync())
+      const remaining = at - serverNow
+      if (remaining > 0) after(remaining % 1000 || 1000, emit)
+    }
     const round = snapshot?.round
     if (!round) return
-    const serverNow = now + offset
     const startsAt = Date.parse(round.startsAt)
     // 公開時刻の直後に取り直す。過ぎても未公開なら、サーバーの時刻に追いつくまで 1 秒ごとに取り直す。
     const reveal = startsAt + ROOM_REVEAL_MARGIN_MS - serverNow
@@ -414,6 +465,16 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       return perform('start', () => transport.start(room, request, expected), {
         failure: code => { if (code !== null) pendingStart = null },
       })
+    },
+    schedule(minutes) {
+      const room = requireRoom()
+      if (!room) return Promise.resolve({ ok: false, error: null })
+      return perform('schedule', () => transport.schedule(room, minutes))
+    },
+    setPitchMode(on) {
+      const room = requireRoom()
+      if (!room) return Promise.resolve({ ok: false, error: null })
+      return perform('pitch', () => transport.setPitchMode(room, on))
     },
     claimHost() {
       const room = requireRoom()
