@@ -3,11 +3,13 @@ import './App.css'
 import { AppProvider } from './app/AppProvider'
 import { useRoute, type Route } from './app/router'
 import { Collection } from './screens/Collection'
+import { FriendItem, FriendShelf } from './screens/Friend'
 import { GachaDetail } from './screens/GachaDetail'
 import { GachaList } from './screens/GachaList'
 import { Me } from './screens/Me'
 import { NotFound } from './screens/NotFound'
 import { Room } from './screens/Room'
+import { Shelf, ShelfItemScreen, ShelfShare } from './screens/Shelf'
 import { Spin } from './screens/Spin'
 import { Together } from './screens/Together'
 import { Town } from './screens/Town'
@@ -22,6 +24,11 @@ function Screen({ route }: { route: Route }) {
     case 'spin': return <Spin id={route.id} mode="solo" />
     case 'room': return route.spin ? <Spin id={route.code} mode="room" /> : <Room code={route.code} />
     case 'collection': return <Collection />
+    case 'shelf': return <Shelf />
+    case 'shelfShare': return <ShelfShare />
+    case 'shelfItem': return <ShelfItemScreen id={route.id} />
+    case 'friend': return <FriendShelf id={route.id} />
+    case 'friendItem': return <FriendItem id={route.id} item={route.item} />
     case 'together': return <Together />
     case 'me': return <Me />
     default: return <NotFound />
