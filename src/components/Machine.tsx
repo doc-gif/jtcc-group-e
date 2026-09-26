@@ -11,15 +11,17 @@ interface Props {
   price: number
   angle: number
   className: string
-  onPointerDown: PointerEventHandler<SVGSVGElement>
-  onPointerMove: PointerEventHandler<SVGSVGElement>
-  onPointerUp: PointerEventHandler<SVGSVGElement>
+  /** 読み上げの名前。回せない場面（回す前の確認・売り切れ）では、その状態を伝える。 */
+  label?: string
+  onPointerDown?: PointerEventHandler<SVGSVGElement>
+  onPointerMove?: PointerEventHandler<SVGSVGElement>
+  onPointerUp?: PointerEventHandler<SVGSVGElement>
 }
 
 /** ガチャガチャの筐体。1 回転ごとにリボン・花・羽が加わる。ハンドルは指でなぞって回す。 */
-export function Machine({ ref, price, angle, className, onPointerDown, onPointerMove, onPointerUp }: Props) {
+export function Machine({ ref, price, angle, className, label = 'ガチャガチャ。ハンドルを指でなぞって回します', onPointerDown, onPointerMove, onPointerUp }: Props) {
   return (
-    <svg ref={ref} className={`machine ${className}`} viewBox="0 0 260 370" role="img" aria-label="ガチャガチャ。ハンドルを指でなぞって回します"
+    <svg ref={ref} className={`machine ${className}`} viewBox="0 0 260 370" role="img" aria-label={label}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} onPointerLeave={onPointerUp}>
       <defs>
         <radialGradient id="m-glass" cx=".35" cy=".3" r=".8"><stop offset="0" stopColor="#fff" /><stop offset="1" stopColor="#FDE9EF" /></radialGradient>

@@ -1,0 +1,109 @@
+/* ===== ガチャの流れ（T08・マスター 267:8266〜267:8461）=====
+ * 文字とボタンの色は src/index.css のトークンと共通のボタンクラスだけを使う（マスターの配色への切り替えは F06 でまとめて行う）。
+ * ここに直接書く色は、カプセルの絵・光る縁（ローズゴールド・パール）の飾りと、確定演出の暗い背景の上の白文字（既存の App.css と同じ）だけ。 */
+
+/* ガチャ詳細（267:8279）：目玉の候補 */
+.gacha-feature {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 0.9rem;
+}
+.gacha-feature .goods-lg { width: 8rem; height: 8rem; }
+.gacha-feature-text { flex: 1 1 9rem; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.gacha-feature-kicker { font-size: 0.875rem; font-weight: 700; color: var(--deep); }
+.gacha-feature-name { font-size: 1.125rem; font-weight: 800; color: var(--text); line-height: 1.45; overflow-wrap: anywhere; }
+.gacha-feature-odds { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 0.5rem; font-size: 0.875rem; font-weight: 700; color: var(--deep); }
+.gacha-feature-odds b { font-size: 1.375rem; font-variant-numeric: tabular-nums; }
+
+/* 支払う金額（詳細 267:8279・回す前 267:8335） */
+.pay-card { display: flex; flex-direction: column; gap: 0.3rem; background: var(--soft); border-radius: 18px; padding: 0.9rem 1rem; }
+.pay-kicker { font-size: 1.0625rem; font-weight: 800; color: var(--text); }
+.pay-price, .pay-need { font-size: 1.0625rem; font-weight: 700; color: var(--deep); }
+.pay-price b { font-size: 1.625rem; font-variant-numeric: tabular-nums; margin-right: 0.15rem; }
+.pay-need b { font-size: 1.375rem; font-variant-numeric: tabular-nums; }
+.pay-balance { font-size: 1.0625rem; color: var(--text); font-variant-numeric: tabular-nums; }
+/* 残りバーは横並び用に flex-basis を持つので、縦に積むカードでは高さを取らせない */
+.pay-card .remain { flex: none; max-width: none; text-align: left; margin-top: 0.25rem; }
+.detail-note { font-size: 0.9375rem; font-weight: 700; color: var(--deep); background: var(--surface); border: 1px solid var(--main); border-radius: 12px; padding: 0.6rem 0.8rem; }
+.detail-note a { display: inline-flex; align-items: center; color: var(--deep); }
+.detail-actions { display: grid; gap: 0.5rem; }
+
+/* 中身と確率（267:8299） */
+.odds-table { width: 100%; border-collapse: separate; border-spacing: 0 0.4rem; margin-top: -0.4rem; }
+.odds-table tr > * { padding: 0.6rem 0.9rem; line-height: 1.45; }
+.odds-table th { text-align: left; font-weight: 700; font-size: 1rem; color: var(--text); border-radius: 12px 0 0 12px; overflow-wrap: anywhere; }
+.odds-table th small { display: block; font-size: 0.8125rem; font-weight: 500; color: var(--sub); }
+.odds-table td { text-align: right; white-space: nowrap; font-weight: 800; font-size: 1.0625rem; color: var(--deep); font-variant-numeric: tabular-nums; border-radius: 0 12px 12px 0; }
+.odds-table tbody tr:nth-child(odd) > * { background: var(--soft); }
+.odds-table tbody tr:nth-child(even) > * { background: var(--surface); }
+/* 等級の文字は出さず、光り方（ローズゴールド・パール）の縁で見分ける */
+.odds-table tr.glow-featured th { box-shadow: inset 5px 0 0 #EDB3A3; }
+.odds-table tr.glow-sparkle th { box-shadow: inset 5px 0 0 #F2A7BC; }
+.odds-table tr.is-out > * { color: var(--sub); }
+
+/* 回す前（267:8335） */
+.spin-screen.is-confirm .machine-wrap { width: min(100%, 13rem); }
+.confirm-title { font-size: 1.5rem; font-weight: 800; color: var(--text); line-height: 1.4; }
+.confirm-lead { color: var(--sub); }
+
+/* ハンドルを回す（267:8348 / 8361 / 8374） */
+.turn-count { font-size: 1.5rem; font-weight: 800; color: var(--text); line-height: 1.4; }
+.turn-bars { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0.6rem; }
+.turn-bars span { display: block; height: 0.35rem; border-radius: 99px; background: var(--line); }
+.turn-bars span.on { background: var(--deep); }
+.spin-content .spin-lead { text-align: left; font-weight: 500; }
+.spin-screen.is-kakutei .turn-count { color: #fff; }
+.spin-screen.is-kakutei .turn-bars span { background: rgba(255, 255, 255, 0.35); }
+.spin-screen.is-kakutei .turn-bars span.on { background: #fff; }
+
+/* カプセルをひらく（267:8387 / 8404 / 8421） */
+/* 中身が画面より高い（文字200%・横向き）ときに上が切れて戻れないので、中央寄せは margin で行う */
+.open-scene { justify-content: flex-start; }
+.open-scene > .open-stage, .open-scene > .prize-reveal { margin-block: auto; flex: none; }
+.open-stage { width: min(100%, 24rem); display: flex; flex-direction: column; gap: 0.6rem; }
+.open-stage .open-title { font-family: inherit; font-weight: 800; color: var(--text); }
+.open-step { font-size: 1.5rem; font-weight: 800; color: var(--text); line-height: 1.4; }
+.open-sub { font-size: 1.0625rem; color: var(--text); }
+.open-stage .open-msg { font-size: 0.9375rem; }
+.open-scene.glow-featured .open-step, .open-scene.glow-featured .open-sub, .open-scene.glow-featured .open-title { color: #fff; }
+.open-scene.glow-featured .turn-bars span { background: rgba(255, 255, 255, 0.35); }
+.open-scene.glow-featured .turn-bars span.on { background: #fff; }
+/* ワインローズの背景では、ボタンの形が背景に溶けないよう白地にする */
+.open-scene.glow-featured .open-tap { background: var(--surface); color: var(--deep); }
+.capsule-art { position: relative; align-self: center; width: min(13rem, 70vw); aspect-ratio: 1; margin: 0.5rem 0; cursor: pointer; }
+.capsule-glow { position: absolute; inset: -6%; border-radius: 50%; background: rgba(253, 238, 242, 0.9); }
+.capsule-top, .capsule-bottom { position: absolute; left: 4%; right: 4%; height: 46%; border: 4px solid #C77A96; transition: transform 0.35s cubic-bezier(0.3, 1.4, 0.5, 1); }
+.capsule-top { top: 4%; border-radius: 999px 999px 0 0; border-bottom: 0; background: linear-gradient(160deg, #FFFFFF 0 12%, #F7C8D8 12%); }
+.capsule-bottom { bottom: 4%; border-radius: 0 0 999px 999px; border-top: 0; background: #EFDCEA; }
+.glow-sparkle .capsule-bottom { background: var(--pearl); }
+.glow-featured .capsule-bottom { background: var(--rg); }
+.capsule-band { position: absolute; left: 2%; right: 2%; top: calc(50% - 0.3rem); height: 0.6rem; border-radius: 99px; background: #fff; transition: opacity 0.3s; }
+.capsule-knob { position: absolute; left: calc(50% - 0.7rem); top: calc(50% - 0.7rem); width: 1.4rem; height: 1.4rem; border-radius: 50%; background: #fff; border: 3px solid #C77A96; transition: transform 0.35s; }
+.capsule-art.stage-crack .capsule-top { transform: translateY(-0.35rem); }
+.capsule-art.stage-crack .capsule-bottom { transform: translateY(0.2rem); }
+.capsule-art.stage-apart .capsule-top { transform: translateY(-1.4rem); }
+.capsule-art.stage-apart .capsule-bottom { transform: translateY(0.9rem); }
+.capsule-art.stage-apart .capsule-band { opacity: 0; }
+.capsule-art.stage-apart .capsule-knob { transform: translateY(-1.4rem); }
+.capsule-art.shake-1 { animation: shake1 0.4s; }
+.capsule-art.shake-2 { animation: shake2 0.4s; }
+
+/* 今回の結果（267:8438） */
+.result-kicker { font-size: 0.875rem; font-weight: 700; color: var(--deep); }
+.result-meta { font-size: 0.875rem; color: var(--deep); font-weight: 700; font-variant-numeric: tabular-nums; }
+.result-saved { font-size: 1rem; color: var(--text); }
+.reveal-name:focus { outline: none; }
+
+/* 売り切れ（267:8450）・コイン不足（267:8461） */
+.problem-content { gap: 0.9rem; }
+.machine-wrap.is-soldout { width: min(100%, 13rem); padding: 0.75rem; border-radius: 22px; background: var(--soft); }
+.machine.soldout { cursor: default; filter: grayscale(0.55) opacity(0.55); }
+.machine.soldout .m-handle { transition: none; }
+.problem-title { font-size: 1.5rem; font-weight: 800; color: var(--text); line-height: 1.4; }
+.problem-lead { color: var(--text); }
+.short-card { display: flex; flex-direction: column; gap: 0.35rem; background: var(--soft); border-radius: 18px; padding: 1.25rem 1.1rem; font-size: 1.0625rem; color: var(--text); font-variant-numeric: tabular-nums; }
+.short-main { font-size: 1.25rem; font-weight: 800; color: var(--deep); }
+.short-main b { font-size: 1.625rem; }
+.problem-balance { font-size: 1.0625rem; color: var(--text); font-variant-numeric: tabular-nums; }
+.problem-balance b { font-size: 1.25rem; }
+/* 開封・結果の重なりの中でも、提案モックの注記を読める幅で出す */
+.open-stage .mock-notice, .prize-reveal .mock-notice { width: 100%; text-align: left; }
