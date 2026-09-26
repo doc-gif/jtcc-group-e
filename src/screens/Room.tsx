@@ -310,7 +310,8 @@ export function Room({ invite }: { invite: string }) {
     ? 'ピッチ用デモ：目玉が残っていないため、このラウンドは確定なし（通常の抽選）'
     : null
   const pitchChip = state.pitchMode ? <PitchLabel>{PITCH_ROOM_TEXT}</PitchLabel> : null
-  const errorLine = state.error ? <p className="field-error room-error" role="alert">{state.error.message}</p> : null
+  // name-taken の message にはニックネームから作った候補（「もも2」なら使えます）が入るので、録画（Clarity）で隠す。
+  const errorLine = state.error ? <p className="field-error room-error" role="alert" data-clarity-mask="true">{state.error.message}</p> : null
   const renameLine = self && (
     <p className="room-me">
       <span>あなたの名前：<b data-clarity-mask="true">{self.nickname}</b></span>
