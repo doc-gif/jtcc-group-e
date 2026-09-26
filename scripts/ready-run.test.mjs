@@ -7,9 +7,12 @@ test('Ready reuses only the latest completed successful CI for the same SHA', as
   const github = { rest: { actions: { listWorkflowRuns: vi.fn(async () => ({ data: { workflow_runs: runs } })) } } }
   const args = { github, owner: 'doc-gif', repo: 'jtcc-group-e', pr }
   expect(await readyRunId(args)).toBe(2)
-  runs.push({ id: 3, event: 'workflow_dispatch', head_sha: pr.head.sha, status: 'in_progress', conclusion: null })
+  // A workflow_dispatch CI does not count (branch protection reads the pull_request suite, #147).
+  runs.push({ id: 4, event: 'workflow_dispatch', head_sha: pr.head.sha, status: 'completed', conclusion: 'failure' })
+  expect(await readyRunId(args)).toBe(2)
+  runs.push({ id: 3, event: 'pull_request', head_sha: pr.head.sha, status: 'in_progress', conclusion: null })
   expect(await readyRunId(args)).toBeNull()
-  runs[1].status = 'completed'; runs[1].conclusion = 'failure'
+  runs.at(-1).status = 'completed'; runs.at(-1).conclusion = 'failure'
   expect(await readyRunId(args)).toBeNull()
   runs.splice(0); expect(await readyRunId(args)).toBeNull()
   pr.draft = true; expect(await readyRunId(args)).toBeNull()
