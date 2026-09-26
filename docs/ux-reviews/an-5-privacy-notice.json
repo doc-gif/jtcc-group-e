@@ -1,5 +1,5 @@
 {
-  "uiDigest": "c2e1b2701dae06bf425d8c6dd619aabc268d66622ba6f68523d392b7fc070081",
+  "uiDigest": "dbd4632ec8f4c14fdba1804171e985244f99414c2be15b97cbf7f7904b3dc32f",
   "reviewer": "Claude (AN-5 / #46: privacy notice)",
   "reviewedAt": "2026-09-26",
   "summary": "#46。マイページの「きまり」に、既存と同じ details・summary・p の「アクセス解析と外部送信について」を1つ加えた。電気通信事業法の外部送信規律に合わせ、送信先（Google アナリティクス 4／Google LLC、Microsoft Clarity／Microsoft Corporation）、送る情報、目的（改善。広告には使わない）、送らない情報（ニックネーム・入力内容・招待コード・ホスト用のキー）、確認用プレビューと開発環境では送らないこと、止め方（Cookie・トラッキング防止、GA のオプトアウト アドオン、Microsoft のプライバシーに関する声明、?internal=1）を書いた。docs/PRODUCT.md の未決事項「アクセス解析の要否」を決定に移した。文面は担当者の確認待ち。マイページは Figma マスター（64 画面）に含まれない。",
