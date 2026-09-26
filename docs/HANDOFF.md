@@ -1,24 +1,23 @@
 # 引き継ぎ・タスク指示書（クラウド → ローカル Claude Code）
 
-2026-09-26 時点。作業が進んだら、このファイルを更新する（終わった項目は消すか「完了」にする）。ホスト用キーの本体など秘密は書かない。
+2026-09-26 に書いた予定。作業が進んだら、このファイルを更新する（終わった項目は消すか「完了」にする）。書いた後に状態が変わっていることがあるので、始める前に GitHub（main・PR・Releases）・本番の `deployment.json`・Supabase の migration で実態を確かめ、違えば実態を正としてこのファイルを直す。ホスト用キーの本体など秘密は書かない。
 
 ローカルの作業フォルダ: `C:\Users\IshitobiHyo\IdeaProjects\jtcc-group-e`（repo `doc-gif/jtcc-group-e`）
 最初に `git fetch origin` し、**AGENTS.md と CLAUDE.md を読んで従う**こと（作業はタスクごとに `origin/main` から専用のブランチ・worktree を作る。main に直接コミットしない）。
-クラウド側のエージェントはすべて停止済み。以後はローカルだけで進める。
+クラウド側のエージェントはすべて停止済み（2026-09-26 06:10 UTC 時点）。以後はローカルだけで進める。
 
-**進める順番（おすすめ）**: 1. 本番 v0.3.1（#41 はマージ済み） ／ 6. マージ・リリースのキュー（並列作業の前に） ／ 5. 全画面表示とジェスチャーの抑制 ／ 3. ピッチ用の写真 ／ 4. サンリオの世界観（マスター反映） ／ 7. デモ用リンクとピッチ用リンクを分ける（Figma を先に）。
+**進める順番（おすすめ）**: 1. 本番の実機確認（F15、公開済み） ／ 6. マージ・リリースのキュー（並列作業の前に） ／ 5. 全画面表示とジェスチャーの抑制 ／ 3. ピッチ用の写真 ／ 4. サンリオの世界観（マスター反映） ／ 7. デモ用リンクとピッチ用リンクを分ける（Figma を先に）。
 並列にするときは、6 の「共有資源のロック」と「担当の宣言」の規則が入るまで、Supabase・Figma のマスター・同じ文書の表を触る作業を同時に走らせない。
 
-## 現在の main と本番
-- main: `f5ba9b5`（#41 まで。本番のビルドはこの時点から Supabase につながる）
-- 本番: **v0.3.0**（commit `09237ac`、ルーム画面入り。ルームは同じブラウザのタブ間デモのまま）https://doc-gif.github.io/jtcc-group-e/
+## 本番と公開手順
+- 今の main の SHA・本番の版はここに書き写さない（すぐ古くなる）。main は GitHub、本番は https://doc-gif.github.io/jtcc-group-e/deployment.json と [Releases](https://github.com/doc-gif/jtcc-group-e/releases) で確かめる。
 - 公開手順: docs/DEPLOYMENT.md（`release-pages.yml` を main で workflow_dispatch、version は未使用の vX.Y.Z）。担当者から「本番まで出す」指示あり。公開後は Release の SHA と pages-history の `site/deployment.json` を確かめ、URL と QR（`pnpm qr <URL> <png>`）を担当者に渡す。
 
-## 1. 複数端末対応（PR #41、マージ済み `f5ba9b5`）→ 本番 v0.3.1
+## 1. 複数端末対応（#41 でマージ、v0.3.1 で本番公開 2026-09-26 05:52 UTC）→ 実機確認
 - https://github.com/doc-gif/jtcc-group-e/pull/41 。本番・プレビューのビルドのルームは Supabase `lastpiece-pitch` につながる（`.env.production` の URL と publishable キー。secret キーは使わない）。テストは端末内デモに固定。
-- **やること**: 本番 v0.3.1 を公開 → 本番 URL で実機（別々のスマホ）確認 → 担当者に URL と QR。
+- **やること**: 担当者が本番 URL で実機（別々のスマホ）を確認する（手順は `docs/MULTI_DEVICE.md` の「担当者の 2 台での確認手順」）。本番の公開と URL・QR の案内は済み。
 - ローカルで実通信を確認済み（Playwright の別コンテキスト4つで ホスト用リンク → 作成 → 2人参加 → 開始 → 同時開封 → 結果 → 別端末でホスト再開）。
-- 後片付け: ローカル検証用のキー（担当者のキーとは別）は、本番確認後に `update public.lp_host_keys set revoked_at = now() where id = '<検証用キーの id>'` で無効にする。**担当者のキー（label `owner 2026-09`, id `0e61b081-eb69-4860-9909-3df411dec211`）は触らない。**
+- 後片付け: ローカル検証用のキー（label `local test 2026-09-26`、担当者のキーとは別）は 2026-09-26 05:41 UTC に `revoked_at` で無効にし、検証のルームも閉じた。**担当者のキー（label `owner 2026-09`, id `0e61b081-eb69-4860-9909-3df411dec211`）は触らない。**
 - 後続（別 PR）:
   - 別端末でホストを再開したあと、元の端末が「ルームは終了しました」と出る → 実態は「ホストが別の端末に移った」。文言と状態を分ける（マスターにない状態なので Figma を先に）。
   - ロビーの反映がポーリングで最大 15〜30 秒。
@@ -32,7 +31,6 @@
 - **その migration ファイルと途中のコードは、ブランチ `claude/f15-pitch-photos`（`636add7`、WIP・未検証、#41 の最初のコミット `e9a283c` の上）にだけある。** main にはまだない＝DB がリポジトリより先に進んでいる。このブランチに `origin/main`（#41 マージ済み）を merge して続けるか、同じ migration ファイルを新しいブランチに入れる（ファイル名・中身を変えない）。
 - 入っているもの: `src/realtime/photos.ts`・`src/app/pitchPhotos.ts`（読み込みと対応表）、ルームの結果画面の写真・フォールバック・© 表記（`src/components/Room.tsx`・`src/screens/Room.tsx`・`room.css`）、`glowLabel` を `src/domain/odds.ts` へ移動、`sharedRoom.ts` の写真の配線、DB テスト3件（Storage の小さな代役、27/27 成功）。
 - 足りないもの: 写真の画面テスト、担当者向け `docs/PITCH_PHOTOS.md`、`docs/SQL_MIGRATION_F15.md`、文書の更新、UX レビュー記録、実 DB での「参加者は読める・部外者は読めない」の取り消す取引での確認と advisors。
-- ローカル検証でキー（label `local test 2026-09-26`）とルームが増えている。本番確認後にキーを `revoked_at` で無効にする。
 - 許諾の範囲（担当者、2026-09-26）: **ピッチ・関係者だけ**、**実物グッズの写真だけ**（キャラクターの絵はアプリに入れない）。写真はリポジトリ・`public/`・プレビュー・本番ビルドに入れない。governance の画像の許可リストのテストは緩めない。ASSET_LIBRARY.md に許諾と範囲を記録する。
 
 ## 4. F14 サンリオの世界観（Figma）— マスターへの反映が止まっている
