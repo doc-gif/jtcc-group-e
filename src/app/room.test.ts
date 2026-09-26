@@ -41,7 +41,7 @@ function stateOf(extra: Partial<RoomState> & { hostId?: string; selfId?: string 
     seats: { taken: members.length, capacity: 100, full: false }, readyOnline: 0, readyOthers: 0, balance: 3000,
     canReady: true, canStart: false, startBlockedBy: 'nobody-ready', secondsLeft: null, round: null, myPrize: null,
     myResults: [], unseenResults: [], scheduledAt: null, secondsToScheduled: null, scheduleOptions: [], canSchedule: true,
-    pitchMode: false, canSetPitchMode: false, roundGuaranteed: false, lastSchedule: null, scheduleNotice: null, serverOffset: 0,
+    pitchMode: false, canSetPitchMode: false, roundGuaranteed: false, lastSchedule: null, scheduleNotice: null, serverOffset: 0, realtime: 'polling',
     busy: null, error: null, ...rest,
   }
 }
