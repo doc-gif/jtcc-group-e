@@ -60,7 +60,8 @@ export function RoomDraw({ sub, top, busy, error, onOpen }: Props) {
   return (
     <div className="screen spin-screen room-draw">
       <PageHeader title={dropped ? 'カプセルを開けよう' : 'ガチャを回そう'}>
-        <p className="page-header-sub room-sub">{sub}</p>
+        {/* 補足にホストのニックネーム（「〇〇さんのルーム」）を含むので、録画（Clarity）で隠す */}
+        <p className="page-header-sub room-sub" data-clarity-mask="true">{sub}</p>
       </PageHeader>
       <main className="content spin-content">
         {top}
