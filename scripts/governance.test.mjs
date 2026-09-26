@@ -1,7 +1,12 @@
 // 法務・ブランドのきまりを CI で落とせる状態にする（docs/PRODUCT.md「守ること」）。
+import { execFileSync } from 'node:child_process'
 import { readdir, readFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import { expect, test } from 'vitest'
+import { isDocPath } from './change-scope.mjs'
+
+// secret キー・JWT（見出しの順番によらない3つ組）・GitHub トークン・秘密鍵・ホスト用キー入りのリンク（src/realtime/hostKey.ts と同じ 32〜128 文字）
+const DOC_SECRET = /sb_secret_[A-Za-z0-9]|eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}|eyJhbGciOi[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|#\/host\/[A-Za-z0-9_-]{32,128}/
 
 async function files(dir) {
   const out = []
@@ -81,4 +86,24 @@ test('F15: ビルドの Supabase 設定（.env.production）はブラウザに�
     const text = await read(path)
     expect(/sb_secret_|service_role|eyJhbGciOi/.test(text), path).toBe(false)
   }
+})
+
+test('文書（*.md・docs/）に秘密の値（secret キー・JWT・GitHub トークン・秘密鍵・ホスト用キー入りのリンク）を書かない', async () => {
+  // 文書だけの PR はブラウザのテストを飛ばすので、この検査が文書の秘密を止める。
+  // 対象は、軽い CI の判定（scripts/change-scope.mjs の isDocPath）が文書とみなすすべてのファイル（大文字の拡張子・画像も含む）と、すべての .md。
+  const docs = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean)
+    .filter((path) => isDocPath(path) || path.toLowerCase().endsWith('.md'))
+  expect(docs).toEqual(expect.arrayContaining(['AGENTS.md', 'docs/STATUS.md', 'docs/ux-reviews/foundation.json']))
+  for (const path of docs) expect(DOC_SECRET.exec(await read(path))?.[0], path).toBeUndefined()
+})
+
+test('文書の秘密の検査が、JWT の見出しの順番・ホスト用キーの長さ（32〜128文字）に左右されない', () => {
+  const b64 = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  const jwt = (header) => [b64(header), b64({ sub: '00000000-0000-0000-0000-000000000000', role: 'service_role' }), 'c2lnbmF0dXJlLXZhbHVlLWZvci10ZXN0'].join('.')
+  for (const sample of [
+    jwt({ alg: 'HS256', typ: 'JWT' }), jwt({ typ: 'JWT', alg: 'HS256' }), jwt({ kid: 'k1', alg: 'ES256' }),
+    ...[32, 43, 128].map((n) => `https://doc-gif.github.io/jtcc-group-e/#/host/${'a'.repeat(n)}`),
+    `sb_secret_${'x'.repeat(20)}`, `ghp_${'a'.repeat(36)}`, `github_pat_${'a'.repeat(30)}`, '-----BEGIN OPENSSH PRIVATE KEY-----',
+  ]) expect(DOC_SECRET.test(sample), sample.slice(0, 40)).toBe(true)
+  for (const fine of ['#/host/<キー>', '#/host/', 'sb_publishable_abc', 'eyJ だけの説明', '`0e61b081-eb69-4860-9909-3df411dec211`']) expect(DOC_SECRET.test(fine), fine).toBe(false)
 })

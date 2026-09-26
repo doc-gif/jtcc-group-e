@@ -1,0 +1,64 @@
+name: Project status
+# Issue のラベルと状態を GitHub Projects の Status に映す（docs/OPERATIONS.md「Milestone と Project」）。
+# 変数 PROJECT_URL と秘密 PROJECT_TOKEN（fine-grained PAT: Projects 読み書き・Issues 読み）が設定されるまでは何もしない。
+on:
+  issues:
+    types: [opened, reopened, closed, labeled, unlabeled]
+permissions: {}
+# 同じ Issue のイベントが重なったとき（ラベルを続けて付けたとき）は最後の1つだけ走らせる
+concurrency:
+  group: project-status-${{ github.event.issue.number }}
+  cancel-in-progress: true
+jobs:
+  sync:
+    if: vars.PROJECT_URL != ''
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+    steps:
+      # 秘密は job の if で参照できないので、step の if で空かどうかを見る（両方そろうまで何もしない）
+      - id: add
+        if: env.PROJECT_TOKEN != ''
+        uses: actions/add-to-project@v1.0.2
+        with:
+          project-url: ${{ vars.PROJECT_URL }}
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+      - if: env.PROJECT_TOKEN != ''
+        uses: actions/github-script@v8
+        env:
+          PROJECT_URL: ${{ vars.PROJECT_URL }}
+          ITEM_ID: ${{ steps.add.outputs.itemId }}
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const issue = context.payload.issue
+            const labels = new Set(issue.labels.map((l) => l.name))
+            // ラベル → Status。閉じたら Done。優先順は blocked > review > in-progress > todo。
+            const status =
+              issue.state === 'closed' ? 'Done'
+              : labels.has('blocked') || labels.has('needs-owner') ? 'Blocked'
+              : labels.has('review') ? 'In review'
+              : labels.has('in-progress') ? 'In progress'
+              : 'Todo'
+            const m = process.env.PROJECT_URL.match(/github\.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/)
+            if (!m) { core.setFailed(`PROJECT_URL の形式が違います: ${process.env.PROJECT_URL}`); return }
+            const [, kind, login, number] = m
+            const ownerField = kind === 'users' ? 'user' : 'organization'
+            const q = `query($login: String!, $number: Int!) {
+              ${ownerField}(login: $login) { projectV2(number: $number) {
+                id
+                field(name: "Status") { ... on ProjectV2SingleSelectField { id options { id name } } }
+              } }
+            }`
+            const data = await github.graphql(q, { login, number: Number(number) })
+            const project = data[ownerField].projectV2
+            const field = project.field
+            const option = field?.options.find((o) => o.name.toLowerCase() === status.toLowerCase())
+            if (!option) {
+              core.warning(`Project の Status に「${status}」がありません。選択肢: ${field?.options.map((o) => o.name).join(', ')}`)
+              return
+            }
+            await github.graphql(`mutation($p: ID!, $i: ID!, $f: ID!, $o: String!) {
+              updateProjectV2ItemFieldValue(input: { projectId: $p, itemId: $i, fieldId: $f, value: { singleSelectOptionId: $o } }) { projectV2Item { id } }
+            }`, { p: project.id, i: process.env.ITEM_ID, f: field.id, o: option.id })
+            core.info(`#${issue.number} → ${status}`)

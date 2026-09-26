@@ -22,6 +22,8 @@ pnpm install --frozen-lockfile
 - `main` の最新状態を含んでいること。競合・未解決会話がないこと。
 - Draft ではなく、同一リポジトリの PR であること。
 
+文書だけの PR は、2つのゲートを軽い CI（スクリプトのテストとレビュー記録の検査）で報告する。判定の範囲と安全策は [FAST_FEEDBACK.md の「文書だけの PR は軽い CI」](FAST_FEEDBACK.md#文書だけの-pr-は軽い-ci)。
+
 成功した CI の現在の head SHA に対して GitHub Actions Bot が APPROVE を記録し、同じ SHA を指定して squash merge する。`main` の保護ルールは管理者にも適用される。テスト後にコードが増えた場合、以前の結果で新しいコミットを承認しない。PR 作成には作業者自身の認証を使う（Bot は自分の PR を承認できない）。
 
 `workflow_run` の承認ジョブは `main` のスクリプトだけを実行し、PR のコードや成果物を実行しない。フォークからの PR は自動承認の対象外。進行中の修正は Draft のままにする。
