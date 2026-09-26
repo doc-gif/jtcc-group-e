@@ -2,7 +2,7 @@
 
 ## 1タスク・1ブランチ・1worktree
 
-作業前に GitHub の未完了 PR を確認し、担当範囲を PR の Draft に書く。既存の作業ブランチや同じ作業ディレクトリを複数の作業者で共有しない。
+作業前に `node scripts/live-state.mjs` で main・本番・開いている PR・PR のない最近のブランチ・main にない migration を確認し、担当範囲を PR の Draft に書く。文書に書かれた状態より、この結果を正とする（[AGENTS.md の「情報の鮮度」](../AGENTS.md)）。既存の作業ブランチや同じ作業ディレクトリを複数の作業者で共有しない。
 
 ```bash
 git fetch origin
