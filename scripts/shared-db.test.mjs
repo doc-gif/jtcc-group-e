@@ -9,7 +9,7 @@ const KEY=createHostKey()
 const users=Array.from({length:102},()=>randomUUID())
 const room=randomUUID()
 let invite
-const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql','supabase/migrations/20260926025335_lp_name_chars_create_retry.sql','supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql','supabase/migrations/20260926033821_lp_min_guests.sql','supabase/migrations/20260926052120_lp_pitch_goods_photos.sql','supabase/migrations/20260926075123_lp_realtime_wake.sql','supabase/migrations/20260926104012_lp_open_each.sql']
+const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql','supabase/migrations/20260926023427_lp_host_key_names.sql','supabase/migrations/20260926023642_lp_host_attempts_pk.sql','supabase/migrations/20260926025335_lp_name_chars_create_retry.sql','supabase/migrations/20260926031422_lp_name_cf_rename_idle.sql','supabase/migrations/20260926033821_lp_min_guests.sql','supabase/migrations/20260926052120_lp_pitch_goods_photos.sql','supabase/migrations/20260926075123_lp_realtime_wake.sql','supabase/migrations/20260926104012_lp_open_each.sql','supabase/migrations/20260926172325_lp_pitch_characters.sql']
 // Supabase Storage is not in PGlite. A minimal stand-in (F15): the real schema has more columns; the grants mirror Supabase (RLS decides).
 const STORAGE_STUB=`create schema storage;
  create table storage.buckets(id text primary key,name text not null,public boolean default false,file_size_limit bigint,allowed_mime_types text[]);
@@ -849,6 +849,82 @@ describe('F15: private goods photos are readable only inside an open room', () =
   await expect(as(null,'anon','select public.lp_can_view_photos()')).rejects.toThrow('permission denied')
   const {rows}=await db.query("select prosecdef,proconfig from pg_proc where proname='lp_can_view_photos'")
   expect(rows).toEqual([{prosecdef:true,proconfig:['search_path=""']}])
+ })
+})
+
+describe('#150: private character art (limited-release app) is readable only inside an open room', () => {
+ const BUCKET='pitch-characters'
+ const create=(user,id,name)=>call(user,'select public.lp_create($1,$2,$3) result',[id,KEY,name])
+ const join=(user,invite,name)=>call(user,'select public.lp_join($1,$2) result',[invite,name])
+ const as=async(user,role,sql)=>{
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user??''])
+  await db.exec(`set role ${role}`)
+  try{return await db.query(sql)}finally{await db.exec('reset role')}
+ }
+ // What the Storage API does for a signed-in user: SELECT on storage.objects as authenticated with the JWT sub.
+ const visible=async(user,role='authenticated')=>(await as(user,role,`select name from storage.objects where bucket_id='${BUCKET}' order by name`)).rows.map(row=>row.name)
+ const chars=['chars/result.png','chars/town-shop.png']
+ const expire=(id)=>db.query("update public.lp_rooms set expires_at=now()-interval '1 second' where id=$1",[id])
+ // Earlier tests leave open rooms behind; expire them so "only in another room" means only in the room made here.
+ beforeAll(async()=>{
+  await db.exec("update public.lp_rooms set expires_at=now()-interval '1 second' where expires_at>now()")
+  for(const name of chars) await db.query('insert into storage.objects(bucket_id,name) values($1,$2)',[BUCKET,name])
+ })
+
+ test('the bucket is private, PNG or WebP only and at most 300 KB', async()=>{
+  const {rows}=await db.query('select public,file_size_limit,allowed_mime_types from storage.buckets where id=$1',[BUCKET])
+  expect(rows).toEqual([{public:false,file_size_limit:307200,allowed_mime_types:['image/png','image/webp']}])
+ })
+
+ test('the host and active members read; departed, expired, signed-out, anon, outsiders and members of an expired room only do not', async()=>{
+  const [host,guest,other,outsider,elsewhere]=[randomUUID(),randomUUID(),randomUUID(),randomUUID(),randomUUID()]
+  // Someone whose only room has expired.
+  const past=randomUUID()
+  const {invite:pastInvite}=await create(randomUUID(),past,'むかし')
+  await join(elsewhere,pastInvite,'よそ')
+  await expire(past)
+  const id=randomUUID()
+  const {invite}=await create(host,id,'キャラ')
+  expect(await visible(host)).toEqual(chars)
+  await join(guest,invite,'ゆい')
+  await join(other,invite,'さき')
+  expect(await visible(guest)).toEqual(chars)
+  expect(await visible(outsider)).toEqual([])
+  expect(await visible(elsewhere)).toEqual([])
+  expect(await visible(null)).toEqual([])
+  expect(await visible(outsider,'anon')).toEqual([])
+  expect(await visible(guest,'anon')).toEqual([])
+  // The goods photos and the characters are separate buckets; this policy never exposes another bucket.
+  expect((await as(guest,'authenticated',`select count(*)::int count from storage.objects where bucket_id='other'`)).rows[0].count).toBe(0)
+  await call(other,'select public.lp_leave($1)',[id])
+  expect(await visible(other)).toEqual([])
+  await join(other,invite,'さき')
+  expect(await visible(other)).toEqual(chars)
+  await call(host,'select public.lp_leave($1)',[id])
+  expect(await visible(host)).toEqual(chars)
+  await expire(id)
+  for(const user of [host,guest,other]) expect(await visible(user)).toEqual([])
+ })
+
+ test('no one but the owner can write, and the helper is SECURITY DEFINER and not callable by anon', async()=>{
+  const [host,guest]=[randomUUID(),randomUUID()]
+  const id=randomUUID()
+  const {invite}=await create(host,id,'キャラ2')
+  await join(guest,invite,'もも')
+  for(const user of [host,guest]){
+   await expect(as(user,'authenticated',`insert into storage.objects(bucket_id,name) values('${BUCKET}','chars/new.png')`)).rejects.toThrow('row-level security')
+   expect((await as(user,'authenticated',`update storage.objects set name='chars/x.png' where bucket_id='${BUCKET}'`)).affectedRows).toBe(0)
+   expect((await as(user,'authenticated',`delete from storage.objects where bucket_id='${BUCKET}'`)).affectedRows).toBe(0)
+  }
+  await expect(as(null,'anon',`insert into storage.objects(bucket_id,name) values('${BUCKET}','chars/new.png')`)).rejects.toThrow('row-level security')
+  expect((await db.query('select count(*)::int count from storage.objects where bucket_id=$1',[BUCKET])).rows[0].count).toBe(chars.length)
+  expect((await as(guest,'authenticated','select public.lp_can_view_characters() ok')).rows[0].ok).toBe(true)
+  await expect(as(null,'anon','select public.lp_can_view_characters()')).rejects.toThrow('permission denied')
+  const {rows}=await db.query("select prosecdef,proconfig from pg_proc where proname='lp_can_view_characters'")
+  expect(rows).toEqual([{prosecdef:true,proconfig:['search_path=""']}])
+  const policies=await db.query("select policyname,cmd,roles from pg_policies where schemaname='storage' and tablename='objects' and policyname like 'lp_pitch_characters%'")
+  expect(policies.rows).toEqual([{policyname:'lp_pitch_characters_read',cmd:'SELECT',roles:['authenticated']}])
+  await expire(id)
  })
 })
 test('#88: each entrant opens their own capsule; all results once everyone opened, after 10 s, or when the last one left', async()=>{
