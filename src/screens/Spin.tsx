@@ -7,7 +7,7 @@ import { spin, spinCheck, spinQuote, type SpinOutcome } from '../domain/game'
 import { coinText, OPEN_TAPS } from '../domain/odds'
 import { TIMING, TURNS } from '../domain/spinScript'
 import type { Gacha } from '../domain/types'
-import { MockNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
+import { ExampleNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { Machine } from '../components/Machine'
 import { NotFound } from './NotFound'
@@ -118,7 +118,7 @@ function SpinStage({ gacha }: { gacha: Gacha }) {
                 <p className="fine spent">{coinText(gacha.price)}コイン使用済み・残高{coinText(state.coins)}</p>
               </>
             )}
-            <MockNotice />
+            <ExampleNotice />
           </main>
           {confirming && <TabBar active="gacha" />}
         </>
@@ -174,7 +174,7 @@ function OpenScene({ won, gacha, balance, revealed, onReveal, onTap }: OpenProps
           <p className="open-sub">ゆっくり、好きなタイミングで。</p>
           <p className="turn-bars" aria-hidden="true">{Array.from({ length: OPEN_TAPS }, (_, i) => <span key={i} className={i < step ? 'on' : ''} />)}</p>
           <button ref={ref} type="button" className="btn btn-main btn-block open-tap" onClick={tap} aria-label={`カプセルをタップ（あと${Math.max(OPEN_TAPS - taps, 0)}回であきます）`}>カプセルをタップ</button>
-          <MockNotice />
+          <ExampleNotice />
         </main>
       </>
     )
@@ -192,7 +192,7 @@ function OpenScene({ won, gacha, balance, revealed, onReveal, onTap }: OpenProps
         </article>
         {saveFailed ? <SaveWarning /> : <p className="result-saved">この1点はコレクションに保存されます。</p>}
         <a className="btn btn-main btn-block" href={paths.town}>街へ戻る</a>
-        <MockNotice />
+        <ExampleNotice />
       </main>
     </>
   )
@@ -225,11 +225,11 @@ function SpinProblem({ gacha, problem }: { gacha: Gacha; problem: NonNullable<Re
             </div>
             <h2 className="problem-title">今回は引けません</h2>
             <p className="lead problem-lead">残高はそのままです。</p>
-            <p className="fine">コインの購入や決済は、この提案モックにはありません。</p>
+            <p className="fine">コインの購入や決済は、開発中のためまだありません。</p>
           </>
         )}
         <a className="btn btn-outline btn-block" href={paths.gachaList}>ガチャ一覧に戻る</a>
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <TabBar active="gacha" />
     </div>

@@ -6,7 +6,7 @@ import { exchange, exchangeQuote, requestDelivery, summarize } from '../domain/g
 import { coinText, EXCHANGE_RATE, yen } from '../domain/odds'
 import type { SeriesId, WinRecord, WinStatus } from '../domain/types'
 import { shelfOf, slotText } from '../domain/shelf'
-import { MockNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
+import { ExampleNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { Sheet } from '../components/Sheet'
 
@@ -138,7 +138,7 @@ export function Collection() {
           </ul>
         )}
         <SaveWarning />
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <div className="dock">
         {selected.length > 0 && (

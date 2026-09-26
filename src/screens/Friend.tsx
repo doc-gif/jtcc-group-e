@@ -3,7 +3,7 @@ import './shelf.css'
 import { useApp } from '../app/appContext'
 import { paths } from '../app/router'
 import { findFriend, findPrizeById, FRIEND_SHELF_SIZE, friendsOf, hasReacted, sendReaction, shelfSlots, type DemoFriend } from '../domain/shelf'
-import { MockNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
+import { ExampleNotice, PageHeader, SaveWarning, TabBar } from '../components/Chrome'
 import { GoodsImage } from '../components/Goods'
 import { ShelfGrid, type ShelfEntry } from '../components/ShelfGrid'
 import { NotFound } from './NotFound'
@@ -28,7 +28,7 @@ function Unavailable({ friend }: { friend: DemoFriend }) {
         <p className="lead unavailable-lead">公開範囲や接続状態が変わるまで待ってください。</p>
         <p className="fine">あなたの棚や所有品には影響しません。</p>
         <a className="btn btn-outline btn-block" href={paths.together}>友だち一覧へ</a>
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <TabBar active="friend" />
     </div>
@@ -65,7 +65,7 @@ export function FriendShelf({ id }: { id: string }) {
         <ShelfGrid slots={shelfSlots(entries)} label={`${friend.name}さんの棚（デモ）`} emptyTitle="まだ飾っていません" emptyNote="空き枠" hrefFor={(entry) => paths.friendItem(friend.id, entry.id)} />
         <p className="fine">見られるのは飾られた品だけです。</p>
         {entries[0] && <a className="btn btn-main btn-block" href={paths.friendItem(friend.id, entries[0].id)}>{friend.name}さんの1点を見る</a>}
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <TabBar active="friend" />
     </div>
@@ -109,7 +109,7 @@ export function FriendItem({ id, item }: { id: string; item: string }) {
           ? <a className="btn btn-main btn-block" href={paths.friend(friend.id)}>{friend.name}さんの棚へ</a>
           : <button type="button" className="btn btn-main btn-block" onClick={() => { update((current) => sendReaction(current, friend.id, item)); setJustSent(true) }}>いいな〜を送る</button>}
         <SaveWarning />
-        <MockNotice />
+        <ExampleNotice />
       </main>
       <TabBar active="friend" />
     </div>
