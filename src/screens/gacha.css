@@ -1,6 +1,6 @@
 /* ===== ガチャの流れ（T08・マスター 267:8266〜267:8461）=====
  * 文字とボタンの色は src/index.css のトークンと共通のボタンクラスだけを使う（マスターの配色への切り替えは F06 でまとめて行う）。
- * ここに直接書く色は、カプセルの絵（マスター 267:8387 の塗り）と、友達と回す（デモ）の確定演出の暗い背景の上の白文字（既存の App.css と同じ）だけ。 */
+ * ここに直接書く色は、カプセルの絵（マスター 267:8387 の塗りと部品 376:11670 の3種）と、友達と回す（デモ）の確定演出の暗い背景の上の白文字（既存の App.css と同じ）だけ。 */
 
 /* 筐体（マスターの部品 267:10520）。静止の絵で、ハンドルの十字だけが回る。指で押せるのは右のハンドル */
 .machine { cursor: default; touch-action: manipulation; }
@@ -62,17 +62,46 @@
 .spin-screen.is-kakutei .turn-bars span { background: rgba(255, 255, 255, 0.35); }
 .spin-screen.is-kakutei .turn-bars span.on { background: #fff; }
 
-/* カプセルをひらく（267:8387 / 8404 / 8421）。マスターどおり光り方にかかわらず同じ見た目 */
+/* カプセルをひらく（267:8387 / 8404 / 8421） */
 .open-stage .open-step { font-size: 1.5rem; font-weight: 800; color: var(--text); line-height: 1.4; }
 .open-stage .open-sub { font-size: 1.0625rem; color: var(--text); margin-top: -0.6rem; }
-.capsule-art { position: relative; align-self: center; width: min(18rem, 76vw); aspect-ratio: 1; margin: 1rem 0; cursor: pointer; }
-.capsule-glow { position: absolute; inset: -6%; border-radius: 50%; background: var(--soft); }
-.capsule-top, .capsule-bottom { position: absolute; left: 6%; right: 6%; height: 44%; border: 4px solid #C4819C; transition: transform 0.35s cubic-bezier(0.3, 1.4, 0.5, 1); }
-.capsule-top { top: 6%; border-radius: 999px 999px 0 0; border-bottom: 0; background: #F5C9DA; }
-.capsule-top::before { content: ''; position: absolute; left: 12%; top: 12%; width: 38%; height: 30%; border-top: 0.6rem solid #fff; border-left: 0.6rem solid transparent; border-radius: 999px 0 0 0; transform: rotate(-12deg); opacity: 0.9; }
-.capsule-bottom { bottom: 6%; border-radius: 0 0 999px 999px; border-top: 0; background: #E8D7E6; }
-.capsule-band { position: absolute; left: 3%; right: 3%; top: calc(50% - 0.35rem); height: 0.7rem; background: #fff; transition: opacity 0.3s; }
-.capsule-knob { position: absolute; left: calc(50% - 0.9rem); top: calc(50% - 0.9rem); width: 1.8rem; height: 1.8rem; border-radius: 50%; background: #fff; border: 4px solid #C4819C; }
+/*
+ * カプセルの絵（部品「T08 / Capsule」376:11670、src/components/Capsule.tsx）。光り方で3種:
+ * normal 普通のピンク / sparkle 真珠色と小さな光の粒 / featured 淡い金でふんわり光る。
+ * どれも静止の絵で点滅しない。線の太さなどは変数にして、受け皿の小さいカプセル（is-mini）でも同じ形にする。
+ */
+.capsule-art {
+  --cap-line: 4px; --cap-band: 0.7rem; --cap-hi: 0.6rem; --cap-halo: 18px;
+  --cap-edge: #C4819C; --cap-top: #F5C9DA; --cap-bottom: #E8D7E6; --cap-back: var(--soft); --cap-shadow: none;
+  --spark-in: #fff; --spark-out: #E58FB0; --grain: #F2A7BC; --grain-2: #C6B2E4;
+  position: relative; align-self: center; width: min(18rem, 76vw); aspect-ratio: 1; margin: 1rem 0; cursor: pointer;
+}
+.capsule-art.glow-sparkle { --cap-top: linear-gradient(135deg, #FFFFFF, #F6C4D8 55%, #EFE7F9); --cap-bottom: #F3E8F6; --cap-back: #FBEFF6; }
+.capsule-art.glow-featured {
+  --cap-edge: #B0803F; --cap-top: linear-gradient(135deg, #FFF6DE, #F9DFA8 50%, #F0C27C); --cap-bottom: #FFF7E6;
+  --cap-back: radial-gradient(circle, #FFFBEF 55%, #FBEBC4); --cap-shadow: 0 0 var(--cap-halo) 2px rgba(242, 204, 128, 0.7);
+  --spark-out: #E2A94F; --grain: #F4B6C8; --grain-2: #F4B6C8;
+}
+.capsule-glow { position: absolute; inset: -6%; border-radius: 50%; background: var(--cap-back); }
+.capsule-top, .capsule-bottom { position: absolute; left: 6%; right: 6%; height: 44%; border: var(--cap-line) solid var(--cap-edge); box-shadow: var(--cap-shadow); transition: transform 0.35s cubic-bezier(0.3, 1.4, 0.5, 1); }
+.capsule-top { top: 6%; border-radius: 999px 999px 0 0; border-bottom: 0; background: var(--cap-top); }
+.capsule-top::before { content: ''; position: absolute; left: 12%; top: 12%; width: 38%; height: 30%; border-top: var(--cap-hi) solid #fff; border-left: var(--cap-hi) solid transparent; border-radius: 999px 0 0 0; transform: rotate(-12deg); opacity: 0.9; }
+.capsule-bottom { bottom: 6%; border-radius: 0 0 999px 999px; border-top: 0; background: var(--cap-bottom); }
+.capsule-band { position: absolute; left: 3%; right: 3%; top: calc(50% - var(--cap-band) / 2); height: var(--cap-band); background: #fff; transition: opacity 0.3s; }
+/* 小さな光の粒（4つの角の星と丸い粒）。ふたの上の白い星はふたと一緒に動く */
+.capsule-art .spark, .capsule-art .grain { position: absolute; aspect-ratio: 1; }
+.capsule-art .spark { clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); background: var(--spark-out); }
+.capsule-art .grain { border-radius: 50%; background: var(--grain); }
+.capsule-top .spark { background: var(--spark-in); }
+.spark.t1 { left: 57%; top: 16%; width: 6%; }
+.spark.t2 { left: 71%; top: 36%; width: 4%; }
+.spark.t3 { left: 48%; top: 54%; width: 3.4%; }
+.spark.o1 { left: 3%; top: 26%; width: 5.3%; }
+.spark.o2 { left: 88%; top: 69%; width: 4.6%; }
+.spark.o3 { left: 86%; top: 11%; width: 3.4%; }
+.grain.g1 { left: 14%; top: 86%; width: 2%; }
+.grain.g2 { left: 82%; top: 84%; width: 1.8%; background: var(--grain-2); }
+.grain.g3 { left: 9%; top: 66%; width: 1.8%; background: var(--grain-2); }
 .capsule-art.stage-crack .capsule-top { transform: translateY(-0.5rem); }
 .capsule-art.stage-crack .capsule-bottom { transform: translateY(0.25rem); }
 .capsule-art.stage-apart .capsule-top { transform: translateY(-1.1rem); }
@@ -80,6 +109,12 @@
 .capsule-art.stage-apart .capsule-band { opacity: 0; }
 .capsule-art.shake-1 { animation: shake1 0.4s; }
 .capsule-art.shake-2 { animation: shake2 0.4s; }
+/* 3回転の直後、筐体の受け皿に出る小さいカプセル（マスター 380:3371 / 3391 / 3411 の位置と大きさ） */
+.capsule-art.is-mini {
+  --cap-line: 2px; --cap-band: 0.25rem; --cap-hi: 0.2rem; --cap-halo: 6px;
+  position: absolute; left: 38.6%; top: 74.9%; width: 22.9%; margin: 0; cursor: default; pointer-events: none;
+  animation: drop 0.5s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
 
 /* 今回の結果（267:8438） */
 .result-card {
