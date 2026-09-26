@@ -6,6 +6,7 @@ import {
   clockText, missedResults, nameProblem, prizeName, remainText, roomTitle, roomView, timeOfDay,
   type RoomUi,
 } from '../app/roomView'
+import { usePitchPhoto, type ShownPhoto } from '../app/pitchPhotos'
 import { forgetRecord, readRecords, useRoomSession, useRoomState, writeRecord } from '../app/sharedRoom'
 import { MockNotice, PageHeader } from '../components/Chrome'
 import {
@@ -30,7 +31,7 @@ interface Layout {
   back: Back
   /** ピッチ用デモの明示（結果の画面では見出しのすぐ下、292:3118）。 */
   pitchTop?: string | null
-  stage?: { caption: string; variant?: StageVariant; countdown?: string; prize?: SharedPrize | null; compact?: boolean } | null
+  stage?: { caption: string; variant?: StageVariant; countdown?: string; prize?: SharedPrize | null; photo?: ShownPhoto | null; compact?: boolean } | null
   stats?: [RoomStat, RoomStat] | null
   note?: ReactNode
   card: ReactNode
@@ -116,7 +117,7 @@ function defaultStats(state: RoomState): [RoomStat, RoomStat] {
 /** 招待リンクの行き先（#/room/<invite>）。参加者もホストも同じ URL で、画面はサーバーの状態で決まる。 */
 export function Room({ invite }: { invite: string }) {
   const session = useRoomSession()
-  const { controller, records, demo } = session
+  const { controller, records, demo, photos } = session
   const state = useRoomState(session)
   const { state: app } = useApp()
   const [record] = useState(() => readRecords(records)[invite] ?? null)
@@ -173,6 +174,11 @@ export function Room({ invite }: { invite: string }) {
   // ホストが戻ったら「ロビーで待つ」の選択を戻す（次に離れたときにまた知らせる）
   const hostIsOnline = state.hostOnline
   if (hostIsOnline && hostAwayAck) setHostAwayAck(false)
+
+  // ピッチ用の実物グッズ写真（F15）: Supabase につないだルームの中で、自分の賞品が決まったときだけ読む。
+  // 結果の公開（myPrize が決まる）の時点で先に読み、「結果を見る」の画面で絵から写真に切り替わって見えないようにする。
+  // 一覧などを行き来しても、賞品が同じなら読み直さない。端末内デモ（photos が null）・ルームの外・読めないときは元の絵のまま。
+  const photo = usePitchPhoto(photos, state.myPrize, inRoom && state.phase !== 'unavailable')
 
   const ui: RoomUi = { inRoom, joinError, nameStep, autoNamed, watching, detail, scheduleSetup, resumed, watchedRounds, hostAwayAck, resumeAck }
   const view = roomView(state, ui)
@@ -508,7 +514,7 @@ export function Room({ invite }: { invite: string }) {
       layout = {
         title: 'みんなの結果', sub: `${title} · ${state.round?.number ?? 0}回目`, back: { onClick: () => { markSeen(); setDetail(null) } },
         pitchTop: pitchRound ?? pitchNone,
-        stage: prize ? { caption: 'おめでとう！', variant: 'prize', prize } : { caption: '今回は見守りでした', variant: 'sparkle' },
+        stage: prize ? { caption: 'おめでとう！', variant: 'prize', prize, photo } : { caption: '今回は見守りでした', variant: 'sparkle' },
         stats: [{ label: '集まっている人', value: `${state.seats.taken}人` }, { label: '抽選の準備', value: `${results?.length ?? 0}人 参加` }],
         note: '自分の結果はあとから再確認できます',
         card: prize ? (
