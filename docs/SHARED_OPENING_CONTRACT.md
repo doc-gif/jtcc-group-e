@@ -19,9 +19,9 @@ T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で�
 | `join(invite, name)` | 有効な招待を持つゲスト。100 席以内で入室。同じ ID の再接続は既存残高・結果を保持し、ニックネームと接続時刻を更新する。 | `auth-required`、`invalid-name`、招待なし・期限切れは `room-unavailable`、新たに席を取れなければ `room-full`。 |
 | `snapshot(room)` | 有効な active メンバーのみ。本人残高、メンバー、最新ラウンド、自分の公開済み全結果、サーバー時刻、予約（`scheduledAt`）、ピッチモード（`pitchMode`）、最後の予約の結末（`lastSchedule`）を返し、接続時刻を更新する。予約の時刻を過ぎていれば、この呼び出しが開始を 1 回だけ実行する（下記）。 | 非メンバー・退室済み・失効は `room-unavailable`。通信失敗は安全な一般エラー。 |
 | `ready(room, bool)` | active メンバー本人だけ。`true` は 500 コイン以上のとき、`false` は取り消し。最新ラウンドの `nextReadyAt` 以後に設定する。 | `room-unavailable`、`round-active`、真偽値でなければ `invalid-ready`、不足なら `insufficient-coins`。 |
-| `start(room, request, expected)` | 現在のホストだけ。現在の roundNo と expected が一致し、オンラインで準備済みの人が 1 人以上なら全員分を単一トランザクションで抽選・減算・記録。同じ request の再試行は二重処理しない。予約があれば「今すぐ開始」として置き換える（`scheduledAt`・`lastSchedule` を消す）。 |
+| `start(room, request, expected)` | 現在のホストだけ。現在の roundNo と expected が一致し、オンラインで準備済みの人が 1 人以上なら全員分を単一トランザクションで抽選・減算・記録。同じ request の再試行は二重処理しない。予約があれば「今すぐ開始」として置き換える（`scheduledAt`・`lastSchedule` を消す）。 | `room-unavailable`、`host-required`、`invalid-request`、`invalid-round`、`stale-round`、`round-active`、`nobody-ready`、`sold-out`、`insufficient-coins`。失敗時はコイン・在庫・roundNo・ready を変えない。 |
 | `schedule(room, minutes)` | 現在のホストだけ。`minutes` は 1・3・5・10 で、サーバー時刻の `minutes` 分後を `scheduledAt` にする。予約中の再指定は変更、`null` は取り消し（`lastSchedule.status = 'cancelled'`）。予約はルームの期限の 1 分前まで。 | `room-unavailable`、`host-required`、許されない分数・期限の 1 分前を過ぎる時刻は `invalid-schedule`、開封中・次の準備までの間は `round-active`。 |
-| `setPitchMode(room, on)` | 現在のホストだけ。部屋のピッチモードを切り替え、次に始まるラウンドから効く。 | `room-unavailable`、`host-required`、真偽値でなければ `invalid-request`。 | `room-unavailable`、`host-required`、`invalid-request`、`invalid-round`、`stale-round`、`round-active`、`nobody-ready`、`sold-out`、`insufficient-coins`。失敗時はコイン・在庫・roundNo・ready を変えない。 |
+| `setPitchMode(room, on)` | 現在のホストだけ。部屋のピッチモードを切り替え、次に始まるラウンドから効く。 | `room-unavailable`、`host-required`、真偽値でなければ `invalid-request`。 |
 | `claim(room)` | active メンバー。現在のホストが退室済み、または最終接続から 45 秒を超えた場合だけホストに交代。競合は部屋ロックで一人に決める。 | `room-unavailable`、現ホストがオンラインなら `host-online`。 |
 | `leave(room)` | active メンバー本人。席を空け ready を解除する。残高・結果台帳は残す。ホストの退室後は他の active メンバーが `claim` できる。 | 非メンバー・失効は `room-unavailable`。 |
 | `subscribe(room, refresh)` | メンバー向けの更新ヒント。通知の内容で結果・権限を決めず、受信時に `snapshot` を再取得する。購読失敗時もポーリングを続ける。 | 非メンバーは購読できない。Realtime の認可失敗をゲーム結果の失敗に変換しない。 |
@@ -40,10 +40,10 @@ T03 で 40 人として定めた。F07（2026-09-26 の担当者の決定）で�
 ## 予約開始（F07）
 
 - ホストは「1・3・5・10 分後に開始」を選ぶ。全員の snapshot に `scheduledAt` が入り、UI は `serverOffset` で補正した秒読みを出す（`RoomState.secondsToScheduled`）。開始前ならホストは変更・取り消しでき、「今すぐ開始」（`start`）も使える。
-- cron は使わない。`scheduledAt` 以後に **どの active メンバーの snapshot でも**（15 秒のポーリング、`scheduledAt` 直後の再取得、他の RPC の最後の snapshot）サーバーが開始を 1 回だけ実行する。ホストが不在でも始まる。対象はその時点でオンラインの準備済みメンバーで、売り切れ・コイン不足・全員分の取り消しは `start` と同じ。
+- cron は使わない。`scheduledAt` 以後に **どの active メンバーの snapshot でも**（15 秒のポーリング、`scheduledAt` 直後の再取得）サーバーが開始を 1 回だけ実行する。部屋をロックするほかの RPC（`join`・`ready`・`start`・`schedule`・`setPitchMode`・`claim`・`leave`）も、ロックの直後に時刻を過ぎた予約を先に実行してから本来の処理をする（`lp_fire_due`）。そのため時刻の後の変更・取り消し・「今すぐ開始」で予約が消えることはない（取り消しは何もせず、変更と今すぐ開始は `round-active`・`stale-round`）。本来の処理が失敗した場合は、実行した開始も同じ取引で取り消され、次の snapshot でもう一度実行する。ホストが不在でも始まる。対象はその時点でオンラインの準備済みメンバーで、売り切れ・コイン不足・全員分の取り消しは `start` と同じ。
 - 1 回だけの保証: 開始する取引は部屋行を `FOR UPDATE` でロックし直し、`scheduledAt` がまだ残っているかを確かめてから消す。同時に来た別の snapshot はロックを待ち、消えた予約を見て何もしない。さらに request を「部屋 ID と `scheduledAt`」から決まる UUID にし、`(room, request_id)` の一意制約と事前の存在確認で同じ予約の二重抽選を防ぐ。
 - ロック: 通常の snapshot は従来どおり部屋行を `FOR SHARE` で読む。ロックなしの読み取りで予約の時刻を過ぎていると分かったときだけ、最初から `FOR UPDATE` を取る（`FOR SHARE` からの格上げは、同時に格上げする 2 つの取引がデッドロックするため行わない）。部屋→会員・在庫・ラウンドの順は変えない。
-- 開始できなかったとき（準備OKの人がいない・売り切れ・コイン不足）は、抽選の変更をすべて取り消し（サブトランザクション）、予約を消して `lastSchedule = { status, scheduledAt, roundNo: null }` にする。ホストの画面は `scheduleNotice` で理由を出す。成功時は `status: 'started'` と `roundNo`。`lastSchedule` は次の予約か「今すぐ開始」で消える。
+- 開始できなかったとき（準備OKの人がいない・売り切れ・コイン不足）は、抽選の変更をすべて取り消し（サブトランザクション）、予約を消して `lastSchedule = { status, scheduledAt, roundNo: null }` にする。ホストの画面は `scheduleNotice` で理由を出す（ホストだけ。閉じる操作 `dismissScheduleNotice`、次のラウンドの後は出さない）。成功時は `status: 'started'` と `roundNo`。`lastSchedule` は次の予約か「今すぐ開始」で消える。
 - `startsAt` は従来どおり開始のコミットから 8 秒後。予約の開始は `scheduledAt` 以後にしかコミットしないので、公開は必ず `scheduledAt` + 8 秒以後になる。UI は `scheduledAt` まで予約の秒読み、その後 `startsAt` まで開封の秒読みを出す。
 - 予約は部屋の期限（作成から 2 時間）の 1 分前までに限る。開始・公開が期限の後になって、誰も結果を見られなくなることを防ぐ。
 

@@ -4,7 +4,7 @@
 
 ## 変更
 
-[`supabase/migrations/20260926014051_lp_schedule_pitch.sql`](../supabase/migrations/20260926014051_lp_schedule_pitch.sql)。適用済みの 2 本は変更していない。ファイル名の日時は、実プロジェクトの `supabase_migrations.schema_migrations` に記録された version と同じにした（T14 と同じ理由）。
+[`supabase/migrations/20260926014051_lp_schedule_pitch.sql`](../supabase/migrations/20260926014051_lp_schedule_pitch.sql)と、その修正の [`20260926015853_lp_fire_due_first.sql`](../supabase/migrations/20260926015853_lp_fire_due_first.sql)（下記）。適用済みの migration は変更していない。ファイル名の日時は、実プロジェクトの `supabase_migrations.schema_migrations` に記録された version と同じにした（T14 と同じ理由）。
 
 | 対象 | 内容 |
 | --- | --- |
@@ -36,6 +36,15 @@
 | RPC の動作（`authenticated` として、コミットしない取引内。T14 と同じ一時テーブルと DO ブロック） | 作成で在庫 300・ピッチモード off・予約なし。ゲストの予約とピッチモードは `host-required`。ゲストの `lp_draw`・`lp_fire_schedule` は `permission denied`。ホストの 2 分は `invalid-schedule`。ピッチモード on、1 分の予約は 60 秒後で見守りにも見える。予約の時刻を過ぎた状態（管理者として時刻を戻し、ホストの接続時刻を 60 秒前にした）で見守りが snapshot すると、ラウンド 1・予約なし・`lastSchedule.status = 'started'`・`guaranteed = true`・結果と在庫は非公開。さらに 4 回 snapshot してもラウンド 1、ゲスト 2,500、不在のホスト 3,000。開封中の予約は `round-active`。`authenticated` の `lp_rooms` 直接読み取りと、`anon` の 2 つの新 RPC は `permission denied` |
 | 後片付け | 確認後、4 テーブルとも 0 行 |
 | Advisors | performance: 指摘なし。security: T14 と同じ 3 種（RLS Enabled No Policy、Signed-In Users Can Execute SECURITY DEFINER Function、Leaked Password Protection Disabled）。新しい RPC 2 つが 2 つ目の一覧に加わった。いずれも [T14 の判断](SQL_MIGRATION_T14.md#security-advisor-の指摘と判断) のとおり意図どおり。内部の 3 関数は SECURITY INVOKER で実行権限もないため指摘なし |
+
+## 追加の migration: 時刻を過ぎた予約を先に実行する
+
+[`supabase/migrations/20260926015853_lp_fire_due_first.sql`](../supabase/migrations/20260926015853_lp_fire_due_first.sql)（PR #29 の Copilot の指摘への対応）。最初の migration では、時刻を過ぎた予約を snapshot だけが実行していた。そのため、ホストの時刻の後の最初の呼び出しが予約の変更・取り消しだと、予約が始まらないまま消えた。
+
+- 内部の `lp_fire_due(p_room)` を追加し（実行権限なし）、部屋をロックする `lp_join`・`lp_ready`・`lp_start`・`lp_schedule`・`lp_set_pitch_mode`・`lp_claim_host`・`lp_leave` がロックの直後に呼ぶ。時刻の後の取り消しは何もせず（開始済みを返す）、変更と今すぐ開始は `round-active`・`stale-round`。ピッチモードの切り替えは予約したラウンドの後から効く。
+- 本来の処理が失敗すると、実行した開始も同じ取引で取り消され、次の snapshot でもう一度実行する（模擬サーバーは取引がないので開始を残す。どちらも開始は 1 回）。
+- PGlite で修正前に失敗する回帰テストを追加（取り消し・変更・今すぐ開始・準備の取り消し・ピッチモード・退室）。PGlite 10 件成功。
+- 実 DB: `list_migrations` に `20260926015853 lp_fire_due_first`。`lp_*` の 15 関数すべての本体の md5 がローカルと一致。`lp_fire_due` は `anon`・`authenticated` とも実行不可、そのほかの権限は上と同じ。コミットしない取引で `authenticated` として、時刻の後の取り消しが開始済み（ラウンド 1・`started`）を返し、時刻の後の変更が `round-active` で、続く snapshot でラウンド 1 が始まることを確認。後で 4 テーブルとも 0 行。Advisors は上と同じ（performance 指摘なし、security は意図どおりの 3 種）。
 
 ## 未確認
 

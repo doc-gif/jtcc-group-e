@@ -6,7 +6,7 @@ let db
 const users=Array.from({length:102},()=>randomUUID())
 const room=randomUUID()
 let invite
-const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql']
+const migrations=['supabase/migrations/20260926000239_lp_shared_opening.sql','supabase/migrations/20260926000446_lp_is_member_internal.sql','supabase/migrations/20260926014051_lp_schedule_pitch.sql','supabase/migrations/20260926015853_lp_fire_due_first.sql']
 const call=async(user,sql,args=[])=>{
  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user])
  return (await db.query(sql,args)).rows[0]?.result
@@ -221,6 +221,47 @@ describe('F07: scheduled start and pitch mode', () => {
   expect(await balances(id)).toEqual({[host]:3000,[friend]:3000,[watcher]:3000})
   expect(short.members.filter(member=>member.ready)).toHaveLength(2)
   expect((await db.query('select count(*)::int count from public.lp_rounds where room=$1',[id])).rows[0].count).toBe(0)
+ },30000)
+
+ test('every locking RPC fires an overdue schedule first, so a late change or cancel cannot drop it', async()=>{
+  // Cancel after the time: the schedule has already fired; nothing is cancelled.
+  const a=await openRoom()
+  await call(friend,'select public.lp_ready($1,true) result',[a])
+  await call(host,'select public.lp_schedule($1,1) result',[a])
+  await due(a)
+  const cancelled=await call(host,'select public.lp_schedule($1,null) result',[a])
+  expect(cancelled).toMatchObject({roundNo:1,scheduledAt:null,lastSchedule:{status:'started',roundNo:1}})
+
+  // Re-schedule after the time: the fired round makes the change round-active; the whole call rolls back
+  // and the next snapshot starts the original schedule.
+  const b=await openRoom()
+  await call(friend,'select public.lp_ready($1,true) result',[b])
+  await call(host,'select public.lp_schedule($1,1) result',[b])
+  await due(b)
+  await expect(call(host,'select public.lp_schedule($1,3) result',[b])).rejects.toThrow('round-active')
+  await expect(call(host,'select public.lp_start($1,$2,0) result',[b,randomUUID()])).rejects.toThrow('stale-round')
+  await expect(call(friend,'select public.lp_ready($1,false) result',[b])).rejects.toThrow('round-active')
+  expect(await snap(watcher,b)).toMatchObject({roundNo:1,scheduledAt:null,lastSchedule:{status:'started'}})
+  expect((await balances(b))[friend]).toBe(2500)
+
+  // Pitch mode switched on after the time applies from the next round, not the overdue one.
+  const c=await openRoom()
+  await call(friend,'select public.lp_ready($1,true) result',[c])
+  await call(host,'select public.lp_schedule($1,1) result',[c])
+  await due(c)
+  const toggled=await call(host,'select public.lp_set_pitch_mode($1,true) result',[c])
+  expect(toggled).toMatchObject({roundNo:1,pitchMode:true})
+  expect(toggled.round.guaranteed).toBe(false)
+
+  // Leaving after the time: the ready member was already in the scheduled round.
+  const d=await openRoom()
+  await call(friend,'select public.lp_ready($1,true) result',[d])
+  await call(host,'select public.lp_schedule($1,1) result',[d])
+  await due(d)
+  await call(friend,'select public.lp_leave($1)',[d])
+  const left=await snap(watcher,d)
+  expect(left.roundNo).toBe(1)
+  expect((await balances(d))[friend]).toBe(2500)
  },30000)
 
  test('pitch mode guarantees one real top prize while stock lasts and says so to everyone', async()=>{

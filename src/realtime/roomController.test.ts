@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { MockRoomServer } from './mock'
-import type { RoomTransport } from './protocol'
+import type { RoomTransport, Snapshot } from './protocol'
 import { createRoomController, ROOM_POLL_MS, roomErrorCode, type RoomControllerOptions } from './roomController'
 
 const T0 = Date.parse('2026-01-01T00:00:00Z')
@@ -355,4 +355,57 @@ test('ピッチモードと目玉の確定を全員の状態に出す', async ()
   await host.setPitchMode(false)
   await vi.advanceTimersByTimeAsync(0)
   expect(friend.getState()).toMatchObject({ pitchMode: false, roundGuaranteed: true })
+})
+
+test('開始できなかった案内はホストだけに出し、閉じた後と次の開始の後は出さない', async () => {
+  const { server, controller } = setup()
+  let keepStale = false
+  let stale: Snapshot['lastSchedule'] = null
+  const inner = server.asUser('host')
+  // サーバーが古い結末を返し続けても、次のラウンドの後は案内を出さないことを確かめる。
+  const transport: RoomTransport = {
+    ...inner,
+    snapshot: async room => { const next = await inner.snapshot(room); return keepStale ? { ...next, lastSchedule: stale } : next },
+    start: async (room, request, expected) => { const next = await inner.start(room, request, expected); return keepStale ? { ...next, lastSchedule: stale } : next },
+  }
+  const host = controller('host', transport)
+  await host.create('ホスト')
+  const friend = controller('friend')
+  await friend.join(host.getState().snapshot!.invite, '友だち')
+  await host.schedule(1)
+  await vi.advanceTimersByTimeAsync(60_250)
+  expect(host.getState().scheduleNotice?.code).toBe('nobody-ready')
+  await friend.refresh()
+  expect(friend.getState()).toMatchObject({ lastSchedule: { status: 'nobody-ready' }, scheduleNotice: null })
+  host.dismissScheduleNotice()
+  expect(host.getState().scheduleNotice).toBeNull()
+
+  await host.schedule(1)
+  await vi.advanceTimersByTimeAsync(60_250)
+  expect(host.getState().scheduleNotice?.code).toBe('nobody-ready')
+  stale = host.getState().lastSchedule
+  keepStale = true
+  await friend.setReady(true)
+  expect((await host.start()).ok).toBe(true)
+  expect(host.getState()).toMatchObject({ phase: 'countdown', lastSchedule: { status: 'nobody-ready' }, scheduleNotice: null })
+})
+
+test('予約の時刻を過ぎた後のホストの変更は、先に予約どおり始まったことを示す', async () => {
+  const { controller } = setup()
+  const host = controller('host')
+  await host.create('ホスト')
+  const friend = controller('friend')
+  await friend.join(host.getState().snapshot!.invite, '友だち')
+  await friend.setReady(true)
+  await host.schedule(1)
+  // 誰も再取得しないうちに時刻を過ぎた（全員の画面が止まっていた）。
+  host.detach()
+  friend.detach()
+  await vi.advanceTimersByTimeAsync(40_000)
+  await friend.refresh()
+  await vi.advanceTimersByTimeAsync(21_000)
+  const late = await host.schedule(3)
+  expect(late.error?.code).toBe('round-active')
+  await vi.advanceTimersByTimeAsync(0)
+  expect(host.getState()).toMatchObject({ phase: 'countdown', scheduledAt: null, lastSchedule: { status: 'started', roundNo: 1 } })
 })

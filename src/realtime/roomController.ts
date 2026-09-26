@@ -112,7 +112,7 @@ export interface RoomState {
   /** 最新ラウンドで目玉の確定枠を使ったか。目玉が売り切れのときは false（通常の抽選）。 */
   roundGuaranteed: boolean
   lastSchedule: ScheduleOutcome | null
-  /** 予定の時刻に開始できなかった理由（次の予約か今すぐ開始で消える）。 */
+  /** 予定の時刻に開始できなかった理由。ホストだけ。次の予約・開始の後と、閉じた後は null。 */
   scheduleNotice: RoomNotice | null
   serverOffset: number
   busy: RoomAction | null
@@ -143,6 +143,8 @@ export interface RoomController {
   refresh(): Promise<void>
   /** 結果画面を閉じ、今ある自分の結果を確認済みにする。 */
   dismissResults(): void
+  /** 予約で開始できなかった案内を閉じる。 */
+  dismissScheduleNotice(): void
 }
 
 type Connection = 'ok' | 'reconnecting' | 'unavailable'
@@ -176,6 +178,7 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
   let pendingStart: { request: string; expected: number } | null = null
   let dismissed = new Set<number>()
   let watchedPending = new Set<number>()
+  let dismissedNotice: string | null = null
   let state = derive()
 
   function derive(): RoomState {
@@ -214,7 +217,10 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     const scheduledAt = snap?.scheduledAt ?? null
     const lastSchedule = snap?.lastSchedule ?? null
     const expiresAt = snap ? Date.parse(snap.expiresAt) : 0
-    const noticeText = lastSchedule && !scheduledAt ? scheduleMessage(lastSchedule.status) : null
+    // 開始できなかった理由はホストにだけ出す。閉じた後、次の予約・開始の後（古い理由）は出さない。
+    const staleNotice = lastSchedule !== null && (dismissedNotice === lastSchedule.scheduledAt
+      || (round !== null && Date.parse(round.startsAt) > Date.parse(lastSchedule.scheduledAt)))
+    const noticeText = lastSchedule && isHost && !scheduledAt && !staleNotice ? scheduleMessage(lastSchedule.status) : null
     const noticeCode = lastSchedule?.status
     return {
       phase, roomId, snapshot: snap, self, members, isHost,
@@ -334,6 +340,7 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
     pendingStart = null
     dismissed = new Set()
     watchedPending = new Set()
+    dismissedNotice = null
   }
 
   function exitRoom() {
@@ -502,6 +509,12 @@ export function createRoomController(transport: RoomTransport, options: RoomCont
       }
     },
     refresh: () => sync(),
+    dismissScheduleNotice() {
+      const outcome = snapshot?.lastSchedule
+      if (!outcome) return
+      dismissedNotice = outcome.scheduledAt
+      emit()
+    },
     dismissResults() {
       const snap = snapshot
       if (!snap) return

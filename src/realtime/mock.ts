@@ -92,8 +92,17 @@ export class MockRoomServer {
       if (!room || room.expiresAt <= this.now() || !room.members.get(userId)?.active) throw new RoomContractError('room-unavailable')
       return room
     }
-    const hosted = (roomId: string) => {
+    /**
+     * Like lp_fire_due: every operation runs an overdue schedule first. (SQL rolls the start back with a
+     * failing call and the next snapshot runs it; the mock keeps it. Either way it starts exactly once.)
+     */
+    const locked = (roomId: string) => {
       const room = current(roomId)
+      this.fireSchedule(room)
+      return room
+    }
+    const hosted = (roomId: string) => {
+      const room = locked(roomId)
       if (room.host !== userId) throw new RoomContractError('host-required')
       return room
     }
@@ -152,6 +161,7 @@ export class MockRoomServer {
         const nickname = validName(name)
         const room = [...this.rooms.values()].find(candidate => candidate.invite === invite && candidate.expiresAt > this.now())
         if (!room) throw new RoomContractError('room-unavailable')
+        this.fireSchedule(room)
         const previous = room.members.get(userId)
         if (!previous?.active && [...room.members.values()].filter(member => member.active).length >= SHARED_CAPACITY) throw new RoomContractError('room-full')
         if (previous) { previous.nickname = nickname; previous.active = true; previous.seenAt = this.now() }
@@ -161,7 +171,7 @@ export class MockRoomServer {
       },
       snapshot: async roomId => snapshot(roomId),
       ready: async (roomId, ready) => {
-        const room = current(roomId)
+        const room = locked(roomId)
         assertIdle(room)
         if (typeof ready !== 'boolean') throw new RoomContractError('invalid-ready')
         const member = room.members.get(userId)!
@@ -209,7 +219,7 @@ export class MockRoomServer {
         return snapshot(roomId)
       },
       claim: async roomId => {
-        const room = current(roomId)
+        const room = locked(roomId)
         const host = room.members.get(room.host)
         if (host?.active && host.seenAt > this.now() - SHARED_ONLINE_WINDOW_MS) throw new RoomContractError('host-online')
         room.host = userId
@@ -217,7 +227,7 @@ export class MockRoomServer {
         return snapshot(roomId)
       },
       leave: async roomId => {
-        const room = current(roomId)
+        const room = locked(roomId)
         const member = room.members.get(userId)!
         member.active = false
         member.ready = false

@@ -140,6 +140,38 @@ test('mock schedule parity: host only, change, cancel, expiry bound, one start b
  expect((await host.schedule(room.id, 3)).scheduledAt).toBe('2026-01-01T01:59:00.000Z')
 })
 
+test('mock: every operation runs an overdue schedule first, so a late change or cancel cannot drop it', async () => {
+ let now = Date.parse('2026-01-01T00:00:00Z')
+ let rooms = 0
+ const server = new MockRoomServer(() => now, () => `invite-${++rooms}`, () => 0)
+ const [host, friend, watcher] = ['host', 'friend', 'watcher'].map(id => server.asUser(id))
+ const open = async (id: string) => {
+   const room = await host.create(id, 'ホスト')
+   await friend.join(room.invite, '友だち')
+   await watcher.join(room.invite, '見守り')
+   await friend.ready(id, true)
+   await host.schedule(id, 1)
+   now += 40_000
+   await friend.snapshot(id)
+   now += 20_000
+   return id
+ }
+ const a = await open('late-cancel')
+ expect(await host.schedule(a, null)).toMatchObject({ roundNo: 1, scheduledAt: null, lastSchedule: { status: 'started', roundNo: 1 } })
+ const b = await open('late-change')
+ await expect(host.schedule(b, 3)).rejects.toThrow('round-active')
+ expect(await watcher.snapshot(b)).toMatchObject({ roundNo: 1, lastSchedule: { status: 'started' } })
+ const c = await open('late-pitch')
+ const toggled = await host.setPitchMode(c, true)
+ expect(toggled).toMatchObject({ roundNo: 1, pitchMode: true })
+ expect(toggled.round?.guaranteed).toBe(false)
+ const d = await open('late-leave')
+ await friend.leave(d)
+ expect((await watcher.snapshot(d)).round?.number).toBe(1)
+ now += 8_000
+ expect((await watcher.snapshot(d)).round?.results?.map(result => result.userId)).toEqual(['friend'])
+})
+
 test('mock pitch mode guarantees a real top prize while stock lasts, then draws normally', async () => {
  let now = 0
  let draws = 0
