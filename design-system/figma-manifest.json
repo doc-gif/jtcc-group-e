@@ -1,11 +1,11 @@
 {
-  "version": "0.4.1",
-  "date": "2026-09-26",
+  "version": "0.5.0",
+  "date": "2026-09-27",
   "fileKey": "yeDF1BwhrxpXI57Daainle",
   "designStatus": "adopted-master",
   "implementationStatus": "applied-to-app-css",
-  "implementationNote": "アプリは tokens.css を import せず、同じ値を src/index.css に持つ（F06、2026-09-26）。対応は appMapping。F14 の Lastpiece v2 / Sanrio World (F14)（323:3784）の --lp-v2-sanrio-* も、Issue #70 のアプリ実装で src/index.css に同じ名前・同じ値で持つ（0.4.1）。見出しの Zen Maru Gothic Bold は src/fonts/ に OFL の woff2（アプリで使う文字だけの subset）を同梱。",
-  "paletteDecision": "Pink \"Sakura Milk\" (さくらミルク) is the adopted palette (owner, 2026-09-26). Green accent version 252:2 is rejected; primary actions are not green. Primary stays #be6482 with 19px bold button labels (WCAG large text); smaller pink text uses wine #a94a68; mint #e3f1e7 is kept for the selected tab and coin badge (owner, 2026-09-26).",
+  "implementationNote": "アプリは tokens.css を import せず、同じ値を src/index.css に持つ（F06、2026-09-26）。対応は appMapping。F14 の Lastpiece v2 / Sanrio World (F14)（323:3784）の --lp-v2-sanrio-* も、Issue #70 のアプリ実装で src/index.css に同じ名前・同じ値で持つ（0.4.1）。見出しの Zen Maru Gothic Bold は src/fonts/ に OFL の woff2（アプリで使う文字だけの subset）を同梱。 0.5.0（#125）: #122 で Tokens に入ったアプリ由来の変数（--primary・--line・--head・--shelf-*・--art-mint・--lux-text・--disabled-soft*・--lp-v2-capsule-*・--lp-v2-radius-*・--lp-v2-action-pressed）と文字スタイル 5 種の寸法を src/index.css に同じ名前・同じ値で持つ。同名の値の一致は scripts/design-tokens.test.mjs が CI で検査する。",
+  "paletteDecision": "Pink \"Sakura Milk\" (さくらミルク) is the adopted palette (owner, 2026-09-26). Green accent version 252:2 is rejected; primary actions are not green. Primary stays #be6482 with 19px bold button labels (WCAG large text); smaller pink text uses wine #a94a68; mint #e3f1e7 is kept for the selected tab only (owner, 2026-09-26); the coin badge is white with a sanrio/melody-pink 1.5px border and wine text (owner decision B1 in #120, 2026-09-26; app change in #143).",
   "pinkTextRule": {
     "decidedOn": "2026-09-26",
     "by": "owner",
@@ -45,11 +45,20 @@
         "Style=Primary, State=Disabled",
         "Style=Outline, State=Default",
         "Style=Outline, State=Focus",
-        "Style=Outline, State=Disabled"
+        "Style=Outline, State=Disabled",
+        "Style=Text, State=Default",
+        "Style=Text, State=Focus",
+        "Style=Text, State=Disabled"
       ],
       "height": 48,
       "instancesInMaster": 90,
-      "implementation": null
+      "implementation": null,
+      "textVariantNodes": {
+        "Default": "452:20823",
+        "Focus": "452:20825",
+        "Disabled": "452:20827"
+      },
+      "note": "Style=Text は #122（2026-09-27）で追加。地なし・文字 accent/wine（Disabled は text/disabled）。アプリの .btn-text に対応"
     },
     {
       "name": "LP v2 / Navigation Item",
@@ -70,6 +79,33 @@
       "documentationNodeId": "180:15",
       "instancesInMaster": 19,
       "implementation": null
+    },
+    {
+      "name": "LP v2 / Chip",
+      "nodeId": "452:20811",
+      "variants": [
+        "State=Default",
+        "State=Selected"
+      ],
+      "height": 44,
+      "added": "2026-09-27",
+      "instancesInMaster": 0,
+      "implementation": null,
+      "note": "radius/full・枠 2px border/action・Button 19/28。アプリの .chip・.room-minute に対応（寸法の寄せは #143）"
+    },
+    {
+      "name": "LP v2 / Input",
+      "nodeId": "452:20822",
+      "variants": [
+        "State=Default",
+        "State=Focus",
+        "State=Error"
+      ],
+      "height": 48,
+      "added": "2026-09-27",
+      "instancesInMaster": 0,
+      "implementation": null,
+      "note": "radius/control・枠 2px（Default は border/action、Error は sanrio/ribbon-red）・Body・placeholder text/secondary。アプリの .room-name-form input に対応（寸法の寄せは #143）"
     }
   ],
   "collections": [
@@ -82,8 +118,9 @@
           "modeId": "177:0"
         }
       ],
-      "count": 14,
-      "implementationStatus": "applied-to-app-css"
+      "count": 13,
+      "implementationStatus": "applied-to-app-css",
+      "note": "2026-09-27 の #122 で primitive/forest を primitive/primary に改名（WEB は --lp-v2-forest のまま）、primitive/forest-deep を削除"
     },
     {
       "id": "VariableCollectionId:177:16",
@@ -94,8 +131,9 @@
           "modeId": "177:1"
         }
       ],
-      "count": 30,
-      "implementationStatus": "applied-to-app-css"
+      "count": 45,
+      "implementationStatus": "applied-to-app-css",
+      "note": "2026-09-27 の #122 で 15 変数（radius/tile・panel、color/shelf/*・capsule/*・border/divider・bg/band・art/mint・text/lux・state/disabled-soft・text/disabled-soft・border/action）を追加。action/pressed を primitive/wine の alias に変更"
     },
     {
       "id": "VariableCollectionId:323:3784",
@@ -113,7 +151,7 @@
       "implementationNote": "マスターに反映済み。Issue #70 で src/index.css に同じ名前（--lp-v2-sanrio-*）で持ち、地の色（cream・lavender・sky）と水玉・点線の枠・リボン・日よけ・ハートと星の飾りに使う。文字には使っていない（文字はこれまでどおり text/primary・secondary・accent/wine）。キャラクターの絵と © 表記の札は入れていない（docs/ux-reviews/f14-app.json）"
     }
   ],
-  "cssNaming": "CSS 名は Figma 変数の WEB code syntax と同じ。--bg/--surface/--soft/--main/--deep は src/index.css と同名・同値。それ以外は --lp-v2-*。v0.1 の --jtcc-* は使わない。文字スタイル由来の --lp-v2-type-*（button を含む） と --lp-v2-focus-ring は CSS 側で付けた名前。",
+  "cssNaming": "CSS 名は Figma 変数の WEB code syntax と同じ。--bg/--surface/--soft/--main/--deep と、0.5.0 で DS に入ったアプリ由来の名前（--primary・--line・--head・--shelf-wood・--shelf-slot-line・--shelf-slot-line-owned・--art-mint・--lux-text・--disabled-soft・--disabled-soft-text）は src/index.css と同名・同値。それ以外は --lp-v2-*。v0.1 の --jtcc-* は使わない。文字スタイル由来の --lp-v2-type-*（button を含む）、色/効果スタイル由来の --rg・--rg-soft・--pearl・--kakutei・--shadow、--lp-v2-focus-ring は CSS 側で付けた名前。",
   "bindingsNote": "bindingsInMaster はマスターページ 267:8198 の全ノード（部品インスタンス内を含む）で変数を結合したプロパティの件数。2026-09-26 に読み取り専用で集計。",
   "variables": [
     {
@@ -199,24 +237,13 @@
     {
       "id": "VariableID:177:25",
       "collection": "Lastpiece v2 / Primitives",
-      "name": "primitive/forest",
+      "name": "primitive/primary",
       "syntax": {
         "WEB": "var(--lp-v2-forest)"
       },
       "scopes": [],
       "value": "#be6482",
-      "note": "名前は旧版の名残。値はピンク"
-    },
-    {
-      "id": "VariableID:177:26",
-      "collection": "Lastpiece v2 / Primitives",
-      "name": "primitive/forest-deep",
-      "syntax": {
-        "WEB": "var(--lp-v2-forest-deep)"
-      },
-      "scopes": [],
-      "value": "#0e4b39",
-      "note": "濃い緑。tokens.css に定義しない（excluded）"
+      "note": "#122 で primitive/forest から改名。WEB code syntax は旧名 --lp-v2-forest のまま"
     },
     {
       "id": "VariableID:177:27",
@@ -401,7 +428,7 @@
         "FRAME_FILL",
         "SHAPE_FILL"
       ],
-      "aliasOf": "primitive/forest",
+      "aliasOf": "primitive/primary",
       "resolved": "#be6482",
       "bindingsInMaster": 175,
       "note": "文字121件・文字以外の塗り54件。白文字との比は4.5:1未満（contrastAudit）"
@@ -417,10 +444,10 @@
         "FRAME_FILL",
         "SHAPE_FILL"
       ],
-      "aliasOf": "primitive/forest-deep",
-      "resolved": "#0e4b39",
+      "aliasOf": "primitive/wine",
+      "resolved": "#a94a68",
       "bindingsInMaster": 0,
-      "note": "濃い緑。マスター・部品とも未参照。tokens.css に定義しない（excluded）"
+      "note": "押している間の塗り（主ボタン・Chip）。#122（2026-09-27）で緑 #0e4b39 から変更。src/index.css も --lp-v2-action-pressed（→ --deep）を持つ"
     },
     {
       "id": "VariableID:177:42",
@@ -477,7 +504,7 @@
       "scopes": [
         "STROKE_COLOR"
       ],
-      "aliasOf": "primitive/forest",
+      "aliasOf": "primitive/primary",
       "resolved": "#be6482",
       "bindingsInMaster": 47
     },
@@ -527,7 +554,7 @@
       "aliasOf": "primitive/mint",
       "resolved": "#e3f1e7",
       "bindingsInMaster": 19,
-      "note": "淡いミント。選択中のタブ・コイン札（Web は --mint）"
+      "note": "下のタブの選択中の地だけ。コイン札には使わない（#120 B1）"
     },
     {
       "id": "VariableID:181:24",
@@ -850,22 +877,243 @@
       ],
       "value": "#7a4a28",
       "bindingsInMaster": 7
-    }
-  ],
-  "excluded": [
-    {
-      "name": "color/action/pressed",
-      "id": "VariableID:177:41",
-      "resolved": "#0e4b39",
-      "reason": "濃い緑。マスターと Button・Navigation 部品は参照していない。主操作を緑にしない決定に反するため tokens.css に定義しない。Figma 側の整理は未実施（変数を変えるとマスターに影響するため）"
     },
     {
-      "name": "primitive/forest-deep",
-      "id": "VariableID:177:26",
-      "resolved": "#0e4b39",
-      "reason": "上の action/pressed だけが参照する"
+      "id": "VariableID:456:2",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "radius/tile",
+      "syntax": {
+        "WEB": "var(--lp-v2-radius-tile)"
+      },
+      "scopes": [
+        "CORNER_RADIUS"
+      ],
+      "value": 16,
+      "added": "2026-09-27",
+      "bindingsInMaster": 0,
+      "note": "棚の枠・一覧の行（D2）。結合は #123・#124"
+    },
+    {
+      "id": "VariableID:456:3",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "radius/panel",
+      "syntax": {
+        "WEB": "var(--lp-v2-radius-panel)"
+      },
+      "scopes": [
+        "CORNER_RADIUS"
+      ],
+      "value": 18,
+      "added": "2026-09-27",
+      "bindingsInMaster": 0,
+      "note": "集計カード（D2）。結合は #123・#124"
+    },
+    {
+      "id": "VariableID:456:4",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/shelf/wood",
+      "syntax": {
+        "WEB": "var(--shelf-wood)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "value": "#c99c87",
+      "added": "2026-09-27",
+      "bindingsInMaster": 0,
+      "note": "木の棚板（絵の色。文字に使わない。D1）。結合は #123・#124"
+    },
+    {
+      "id": "VariableID:456:5",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/shelf/slot-line",
+      "syntax": {
+        "WEB": "var(--shelf-slot-line)"
+      },
+      "scopes": [
+        "STROKE_COLOR"
+      ],
+      "value": "#cfbfba",
+      "added": "2026-09-27",
+      "bindingsInMaster": 0,
+      "note": "棚の空き枠の線（D1）。結合は #123・#124"
+    },
+    {
+      "id": "VariableID:456:6",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/shelf/slot-line-owned",
+      "syntax": {
+        "WEB": "var(--shelf-slot-line-owned)"
+      },
+      "scopes": [
+        "STROKE_COLOR"
+      ],
+      "value": "#cfa194",
+      "added": "2026-09-27",
+      "bindingsInMaster": 0,
+      "note": "棚の持っている枠の線（D1）。結合は #123・#124"
+    },
+    {
+      "id": "VariableID:456:7",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/capsule/sparkle-bg",
+      "syntax": {
+        "WEB": "var(--lp-v2-capsule-sparkle-bg)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "value": "#fbeff6",
+      "added": "2026-09-27",
+      "bindingsInMaster": 0,
+      "note": "Capsule 376:11670 の sparkle の地（C6）。結合は #123・#124"
+    },
+    {
+      "id": "VariableID:456:8",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/capsule/featured-glow-in",
+      "syntax": {
+        "WEB": "var(--lp-v2-capsule-featured-glow-in)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "value": "#fffbef",
+      "added": "2026-09-27",
+      "bindingsInMaster": 0,
+      "note": "featured の放射グラデの内側（C6）。結合は #123・#124"
+    },
+    {
+      "id": "VariableID:456:9",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/capsule/featured-glow-out",
+      "syntax": {
+        "WEB": "var(--lp-v2-capsule-featured-glow-out)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "value": "#fbebc4",
+      "added": "2026-09-27",
+      "bindingsInMaster": 0,
+      "note": "featured の放射グラデの外側（C6）。結合は #123・#124"
+    },
+    {
+      "id": "VariableID:456:10",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/border/divider",
+      "syntax": {
+        "WEB": "var(--line)"
+      },
+      "scopes": [
+        "SHAPE_FILL",
+        "STROKE_COLOR"
+      ],
+      "value": "#f5dde4",
+      "added": "2026-09-27",
+      "bindingsInMaster": 0,
+      "note": "飾りの区切り線。操作の境界には使わない（F5）。結合は #123・#124"
+    },
+    {
+      "id": "VariableID:456:11",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/bg/band",
+      "syntax": {
+        "WEB": "var(--head)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "value": "#f2a7bc",
+      "added": "2026-09-27",
+      "bindingsInMaster": 0,
+      "note": "ピンクの帯・吹き出しの枠（F5）。結合は #123・#124"
+    },
+    {
+      "id": "VariableID:456:12",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/art/mint",
+      "syntax": {
+        "WEB": "var(--art-mint)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "value": "#d3e8dd",
+      "added": "2026-09-27",
+      "bindingsInMaster": 0,
+      "note": "絵のミント（F5）。結合は #123・#124"
+    },
+    {
+      "id": "VariableID:456:13",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/text/lux",
+      "syntax": {
+        "WEB": "var(--lux-text)"
+      },
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "value": "#6b2b45",
+      "added": "2026-09-27",
+      "bindingsInMaster": 0,
+      "note": "ローズゴールドの地の文字（.btn-lux など。F5）。結合は #123・#124"
+    },
+    {
+      "id": "VariableID:456:14",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/state/disabled-soft",
+      "syntax": {
+        "WEB": "var(--disabled-soft)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "value": "#efe3e7",
+      "added": "2026-09-27",
+      "bindingsInMaster": 0,
+      "note": "ルームの無効チップの地（F5）。結合は #123・#124"
+    },
+    {
+      "id": "VariableID:456:15",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/text/disabled-soft",
+      "syntax": {
+        "WEB": "var(--disabled-soft-text)"
+      },
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "value": "#6e5a61",
+      "added": "2026-09-27",
+      "bindingsInMaster": 0,
+      "note": "無効チップの文字。disabled-soft の地で 5.09:1（F5）。結合は #123・#124"
+    },
+    {
+      "id": "VariableID:456:16",
+      "collection": "Lastpiece v2 / Tokens",
+      "name": "color/border/action",
+      "syntax": {
+        "WEB": "var(--primary)"
+      },
+      "scopes": [
+        "STROKE_COLOR"
+      ],
+      "aliasOf": "primitive/primary",
+      "resolved": "#be6482",
+      "added": "2026-09-27",
+      "bindingsInMaster": 0,
+      "note": "枠ボタン・Chip・入力欄の枠。値は action/primary と同じ（F4 の受け皿）。結合は #123・#124"
     }
   ],
+  "excluded": [],
   "textStyles": [
     {
       "id": "S:6784aac8879be8c51c4c5b23311530bbd0785d53,",
@@ -917,6 +1165,61 @@
       "size": 14,
       "line": 22,
       "usesInMaster": 180
+    },
+    {
+      "id": "S:48835819ed34e8a378c7e596b6720e4dc0b3f603,",
+      "name": "Lastpiece v2/Heading",
+      "font": "Zen Maru Gothic Bold",
+      "size": 24,
+      "line": 32,
+      "usesInMaster": 0,
+      "added": "2026-09-27",
+      "css": "--lp-v2-type-heading-size / --lp-v2-type-heading-line",
+      "note": "画面の見出し（F14 の 85 件の受け皿。結合は #123・#124）"
+    },
+    {
+      "id": "S:0cb4580a81b44e2a76ee0717d12ed4fc927cf8b5,",
+      "name": "Lastpiece v2/Heading S",
+      "font": "Zen Maru Gothic Bold",
+      "size": 14,
+      "line": 20,
+      "usesInMaster": 0,
+      "added": "2026-09-27",
+      "css": "--lp-v2-type-heading-s-size / --lp-v2-type-heading-s-line",
+      "note": "吹き出し"
+    },
+    {
+      "id": "S:7d80b8418888d372fb0430ecdc8835fc80f83759,",
+      "name": "Lastpiece v2/Subtitle",
+      "font": "Noto Sans JP Bold",
+      "size": 18,
+      "line": 27,
+      "usesInMaster": 0,
+      "added": "2026-09-27",
+      "css": "--lp-v2-type-subtitle-size / --lp-v2-type-subtitle-line",
+      "note": "カードの品名（B3）"
+    },
+    {
+      "id": "S:3a312f5f59affa9de5a82b77c7dfacd9147e2190,",
+      "name": "Lastpiece v2/Numeral",
+      "font": "Noto Sans JP Bold",
+      "size": 26,
+      "line": 32,
+      "usesInMaster": 0,
+      "added": "2026-09-27",
+      "css": "--lp-v2-type-numeral-size / --lp-v2-type-numeral-line",
+      "note": "ルームの人数・時計（E2。tabular-nums を推奨）"
+    },
+    {
+      "id": "S:937d376ee0746d09bdd4c44d144192ac218df056,",
+      "name": "Lastpiece v2/Overline",
+      "font": "Noto Sans JP Bold",
+      "size": 13,
+      "line": 16,
+      "usesInMaster": 0,
+      "added": "2026-09-27",
+      "css": "--lp-v2-type-overline-size / --lp-v2-type-overline-line",
+      "note": "eyebrow（E2。色は accent/wine か text/secondary）"
     }
   ],
   "textStylesNote": "マスターの文字898件のうち501件は文字スタイル未適用（Noto Sans JP の Bold/Regular、Shippori Mincho Bold 1件）。2026-09-26 に Button 部品のラベル 90 件を Label から Button へ移した。 2026-09-26 の F14 で、見出しの Zen Maru Gothic Bold 24（85件）など Zen Maru Gothic の文字は文字スタイルを外した（Lastpiece v2/Title から外れたものを含む）。上の usesInMaster は F14 前の集計。",
@@ -939,7 +1242,14 @@
       },
       "css": "--lp-v2-focus-ring"
     },
-    "note": "マスターは効果スタイルを使っていない。Figma にある Lastpiece v2/Sheet Shadow と JTCC/Shadow/Lastpiece は未参照。"
+    "note": "マスターは効果スタイルを使っていない。#122 で Lastpiece v2/Card Shadow（= アプリの --shadow）を追加。Lastpiece v2/Sheet Shadow と JTCC/Shadow/Lastpiece は未参照。",
+    "cardShadow": {
+      "id": "S:ea2846629442c382a256166cf7b91b73864e6e81,",
+      "name": "Lastpiece v2/Card Shadow",
+      "value": "0 2px 12px rgba(222,127,156,.18)",
+      "css": "--shadow",
+      "added": "2026-09-27"
+    }
   },
   "appMapping": [
     {
@@ -965,12 +1275,12 @@
     {
       "token": "color/accent/wine",
       "figma": "#a94a68",
-      "app": "--deep（小さいピンクの文字、選択中のタブの文字、コイン札の文字、:focus-visible）"
+      "app": "--deep（小さいピンクの文字、選択中のタブの文字、コイン札の文字、:focus-visible、.btn-text の文字）"
     },
     {
       "token": "color/nav/selected",
       "figma": "#e3f1e7",
-      "app": "--mint（選択中のタブ、コイン札）"
+      "app": "--mint（下のタブの選択中。コイン札は #120 B1 で白地＋melody-pink の枠に変わる。アプリの変更は #143）"
     },
     {
       "token": "color/action/disabled",
@@ -1001,6 +1311,71 @@
       "token": "見出し Zen Maru Gothic Bold 24（文字スタイルなし）",
       "figma": "F14 の画面の見出し 85 件",
       "app": "--font-heading（.page-header h1・.town-header h1・.topbar h1・回す前/回転/開封/売り切れの題）。src/fonts/zen-maru-gothic.css の OFL の woff2 を同梱、1.5rem"
+    },
+    {
+      "token": "radius/control",
+      "figma": "12",
+      "app": "--lp-v2-radius-control、--radius はその別名（.btn・.welcome-card など var(--radius) の 10 か所。#125 で 14px → 12px）"
+    },
+    {
+      "token": "radius/tile・radius/panel",
+      "figma": "16・18",
+      "app": "--lp-v2-radius-tile（.slot-card）・--lp-v2-radius-panel（.shelf-summary・.card）"
+    },
+    {
+      "token": "radius/card・radius/full",
+      "figma": "20・999",
+      "app": "--lp-v2-radius-card・--lp-v2-radius-full（定義のみ。直値の置き換えは #143）"
+    },
+    {
+      "token": "color/action/pressed",
+      "figma": "→ primitive/wine #a94a68",
+      "app": "--lp-v2-action-pressed（→ --deep。定義のみ、:active は #143）"
+    },
+    {
+      "token": "color/border/action",
+      "figma": "→ primitive/primary #be6482",
+      "app": "--primary（.btn-outline・.btn-line・.chip・.room-minute・入力欄の枠）"
+    },
+    {
+      "token": "color/border/divider・bg/band・art/mint",
+      "figma": "#f5dde4・#f2a7bc・#d3e8dd",
+      "app": "--line・--head・--art-mint（同名・同値）"
+    },
+    {
+      "token": "color/shelf/wood・slot-line・slot-line-owned",
+      "figma": "#c99c87・#cfbfba・#cfa194",
+      "app": "--shelf-wood・--shelf-slot-line・--shelf-slot-line-owned（棚の絵。owned は定義のみ）"
+    },
+    {
+      "token": "color/capsule/sparkle-bg・featured-glow-in・featured-glow-out",
+      "figma": "#fbeff6・#fffbef・#fbebc4",
+      "app": "--lp-v2-capsule-*（gacha.css の --cap-back）"
+    },
+    {
+      "token": "color/text/lux",
+      "figma": "#6b2b45",
+      "app": "--lux-text（.btn-lux・.congrats・.featured-head・.steps の番号・.goods-badge）"
+    },
+    {
+      "token": "color/state/disabled-soft・color/text/disabled-soft",
+      "figma": "#efe3e7・#6e5a61",
+      "app": "--disabled-soft・--disabled-soft-text（.room-minute:disabled・.room-switch・.win-status.st-exchanged・.switch-row b）"
+    },
+    {
+      "token": "Gradient/Rose gold・Rose gold soft・Pearl・Kakutei、Card Shadow",
+      "figma": "色スタイル 4・効果スタイル 1",
+      "app": "--rg・--rg-soft・--pearl・--kakutei・--shadow（同名・同値）"
+    },
+    {
+      "token": "Lastpiece v2/Heading・Heading S・Subtitle・Numeral・Overline",
+      "figma": "24/32・14/20・18/27・26/32・13/16",
+      "app": "--lp-v2-type-<名前>-size・-line（定義のみ。見出しの Zen Maru への切り替え・文字サイズの寄せは #143）"
+    },
+    {
+      "token": "Lastpiece v2/Caption",
+      "figma": "14/22",
+      "app": "--lp-v2-type-caption-size・-line（定義のみ。.page-header-notice の 14px は #143）"
     }
   ],
   "differencesFromApp": [
@@ -1008,16 +1383,34 @@
       "token": "color/border/focus",
       "figma": "#be6482",
       "app": "--deep #a94a68（:focus-visible 3px）",
-      "note": "Button の Focus の外側リング（accent/wine）と同じ色。非文字で 3:1 以上"
+      "note": "Button の Focus の外側リング（accent/wine）と同じ色。非文字で 3:1 以上。Figma は #123 の後に border/focus をワインへ変える予定（#122）"
     },
     {
-      "token": "color/border/default",
-      "figma": "#d8c9cf",
-      "app": "--line #F5DDE4（区切り線）",
-      "note": "区切りだけ。操作の境界に使わない"
+      "token": "コイン札（#120 B1）",
+      "figma": "白地＋sanrio/melody-pink 1.5px 枠・radius/full・Caption Bold・accent/wine",
+      "app": "--mint の地",
+      "note": "見た目の変更は #143"
+    },
+    {
+      "token": "見出しの文字（Heading）",
+      "figma": "Zen Maru Gothic Bold 24/32",
+      "app": "一部がまだ --mincho（.banner-title・.sheet-head h2・.open-title・.board h2 など）",
+      "note": "#143"
+    },
+    {
+      "token": "LP v2 / Chip・Input・Button Text の寸法",
+      "figma": "高さ 44・48・48",
+      "app": ".chip・.room-minute・.room-name-form input・.btn-text は近いが未照合",
+      "note": "#143"
+    },
+    {
+      "token": "radius/tile（棚の一覧の行 267:8631）",
+      "figma": "16",
+      "app": ".shelf-row 18px",
+      "note": "#143"
     }
   ],
-  "differencesNote": "--bg/--surface/--soft/--main/--deep は tokens.css と同名・同値。src/index.css の --head・--line・--rg 等は Figma の「JTCC / Lastpiece」(83:18) にだけある。旧名 --wine は見出し用で、値は --text と同じ（Figma の accent/wine は --deep）。",
+  "differencesNote": "--bg/--surface/--soft/--main/--deep と、0.5.0 で DS に入ったアプリ由来の名前（--primary・--line・--head・--shelf-*・--art-mint・--lux-text・--disabled-soft*・--rg 等・--shadow）は tokens.css と同名・同値（scripts/design-tokens.test.mjs）。旧名 --wine は見出し用で、値は --text と同じ（Figma の accent/wine は --deep）。区切り線 --line は 0.5.0 で color/border/divider として DS に入ったので差から外した。",
   "contrastAudit": [
     {
       "name": "text/primary / bg/canvas",
@@ -1162,7 +1555,7 @@
       "minimum": 4.5,
       "ratio": 4.65,
       "pass": true,
-      "note": "選択中のタブの文字（12〜14px）とコイン札"
+      "note": "選択中のタブの文字（12〜14px）。Web のコイン札は #143 で白地に変わるまでこの組合せ（#120 B1）"
     },
     {
       "name": "text/secondary / nav/selected",
@@ -1369,6 +1762,14 @@
   ],
   "history": [
     {
+      "version": "0.4.1",
+      "date": "2026-09-26",
+      "status": "superseded",
+      "supersededOn": "2026-09-27",
+      "summary": "#122 の DS 追加前。Primitives 14・Tokens 30・Sanrio World 11、文字スタイル 6、action/pressed は緑（excluded）",
+      "snapshot": "git show 93d00ef:design-system/figma-manifest.json"
+    },
+    {
       "version": "0.3.0",
       "date": "2026-09-26",
       "status": "superseded",
@@ -1384,6 +1785,29 @@
       "paletteDecision": "Keep existing app green palette (user confirmed)",
       "summary": "JTCC App 初版。4コレクション57変数（Primitives 12、Color 16、Layout 17、Typography 12）、JTCC/Button 76:32・Input 78:2・Card 79:2、320px 確認 80:2。アクセント #16634d。ラストピースには使わない",
       "snapshot": "git show fb93ffa:design-system/figma-manifest.json"
+    }
+  ],
+  "excludedNote": "0.5.0 で空。action/pressed は #122 でワインに変わり、primitive/forest-deep は削除された",
+  "paintStyles": [
+    {
+      "id": "S:4fefffae0d69736b18afe29354de8c94d27d4673,",
+      "name": "Lastpiece v2/Gradient/Rose gold",
+      "css": "--rg"
+    },
+    {
+      "id": "S:0ba41935670ec6a08328d5133bc25b998d811de6,",
+      "name": "Lastpiece v2/Gradient/Rose gold soft",
+      "css": "--rg-soft"
+    },
+    {
+      "id": "S:2d647d5f1b804784c4dd1527957c319abc20f830,",
+      "name": "Lastpiece v2/Gradient/Pearl",
+      "css": "--pearl"
+    },
+    {
+      "id": "S:388bff208741a215792856f40c0cdde5454579f1,",
+      "name": "Lastpiece v2/Gradient/Kakutei",
+      "css": "--kakutei"
     }
   ]
 }

@@ -177,7 +177,7 @@
   color: var(--deep); font-weight: 800; font-size: var(--button-size, 1.1875rem); cursor: pointer; padding: 0 0.25rem;
 }
 .room-minute[aria-pressed='true'] { background: var(--room-accent); color: #fff; }
-.room-minute:disabled { border-color: transparent; background: #EFE3E7; color: #6E5A61; cursor: not-allowed; }
+.room-minute:disabled { border-color: transparent; background: var(--disabled-soft); color: var(--disabled-soft-text); cursor: not-allowed; }
 
 /* ピッチ用・参加のスイッチ */
 .room-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
@@ -187,7 +187,7 @@
 .room-switch input {
   appearance: none; flex: none; margin: 0; width: 3.5rem; height: 2.75rem; border-radius: 999px; cursor: pointer;
   border: 2px solid var(--sub);
-  background: radial-gradient(circle at 1.3rem 50%, var(--surface) 0 0.8rem, transparent 0.85rem), #EFE3E7;
+  background: radial-gradient(circle at 1.3rem 50%, var(--surface) 0 0.8rem, transparent 0.85rem), var(--disabled-soft);
 }
 .room-switch input:checked {
   border-color: var(--room-accent);

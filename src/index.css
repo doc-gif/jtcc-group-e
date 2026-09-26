@@ -2,7 +2,7 @@
 
 /*
  * 配色「さくらミルク」。値はデザインマスター（Figma 267:8198）の変数「Lastpiece v2 / Tokens」(177:16) に合わせる。
- * 対応と比は design-system/tokens.css・docs/DESIGN.md。
+ * 対応と比は design-system/tokens.css・docs/DESIGN.md。tokens.css と同じ名前の変数は同じ値にする（scripts/design-tokens.test.mjs が検査）。
  * ピンクの文字は2色を使い分ける（担当者の判断、2026-09-26）:
  *   --primary (#be6482) … 主ボタンの塗りと、枠ボタン・街の場所名の文字。白との比は 3.94:1 なので、
  *                         文字は --button-size（19px 太字 = WCAG の大きい文字）以上だけに使う。
@@ -12,30 +12,58 @@
   --bg: #FFF9FA;        /* color/bg/canvas */
   --surface: #FFFFFF;   /* color/bg/surface */
   --soft: #FDEEF2;      /* color/bg/soft */
-  --line: #F5DDE4;
-  --head: #F2A7BC;
+  --line: #F5DDE4;      /* color/border/divider（飾りの区切り線。入力欄やボタンの境界には使わない） */
+  --head: #F2A7BC;      /* color/bg/band（ピンクの帯・吹き出しの枠） */
   --main: #DE7F9C;      /* color/accent/rose（飾りと線） */
-  --primary: #BE6482;   /* color/action/primary */
+  --primary: #BE6482;   /* color/action/primary・color/border/action（枠ボタン・Chip・入力欄の枠） */
   --deep: #A94A68;      /* color/accent/wine */
-  --mint: #E3F1E7;      /* color/nav/selected（選択中のタブ・コイン札） */
-  /* 絵の色。Figma では変数でない塗りなので design-system/ には置かない。文字には使わない（F11） */
-  --shelf-wood: #C99C87;      /* T09 267:8476 の木の棚板 */
-  --shelf-slot-line: #CFBFBA; /* 棚の空き枠の線 */
-  --art-mint: #D3E8DD;        /* 267:8884 フレンドなしの絵の右の顔 */
+  --lp-v2-action-pressed: var(--deep); /* color/action/pressed（押している間の塗り。#122 で緑からワインに） */
+  --mint: #E3F1E7;      /* color/nav/selected（下のタブの選択中だけ。コイン札は白地＋melody-pink の枠、#120 B1） */
+  /* 絵の色。Figma 変数（#122 で Tokens に追加）。文字には使わない（F11） */
+  --shelf-wood: #C99C87;             /* color/shelf/wood（T09 267:8476 の木の棚板） */
+  --shelf-slot-line: #CFBFBA;        /* color/shelf/slot-line（棚の空き枠の線） */
+  --shelf-slot-line-owned: #CFA194;  /* color/shelf/slot-line-owned（持っている枠の線） */
+  --art-mint: #D3E8DD;               /* color/art/mint（267:8884 フレンドなしの絵の右の顔） */
+  --lp-v2-capsule-sparkle-bg: #FBEFF6;        /* color/capsule/sparkle-bg（光るカプセルの地） */
+  --lp-v2-capsule-featured-glow-in: #FFFBEF;  /* color/capsule/featured-glow-in（目玉の光の内側） */
+  --lp-v2-capsule-featured-glow-out: #FBEBC4; /* color/capsule/featured-glow-out（目玉の光の外側） */
   --disabled: #D4DCD7;  /* color/action/disabled */
   --disabled-line: #D8C9CF; /* color/border/default（無効の枠） */
+  --disabled-soft: #EFE3E7;      /* color/state/disabled-soft（ルームの無効チップ・交換済みの札の地） */
+  --disabled-soft-text: #6E5A61; /* color/text/disabled-soft（その上の文字。地で 5.10:1） */
+  --lux-text: #6B2B45;           /* color/text/lux（.btn-lux などローズゴールドの地の文字） */
   --text: #172324;      /* color/text/primary */
   --sub: #52615A;       /* color/text/secondary・text/disabled */
   --wine: var(--text);  /* 旧名。濃い見出しの文字で、値は本文と同じ。Figma の accent/wine は --deep */
   /* 文字スタイル「Lastpiece v2/Button」19/28。rem なので文字の拡大に追従する */
   --button-size: 1.1875rem;
   --button-line: 1.75rem;
-  --rg: linear-gradient(120deg, #FBE3D9, #EDB3A3, #FFF1EC, #D98C86);
-  --rg-soft: linear-gradient(120deg, #FBE3D9, #F4CBBE, #FFF1EC);
-  --pearl: linear-gradient(120deg, #FFFFFF, #F9D4E0, #FFF6F9);
-  --kakutei: linear-gradient(160deg, #C77A96, #8E3F5E 55%, #5E2540);
-  --shadow: 0 2px 12px rgba(222, 127, 156, 0.18);
-  --radius: 14px;
+  /* 他の文字スタイル（#122 で DS に追加。値は tokens.css と同じ。適用は #143） */
+  --lp-v2-type-caption-size: 0.875rem;    /* Caption 14/22 */
+  --lp-v2-type-caption-line: 1.375rem;
+  --lp-v2-type-heading-size: 1.5rem;      /* Heading 24/32（Zen Maru Gothic Bold、--font-heading） */
+  --lp-v2-type-heading-line: 2rem;
+  --lp-v2-type-heading-s-size: 0.875rem;  /* Heading S 14/20（Zen Maru Gothic Bold。吹き出し） */
+  --lp-v2-type-heading-s-line: 1.25rem;
+  --lp-v2-type-subtitle-size: 1.125rem;   /* Subtitle 18/27 Bold（カードの品名） */
+  --lp-v2-type-subtitle-line: 1.6875rem;
+  --lp-v2-type-numeral-size: 1.625rem;    /* Numeral 26/32 Bold（ルームの人数・時計。tabular-nums） */
+  --lp-v2-type-numeral-line: 2rem;
+  --lp-v2-type-overline-size: 0.8125rem;  /* Overline 13/16 Bold（eyebrow。色は --deep か --sub） */
+  --lp-v2-type-overline-line: 1rem;
+  /* 色スタイル「Lastpiece v2/Gradient/*」と効果スタイル「Lastpiece v2/Card Shadow」（#122 で DS に追加） */
+  --rg: linear-gradient(120deg, #FBE3D9, #EDB3A3, #FFF1EC, #D98C86);     /* Gradient/Rose gold */
+  --rg-soft: linear-gradient(120deg, #FBE3D9, #F4CBBE, #FFF1EC);         /* Gradient/Rose gold soft */
+  --pearl: linear-gradient(120deg, #FFFFFF, #F9D4E0, #FFF6F9);           /* Gradient/Pearl */
+  --kakutei: linear-gradient(160deg, #C77A96, #8E3F5E 55%, #5E2540);     /* Gradient/Kakutei */
+  --shadow: 0 2px 12px rgba(222, 127, 156, 0.18);                        /* Card Shadow */
+  /* 角丸（Tokens の radius/*）。--radius は操作部品の角丸で radius/control と同じ（#120 D8 で 14px → 12px） */
+  --lp-v2-radius-control: 12px;
+  --lp-v2-radius-tile: 16px;   /* 棚の枠・一覧の行 */
+  --lp-v2-radius-panel: 18px;  /* 集計カード */
+  --lp-v2-radius-card: 20px;
+  --lp-v2-radius-full: 999px;
+  --radius: var(--lp-v2-radius-control);
   --mincho: 'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', serif;
   /*
    * F14 サンリオの世界観（2026-09-26 にマスターへ反映、このアプリ実装で Web に反映）。
