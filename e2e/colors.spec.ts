@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { SEED_STORAGE_KEY, uxScenarios } from './ux-scenarios.ts'
+import { openScenario, SEED_STORAGE_KEY, uxScenarios } from './ux-scenarios.ts'
 
 /**
  * 主操作色 #be6482（color/action/primary）は白との比が 3.94:1。WCAG の大きい文字（18.66px 以上の太字、または 24px 以上）
@@ -11,7 +11,7 @@ for (const scenario of uxScenarios) {
   test(`${scenario.name}: 主操作色の文字は大きい文字だけ`, async ({ page }) => {
     if (scenario.pauseTimers) { await page.clock.install({ time: 0 }); await page.clock.pauseAt(1000) }
     if (scenario.seed) await page.addInitScript(([key, value]) => { localStorage.setItem(key, value) }, [SEED_STORAGE_KEY, scenario.seed])
-    await page.goto(scenario.path)
+    await openScenario(page, scenario, (heading) => expect(page.getByRole('heading', { level: 1 })).toHaveText(heading))
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     const small = await page.evaluate((color) => [...document.querySelectorAll('body *')].flatMap((element) => {
       const style = getComputedStyle(element)

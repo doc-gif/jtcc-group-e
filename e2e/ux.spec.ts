@@ -1,6 +1,6 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { SEED_STORAGE_KEY, uxScenarios } from './ux-scenarios.ts'
+import { openScenario, SEED_STORAGE_KEY, uxScenarios } from './ux-scenarios.ts'
 
 /**
  * 時計を止めた画面では、axe が使うタイマーだけを 1ms ずつ進めて検査する（導入は 3 秒まで進まない）。
@@ -19,7 +19,7 @@ for (const scenario of uxScenarios) {
     // 止めた読み込みは最後まで返さない（検査のあいだ読み込み中のまま）
     if (scenario.goods) await page.route('**/assets/goods/**', (route) => (scenario.goods === 'fail' ? route.abort() : new Promise<void>(() => {})))
     if (scenario.seed) await page.addInitScript(([key, value]) => { localStorage.setItem(key, value) }, [SEED_STORAGE_KEY, scenario.seed])
-    await page.goto(scenario.path)
+    await openScenario(page, scenario, (heading) => expect(page.getByRole('heading', { level: 1 })).toHaveText(heading))
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     expect(await axeViolations(page, Boolean(scenario.pauseTimers))).toEqual([])
     const controls = page.locator('button, a[href], input:not([type="hidden"]), select, textarea, [role="button"], [role="tab"]')

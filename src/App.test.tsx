@@ -343,7 +343,7 @@ describe('ガチャ詳細', () => {
     expect(screen.getByRole('link', { name: '中身12種と確率を見る' })).toHaveAttribute('href', '#/gacha/melody-anniv/odds')
     expect(screen.getByRole('link', { name: '1回引く準備へ' })).toHaveAttribute('href', '#/gacha/melody-anniv/spin')
     // ルームの入口はここだけなので残す（Figma 修正待ち）
-    expect(screen.getByRole('link', { name: /友達と回す/ })).toHaveAttribute('href', '#/gacha/melody-anniv/room')
+    expect(screen.getByRole('link', { name: /友達と回す/ })).toHaveAttribute('href', '#/room/new')
     // マスターにない中身の全リスト・お知らせ・注意事項・残りバーは出さない（中身は「中身と確率」で見る）
     for (const text of ['中身の全リスト', '大事なお知らせ', '注意事項']) expect(screen.queryByText(new RegExp(text))).toBeNull()
     expect(document.querySelector('.remain')).toBeNull()
@@ -562,66 +562,6 @@ describe('ガチャの流れ（T08）', () => {
   })
 })
 
-describe('友達と回す（デモ）', () => {
-  test('ルームを作り、全員そろったら回せる。目玉なら確定演出と結果の一覧が出る', async () => {
-    start('#/me')
-    fireEvent.click(button(/次の1回を目玉確定にする/))
-    expect(saved().forceFeaturedNext).toBe(true)
-    go('#/gacha/melody-anniv/room')
-    const sheet = screen.getByRole('dialog', { name: '友達と いっしょに回そう' })
-    expect(within(sheet).getByRole('link', { name: 'LINEで送る' })).toHaveAttribute('href', expect.stringContaining('line.me'))
-    await act(async () => { fireEvent.click(within(sheet).getByRole('button', { name: 'リンクをコピー' })) })
-    expect(within(sheet).getByText(/コピーできませんでした|コピーしました/)).toBeInTheDocument()
-    const startButton = within(sheet).getByRole('button', { name: /みんなで回す/ })
-    expect(startButton).toBeDisabled()
-    for (let i = 0; i < 4; i += 1) tick(TIMING.roomStep)
-    expect(startButton).toBeEnabled()
-    fireEvent.click(startButton)
-    go(window.location.hash)
-    fireEvent.click(button(/使って1回引く/))
-    expect(screen.getByText(/ROOM・3人でいっしょに/)).toBeVisible()
-    fireEvent.click(button(/1タップで1回転/))
-    fireEvent.click(button(/1タップで1回転/))
-    expect(screen.getByText('目玉 確定')).toBeInTheDocument()
-    fireEvent.click(button('かわいい！'))
-    expect(screen.getByText('かわいい！', { selector: '.member-bubble' })).toBeInTheDocument()
-    fireEvent.click(button(/1タップで1回転/))
-    tick(TIMING.drop)
-    for (let i = 0; i < 3; i += 1) fireEvent.click(screen.getByRole('button', { name: /カプセルをタップ/ }))
-    tick(TIMING.open)
-    expect(screen.getByText('おめでとうございます！', { selector: '.big-banner b' })).toBeVisible()
-    fireEvent.click(button('みんなの結果を見る'))
-    const board = screen.getByRole('dialog', { name: /みんなの結果/ })
-    // 回帰：みんなの結果の下に、自分の結果の画面（見出し・操作）を残さない
-    expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'みんなの結果を見る' })).toBeNull()
-    expect(within(board).getAllByText(/カプセルを開けています/)).toHaveLength(2)
-    tick(TIMING.friendReveal)
-    tick(TIMING.friendReveal)
-    expect(within(board).queryByText(/カプセルを開けています/)).toBeNull()
-    fireEvent.click(within(board).getAllByRole('button', { name: /いいな〜/ })[0])
-    expect(within(board).getByText('送った♡')).toBeVisible()
-    expect(saved().wins[0].companions).toEqual(['ゆい', 'さき'])
-    expect(saved().forceFeaturedNext).toBe(false)
-    fireEvent.click(within(board).getByRole('button', { name: /もう1回、みんなで回す/ }))
-    expect(screen.queryByRole('dialog', { name: /みんなの結果/ })).toBeNull()
-  })
-
-  test('招待リンクを開いた人は、ニックネームを入れて待ち合わせに入る', () => {
-    start('#/room/sumikko-sakura')
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('いっしょに回そう♡')
-    fireEvent.click(button('ルームに入る'))
-    expect(screen.getByText('ニックネームを入れてください')).toBeVisible()
-    fireEvent.change(screen.getByLabelText(/ニックネーム/), { target: { value: 'さくら' } })
-    fireEvent.click(button('ルームに入る'))
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('みんなを待っています')
-    expect(screen.getByText('さくら（あなた）')).toBeVisible()
-    expect(saved().nickname).toBe('さくら')
-    go('#/room/unknown')
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('ページが見つかりません')
-  })
-})
-
 describe('当てたもの', () => {
   function withWins() {
     start('#/gacha/sanrio-capsule/spin')
@@ -700,12 +640,12 @@ describe('マイページ・はじめて・いっしょに', () => {
     expect(screen.queryByRole('link', { name: /はじめての方へ/ })).toBeNull()
   })
 
-  test('フレンド：まだ友だちがいないと、ガチャへ案内する（ルームはガチャ詳細の「友達と回す」から作る）', () => {
+  test('フレンド：まだ友だちがいないと、ガチャへ案内する（ルームはガチャ詳細の「友達と回す」から作る共有ルーム）', () => {
     start('#/together')
     expect(screen.getByText('まだ友だちはいません')).toBeVisible()
     expect(screen.getByRole('link', { name: 'ガチャを見る' })).toHaveAttribute('href', '#/gacha')
     go('#/gacha/melody-anniv')
-    expect(screen.getByRole('link', { name: /友達と回す/ })).toHaveAttribute('href', '#/gacha/melody-anniv/room')
+    expect(screen.getByRole('link', { name: /友達と回す/ })).toHaveAttribute('href', '#/room/new')
   })
 
   test('保存できない端末では、その旨を伝えて遊べる', () => {

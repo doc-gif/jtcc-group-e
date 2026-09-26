@@ -37,6 +37,29 @@ export class MockRoomServer {
 
   private wake(roomId: string) { this.listeners.get(roomId)?.forEach(listener => listener()) }
 
+  /**
+   * 端末内デモの保存用。部屋とホスト用キーを JSON にできる形で返す（Map・Set は配列にする）。
+   * ブラウザのタブ間で同じ模擬サーバーを共有するためだけに使い、別の端末とはつながらない。
+   */
+  exportState(): unknown {
+    return { rooms: [...this.rooms.values()].map(room => ({ ...room, members: [...room.members.values()] })), hostKeys: [...this.hostKeys] }
+  }
+
+  /** exportState の値で置き換える（部屋だけの配列も読む）。形が違う値は無視して空にする（壊れた保存データ）。 */
+  importState(data: unknown) {
+    this.rooms = new Map()
+    this.hostKeys = new Set()
+    const saved = data && typeof data === 'object' && !Array.isArray(data) ? data as { rooms?: unknown; hostKeys?: unknown } : { rooms: data }
+    if (Array.isArray(saved.hostKeys)) for (const key of saved.hostKeys) if (typeof key === 'string' && HOST_KEY_PATTERN.test(key)) this.hostKeys.add(key)
+    if (!Array.isArray(saved.rooms)) return
+    for (const value of saved.rooms) {
+      if (!value || typeof value !== 'object' || !Array.isArray((value as { members?: unknown }).members)) continue
+      const room = value as Omit<MockRoom, 'members'> & { members: MockMember[] }
+      if (typeof room.id !== 'string') continue
+      this.rooms.set(room.id, { ...room, members: new Map(room.members.map(member => [member.id, member])) })
+    }
+  }
+
   /** Registers a host key (tests and local demos). */
   addHostKey(key: string) {
     if (!HOST_KEY_PATTERN.test(key)) throw new Error('Invalid host key')
