@@ -403,7 +403,12 @@ describe('復帰・ホスト不在・期限', () => {
     expect(heading()).toHaveTextContent('ホスト用リンクが無効です')
     expect(screen.getByText('ルームは作られていません')).toBeVisible()
     view.unmount()
-    open('#/host/some-key', sessionFor('stranger', new MemoryStorage(), memoryKeys()))
+    view = open('#/host/some-key', sessionFor('stranger', new MemoryStorage(), memoryKeys()))
+    await flush()
+    expect(heading()).toHaveTextContent('ホスト用リンクが無効です')
+    view.unmount()
+    // 回帰：有効なリンクを開いた後でも、形の違うリンクは前のキーを使わずに無効と案内する
+    open('#/host/A B', sessionFor('stranger', new MemoryStorage(), memoryKeys()))
     await flush()
     expect(heading()).toHaveTextContent('ホスト用リンクが無効です')
     expect(screen.getByRole('link', { name: '街へ戻る' })).toHaveAttribute('href', '#/')

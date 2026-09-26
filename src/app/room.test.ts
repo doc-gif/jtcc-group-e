@@ -3,7 +3,7 @@ import { MockRoomServer } from '../realtime/mock'
 import type { RoomState } from '../realtime/roomController'
 import { clockText, nameProblem, remainText, roomTitle, roomView, timeOfDay, type RoomUi } from './roomView'
 import {
-  createRoomSession, demoHostKey, demoTransport, forgetRecord, readRecords, ROOM_DEMO_KEY, ROOM_DEMO_USER_KEY, ROOM_DEMO_WAKE_KEY, ROOM_RECORDS_KEY,
+  browserLock, createRoomSession, demoHostKey, demoTransport, forgetRecord, readRecords, ROOM_DEMO_KEY, ROOM_DEMO_USER_KEY, ROOM_DEMO_WAKE_KEY, ROOM_RECORDS_KEY,
   safeStorage, writeRecord, type KeyValue,
 } from './sharedRoom'
 
@@ -164,6 +164,18 @@ describe('端末内デモの transport（同じブラウザのタブだけで共
     await expect(transport.snapshot('room-1')).rejects.toThrow('room-unavailable')
     local.setItem(ROOM_DEMO_KEY, JSON.stringify({ rooms: 'x', hostKeys: ['short', 7] }))
     await expect(transport.resumeHost('a'.repeat(32), null)).rejects.toThrow('host-key-invalid')
+    // 形の合わない部屋は丸ごと捨てる（開こうとしても例外で止まらず、ルームがない扱い）
+    for (const room of [
+      { id: 'room-1', members: [] },
+      { id: 'room-1', invite: 'i', host: 'h', expiresAt: 1, roundNo: 0, members: [{ id: 'h' }], stock: { plush: 1, pouch: 1, badge: 1 }, rounds: [] },
+      { id: 'room-1', invite: 'i', host: 'h', expiresAt: 1, roundNo: 0, members: [], stock: { plush: 1 }, rounds: [] },
+      { id: 'room-1', invite: 'i', host: 'h', expiresAt: 1, roundNo: 0, members: [], stock: { plush: 1, pouch: 1, badge: 1 }, rounds: [], round: { number: 1 } },
+      { id: 'room-1', invite: 'i', host: 'h', expiresAt: 1, roundNo: 0, members: [], stock: { plush: 1, pouch: 1, badge: 1 }, rounds: [], lastSchedule: { status: 'x' } },
+      { id: 'room-1', invite: 'i', host: 'h', expiresAt: 1, roundNo: 0, members: [], stock: { plush: 1, pouch: 1, badge: 1 }, rounds: [], scheduledAt: 'soon' },
+    ]) {
+      local.setItem(ROOM_DEMO_KEY, JSON.stringify({ rooms: [room] }))
+      await expect(transport.snapshot('room-1')).rejects.toThrow('room-unavailable')
+    }
   })
 
   test('端末内デモのセッションだけが、この端末をデモのホストにできる', async () => {
@@ -174,6 +186,31 @@ describe('端末内デモの transport（同じブラウザのタブだけで共
     expect(demo.controller.getState()).toMatchObject({ isHost: true, hostKey: key })
     const real = createRoomSession(new MockRoomServer().asUser('u'), false, records, { hostKeys: memoryKeys() })
     expect(real.makeDemoHostKey).toBeNull()
+  })
+
+  test('タブの間の鍵の中で読み込み → 変更 → 保存する。鍵がなければこのタブの中で順に実行する', async () => {
+    const local = new MemoryStorage()
+    const order: string[] = []
+    const lock = <T,>(run: () => Promise<T>) => { order.push('lock'); return run() }
+    const transport = demoTransport({ storage: local, session: new MemoryStorage(), lock, listen: () => () => {} })
+    const key = demoHostKey()
+    transport.addHostKey(key)
+    await transport.create('room-1', key, 'ミオ')
+    await transport.snapshot('room-1')
+    expect(order).toEqual(['lock', 'lock'])
+
+    const queued = browserLock()
+    const steps: string[] = []
+    let release = () => {}
+    const first = queued(() => new Promise<void>((resolve) => { steps.push('first'); release = resolve }))
+    const second = queued(async () => { steps.push('second') })
+    await Promise.resolve()
+    expect(steps).toEqual(['first'])
+    release()
+    await Promise.all([first, second])
+    expect(steps).toEqual(['first', 'second'])
+    await expect(queued(async () => { throw new Error('boom') })).rejects.toThrow('boom')
+    await expect(queued(async () => 'next')).resolves.toBe('next')
   })
 
   test('入ったルームの記録（見守り・確認済み）と、保存できない端末', () => {

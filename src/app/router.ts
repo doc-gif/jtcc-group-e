@@ -31,8 +31,9 @@ export function parseHash(hash: string): Route {
   if (parts.length === 1 && head === 'gacha') return { name: 'gachaList' }
   if (parts.length === 1 && head === 'shelf') return { name: 'shelf' }
   if (parts.length === 1 && (head === 'collection' || head === 'together' || head === 'me' || head === 'welcome')) return { name: head }
-  // ホスト用リンクのキーは大文字・_ を含む（形の確かめは画面と状態層で行い、違えば「無効」と案内する）
-  if (head === 'host' && parts.length <= 2) return { name: 'host', key: id && /^[A-Za-z0-9_-]+$/.test(id) ? id : null }
+  // ホスト用リンクのキーは大文字・_ を含む。形の確かめは状態層で行い、違えば「無効」と案内する。
+  // key が null なのはキーのない #/host だけ（この端末に保存したキーで戻る）
+  if (head === 'host' && parts.length <= 2) return { name: 'host', key: id ?? null }
   if (!id || !ID.test(id)) return { name: 'notfound' }
   if (head === 'gacha' && parts.length === 2) return { name: 'gacha', id }
   // 以前の「友達と回す」のリンク。ルームはガチャに結びつかない共有ルーム（T10）になった

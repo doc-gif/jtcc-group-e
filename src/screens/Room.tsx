@@ -795,7 +795,7 @@ export function RoomCreate({ hostKey = null }: { hostKey?: string | null }) {
 }
 
 type HostLinkStatus = 'checking' | 'create' | 'invalid' | 'limited' | 'offline'
-/** アドレスバーから消したキー（このページを開いている間だけ）。#/host だけで開き直しても同じキーで続ける。 */
+/** アドレスバーから消したキー（このページを開いている間だけ）。キーのない #/host で開き直したときだけ使う。 */
 let linkKey: string | null = null
 
 /**

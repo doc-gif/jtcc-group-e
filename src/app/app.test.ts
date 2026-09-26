@@ -23,7 +23,7 @@ describe('画面のハッシュ', () => {
     expect(parseHash(paths.host('Key_1-a'))).toEqual({ name: 'host', key: 'Key_1-a' })
     expect(parseHash(paths.host())).toEqual({ name: 'host', key: null })
     // 形の違うキーは「ホスト用リンクが無効」で案内する（見つからない扱いにしない）
-    expect(parseHash('#/host/A B')).toEqual({ name: 'host', key: null })
+    expect(parseHash('#/host/A B')).toEqual({ name: 'host', key: 'A B' })
     for (const name of ['collection', 'together', 'me', 'shelf'] as const) expect(parseHash(`#/${name}/`)).toEqual({ name })
     expect(parseHash(paths.shelfShare)).toEqual({ name: 'shelfShare' })
     expect(parseHash(paths.shelfItem('a-1'))).toEqual({ name: 'shelfItem', id: 'a-1' })

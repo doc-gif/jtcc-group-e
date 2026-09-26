@@ -46,6 +46,11 @@ export interface DemoTransportOptions {
   session: KeyValue
   /** false なら通信できない扱いにする（端末がオフライン）。 */
   isOnline?: () => boolean
+  /**
+   * タブの間で操作を1つずつにする鍵（読み込み → 変更 → 保存の間にほかのタブが割り込まない）。
+   * 既定はブラウザの Web Locks。使えない環境では、このタブの中だけで順に実行する。
+   */
+  lock?: <T>(run: () => Promise<T>) => Promise<T>
   /** 別のタブが ROOM_DEMO_WAKE_KEY で知らせたときの通知。 */
   listen?: (changed: () => void) => () => void
   server?: MockRoomServer
@@ -60,7 +65,19 @@ export interface DemoTransport extends RoomTransport {
   addHostKey(key: string): void
 }
 
-export function demoTransport({ storage, session, isOnline = () => true, listen, server = new MockRoomServer() }: DemoTransportOptions): DemoTransport {
+/** Web Locks があればタブをまたいで、なければこのタブの中で、操作を1つずつ実行する。 */
+export function browserLock(): <T>(run: () => Promise<T>) => Promise<T> {
+  let queue: Promise<unknown> = Promise.resolve()
+  const locks = typeof navigator !== 'undefined' ? (navigator as Navigator & { locks?: LockManager }).locks : undefined
+  return <T>(run: () => Promise<T>) => {
+    if (locks) return locks.request(ROOM_DEMO_KEY, run) as Promise<T>
+    const next = queue.then(run, run)
+    queue = next.catch(() => undefined)
+    return next
+  }
+}
+
+export function demoTransport({ storage, session, isOnline = () => true, lock = browserLock(), listen, server = new MockRoomServer() }: DemoTransportOptions): DemoTransport {
   let userId = session.getItem(ROOM_DEMO_USER_KEY)
   if (!userId) { userId = newId(); session.setItem(ROOM_DEMO_USER_KEY, userId) }
   const inner = server.asUser(userId)
@@ -73,14 +90,18 @@ export function demoTransport({ storage, session, isOnline = () => true, listen,
   const call = <A extends unknown[], R>(run: (...args: A) => Promise<R>) => async (...args: A): Promise<R> => {
     // 実際の通信と同じく、端末がオフラインなら届かない（再接続の流れを端末内でも確かめられる）。
     if (!isOnline()) throw new Error('offline')
-    load()
-    // 模擬サーバーの処理は呼び出しの中で同期的に終わる。次の操作が読み込む前に保存しておく。
-    const result = run(...args)
-    persist()
-    return result
+    // 鍵の中で読み込み → 変更 → 保存する（ほかのタブの同時の操作を上書きしない）。
+    // 模擬サーバーの処理は呼び出しの中で同期的に終わるので、結果を待つ前に保存できる。
+    return lock(async () => {
+      load()
+      const result = run(...args)
+      persist()
+      return result
+    })
   }
   return {
     addHostKey(key) {
+      // 鍵なし：作ったキーはすぐ次の createAsHost で使うので、ここで同期的に保存する
       load()
       server.addHostKey(key)
       persist()
